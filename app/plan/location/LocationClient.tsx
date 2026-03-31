@@ -1427,9 +1427,11 @@ function Lm({ p, s = 0.4, info, mk, children }: { p: SurfPos; s?: number; info?:
     <group position={p.pos} quaternion={p.q}>
       <group scale={effS}>
         {model ? (
-          <Suspense fallback={<>{children}</>}>
-            <GlbModel path={model.path} scale={1} />
-          </Suspense>
+          <ModelErrorBoundary fallback={<>{children}</>}>
+            <Suspense fallback={<>{children}</>}>
+              <GlbModel path={model.path} scale={1} />
+            </Suspense>
+          </ModelErrorBoundary>
         ) : children}
 
         {/* Invisible sphere that reliably captures pointer events.

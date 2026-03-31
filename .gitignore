@@ -47,7 +47,6 @@ public/models/*.gltf
 # Large binaries and installers
 *.exe
 *.zip
-public/ne_10m_admin_1_states_provinces.json
 public/christ-the-redeemer/
 public/low-poly-eiffel-tower/
 public/low-poly-eiffel-tower.zip
@@ -57,3 +56,6 @@ public/Colosseum.glb
 public/source/
 public/Petra.glb
 .claude/
+
+.vercel
+.env*.local
