@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { SessionProvider } from "next-auth/react";
 import GlobalChat from "./components/GlobalChat";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   title: "AI Travel Planner",
@@ -18,6 +19,7 @@ export default function RootLayout({
       <body suppressHydrationWarning>
         <SessionProvider>{children}</SessionProvider>
         <GlobalChat />
+        <SpeedInsights />
       </body>
     </html>
   );
