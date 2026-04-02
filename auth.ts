@@ -10,6 +10,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   trustHost: true,
 
+  cookies: {
+    state: {
+      name: 'authjs.state',
+      options: { httpOnly: true, sameSite: 'lax' as const, path: '/', secure: true },
+    },
+    pkceCodeVerifier: {
+      name: 'authjs.pkce.code_verifier',
+      options: { httpOnly: true, sameSite: 'lax' as const, path: '/', secure: true },
+    },
+    callbackUrl: {
+      name: 'authjs.callback-url',
+      options: { httpOnly: true, sameSite: 'lax' as const, path: '/', secure: true },
+    },
+    sessionToken: {
+      name: 'authjs.session-token',
+      options: { httpOnly: true, sameSite: 'lax' as const, path: '/', secure: true },
+    },
+  },
+
   // JWT sessions — no DB lookup on every request
   session: { strategy: 'jwt' },
 
