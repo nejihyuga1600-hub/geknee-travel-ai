@@ -21,22 +21,25 @@ export async function GET() {
     prisma.friendship.findMany({ where: { friendId: userId }, include: { user: { select: USER_SELECT } } }),
   ]);
 
+  type SentRow     = (typeof sent)[number];
+  type ReceivedRow = (typeof received)[number];
+
   const friends = [
     ...sent
-      .filter(f => f.status === "accepted")
-      .map(f => ({ ...f.friend, online: isOnline(f.friend.lastSeen), friendshipId: f.id })),
+      .filter((f: SentRow) => f.status === "accepted")
+      .map((f: SentRow) => ({ ...f.friend, online: isOnline(f.friend.lastSeen), friendshipId: f.id })),
     ...received
-      .filter(f => f.status === "accepted")
-      .map(f => ({ ...f.user,   online: isOnline(f.user.lastSeen),   friendshipId: f.id })),
+      .filter((f: ReceivedRow) => f.status === "accepted")
+      .map((f: ReceivedRow) => ({ ...f.user, online: isOnline(f.user.lastSeen), friendshipId: f.id })),
   ];
 
   const pendingIncoming = received
-    .filter(f => f.status === "pending")
-    .map(f => ({ ...f.user, friendshipId: f.id }));
+    .filter((f: ReceivedRow) => f.status === "pending")
+    .map((f: ReceivedRow) => ({ ...f.user, friendshipId: f.id }));
 
   const pendingOutgoing = sent
-    .filter(f => f.status === "pending")
-    .map(f => ({ ...f.friend, friendshipId: f.id }));
+    .filter((f: SentRow) => f.status === "pending")
+    .map((f: SentRow) => ({ ...f.friend, friendshipId: f.id }));
 
   return Response.json({ friends, pendingIncoming, pendingOutgoing });
 }
