@@ -78,6 +78,11 @@ function GlobalChatUI({ ctx }: { ctx: ReturnType<typeof usePageContext> }) {
   const [confirmLoc,    setConfirmLoc]    = useState(''); // encoded location for push
   const destRef = useRef<HTMLInputElement>(null);
 
+  // Inspiration image upload
+  const [imageFile,    setImageFile]    = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const endRef   = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -141,8 +146,56 @@ function GlobalChatUI({ ctx }: { ctx: ReturnType<typeof usePageContext> }) {
     }
   }, [destInput, destLoading]);
 
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    const url = URL.createObjectURL(file);
+    setImagePreview(url);
+    e.target.value = '';
+  }, []);
+
+  const clearImage = useCallback(() => {
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImageFile(null);
+    setImagePreview('');
+  }, [imagePreview]);
+
   const sendGenie = useCallback(async () => {
-    if (!input.trim() || streaming) return;
+    if ((!input.trim() && !imageFile) || streaming) return;
+
+    // ── Image inspiration flow ──
+    if (imageFile) {
+      const caption = input.trim() || 'What travel destinations or experiences does this inspire?';
+      const userMsg: ChatMessage = { role: 'user', content: `${String.fromCodePoint(0x1F4F8)} ${caption}` };
+      setMessages(prev => [...prev, userMsg, { role: 'assistant', content: '' }]);
+      setInput('');
+      clearImage();
+      setStreaming(true);
+      try {
+        const form = new FormData();
+        form.append('image', imageFile);
+        form.append('prompt', caption);
+        const res = await fetch('/api/inspiration', { method: 'POST', body: form });
+        if (!res.body) throw new Error('no body');
+        const reader = res.body.getReader();
+        const dec = new TextDecoder();
+        let acc = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          acc += dec.decode(value, { stream: true });
+          setMessages(prev => [...prev.slice(0, -1), { role: 'assistant', content: acc }]);
+        }
+      } catch {
+        setMessages(prev => [...prev.slice(0, -1), { role: 'assistant', content: 'Could not analyze the image. Please try again.' }]);
+      } finally {
+        setStreaming(false);
+      }
+      return;
+    }
+
+    // ── Regular text chat flow ──
     const userMsg: ChatMessage = { role: 'user', content: input.trim() };
     const next = [...messages, userMsg];
     setMessages([...next, { role: 'assistant', content: '' }]);
@@ -182,7 +235,7 @@ function GlobalChatUI({ ctx }: { ctx: ReturnType<typeof usePageContext> }) {
     } finally {
       setStreaming(false);
     }
-  }, [input, streaming, messages, ctx]);
+  }, [input, imageFile, streaming, messages, ctx, clearImage]);
 
   return (
     <>
@@ -388,24 +441,48 @@ function GlobalChatUI({ ctx }: { ctx: ReturnType<typeof usePageContext> }) {
               <div ref={endRef} />
             </div>
 
+            {/* Image preview */}
+            {imagePreview && (
+              <div style={{ padding: '8px 12px 0', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <img src={imagePreview} alt="inspiration preview" style={{ height: 52, width: 72, borderRadius: 8, objectFit: 'cover', border: '1px solid rgba(129,140,248,0.4)' }} />
+                <div style={{ flex: 1, fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>
+                  {String.fromCodePoint(0x2728)} Image ready — add a caption or send now
+                </div>
+                <button onClick={clearImage} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 16, lineHeight: 1 }}>
+                  {String.fromCodePoint(0x00D7)}
+                </button>
+              </div>
+            )}
+
             {/* Input */}
             <div style={{ padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.07)', display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input ref={fileInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={handleFileSelect} />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                title="Add inspiration image"
+                style={{
+                  width: 36, height: 36, borderRadius: 10, border: '1px solid rgba(255,255,255,0.12)',
+                  background: imageFile ? 'rgba(129,140,248,0.2)' : 'rgba(255,255,255,0.06)',
+                  color: imageFile ? '#a78bfa' : 'rgba(255,255,255,0.5)', fontSize: 16, cursor: 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                }}
+              >{String.fromCodePoint(0x1F4F7)}</button>
               <input
                 ref={inputRef}
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendGenie(); } }}
-                placeholder={ctx.placeholder}
+                placeholder={imageFile ? 'Add a caption (optional)...' : ctx.placeholder}
                 disabled={streaming}
                 style={{ flex: 1, background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, color: '#fff', fontSize: 13, padding: '9px 12px', outline: 'none' }}
               />
               <button
                 onClick={sendGenie}
-                disabled={streaming || !input.trim()}
+                disabled={streaming || (!input.trim() && !imageFile)}
                 style={{
                   width: 36, height: 36, borderRadius: 10, border: 'none', flexShrink: 0,
-                  background: input.trim() && !streaming ? 'linear-gradient(135deg,#7c3aed,#4f46e5)' : 'rgba(255,255,255,0.08)',
-                  color: '#fff', fontSize: 15, cursor: input.trim() && !streaming ? 'pointer' : 'not-allowed',
+                  background: (input.trim() || imageFile) && !streaming ? 'linear-gradient(135deg,#7c3aed,#4f46e5)' : 'rgba(255,255,255,0.08)',
+                  color: '#fff', fontSize: 15, cursor: (input.trim() || imageFile) && !streaming ? 'pointer' : 'not-allowed',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}
               >{String.fromCodePoint(0x27A4)}</button>
