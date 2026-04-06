@@ -504,7 +504,7 @@ function ImageSlideshow({
   };
 
   const baseStyle: React.CSSProperties = {
-    height: 180, borderRadius: "12px 12px 0 0", overflow: "hidden",
+    height: 120, borderRadius: "10px 10px 0 0", overflow: "hidden",
     position: "relative", flexShrink: 0,
   };
 
@@ -719,16 +719,16 @@ function FlightCard({ flight, origin, destination, startDate, endDate }: {
   const expediaLink    = `https://www.expedia.com/Flights-Search?trip=roundtrip&leg1=departing:${encodeURIComponent(origin)},to:${encodeURIComponent(destIata)},departure:${toExpediaDate(startDate)}&leg2=departing:${encodeURIComponent(destIata)},to:${encodeURIComponent(origin)},departure:${toExpediaDate(endDate)}&passengers=adults:1,children:0`;
 
   return (
-    <div style={{ background: "#fff", borderRadius: 14, overflow: "hidden", border: "1.5px solid #e2e8f0", boxShadow: "0 2px 12px #0001" }}>
+    <div style={{ background: "#fff", borderRadius: 12, overflow: "hidden", border: "1px solid #e2e8f0", boxShadow: "0 1px 6px #0001" }}>
       <ImageSlideshow query={`${flight.airline} airplane flight`} category="flight" />
-      <div style={{ padding: "14px 16px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+      <div style={{ padding: "10px 13px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
           <div>
-            <span style={{ fontWeight: 800, fontSize: 15, color: "#1e293b" }}>{flight.airline}</span>
-            <span style={{ display: "block", fontSize: 11, color: "#94a3b8", marginTop: 1 }}>{flight.cabin} \u00B7 {flight.highlight}</span>
+            <span style={{ fontWeight: 700, fontSize: 13, color: "#1e293b" }}>{flight.airline}</span>
+            <span style={{ display: "block", fontSize: 10, color: "#94a3b8", marginTop: 1 }}>{flight.cabin} \u00B7 {flight.highlight}</span>
           </div>
           <div style={{ textAlign: "right" }}>
-            <span style={{ fontWeight: 800, fontSize: 20, color: "#16a34a" }}>{flight.price}</span>
+            <span style={{ fontWeight: 700, fontSize: 15, color: "#16a34a" }}>{flight.price}</span>
             <span style={{ display: "block", fontSize: 10, color: "#94a3b8" }}>{flight.priceNote}</span>
           </div>
         </div>
@@ -777,7 +777,7 @@ function FlightSection({ location, startDate, endDate, travelingFrom }: {
   }, [travelingFrom, location, startDate, endDate]);
 
   return (
-    <section style={{ marginBottom: 44 }}>
+    <section style={{ marginBottom: 28 }}>
       <SectionHeader icon="\u2708\uFE0F" title={`Flights: ${travelingFrom || "\u2026"} \u2192 ${destCity}`}
         loading={flightsLoading} count={!flightsLoading ? flights.length : undefined} />
 
@@ -801,12 +801,12 @@ function FlightSection({ location, startDate, endDate, travelingFrom }: {
 
       {error && <p style={{ color: "#dc2626", background: "#fef2f2", padding: "10px 14px", borderRadius: 10, fontSize: 13, marginBottom: 14 }}>{error}</p>}
       {flightsLoading && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(270px,1fr))", gap: 16 }}>
           <Skeleton h={320} /><Skeleton h={320} />
         </div>
       )}
       {!flightsLoading && flights.length > 0 && (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 16 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(270px,1fr))", gap: 16 }}>
           {flights.map((f, i) => <FlightCard key={i} flight={f} origin={travelingFrom} destination={location} startDate={startDate} endDate={endDate} />)}
         </div>
       )}
@@ -818,11 +818,11 @@ function FlightSection({ location, startDate, endDate, travelingFrom }: {
 
 function HotelCard({ hotel, location, checkIn, checkOut }: { hotel: Hotel; location: string; checkIn: string; checkOut: string }) {
   return (
-    <div style={{ background: "#fff", borderRadius: 14, overflow: "hidden", border: hotel.fromItinerary ? "2px solid #8b5cf6" : "1.5px solid #e2e8f0", boxShadow: hotel.fromItinerary ? "0 4px 24px #8b5cf620" : "0 2px 8px #0001" }}>
+    <div style={{ background: "#fff", borderRadius: 12, overflow: "hidden", border: hotel.fromItinerary ? "1.5px solid #8b5cf6" : "1px solid #e2e8f0", boxShadow: hotel.fromItinerary ? "0 2px 12px #8b5cf615" : "0 1px 4px #0001" }}>
       <ImageSlideshow query={`${hotel.name} hotel`} category="hotel" place={{ name: hotel.name, location }} />
-      <div style={{ padding: "14px 16px" }}>
-        <div style={{ marginBottom: 8 }}>
-          <span style={{ fontWeight: 700, fontSize: 15, color: "#1e293b" }}>{hotel.name}</span>
+      <div style={{ padding: "10px 13px" }}>
+        <div style={{ marginBottom: 6 }}>
+          <span style={{ fontWeight: 700, fontSize: 13, color: "#1e293b" }}>{hotel.name}</span>
           {hotel.fromItinerary && <ItineraryBadge />}
           <span style={{ display: "block", fontSize: 12, color: "#64748b", marginTop: 2 }}>{hotel.neighborhood} \u00B7 {hotel.priceRange}</span>
         </div>
@@ -850,11 +850,11 @@ function HotelCard({ hotel, location, checkIn, checkOut }: { hotel: Hotel; locat
 
 function RestaurantCard({ restaurant, location, startDate }: { restaurant: Restaurant; location: string; startDate: string }) {
   return (
-    <div style={{ background: "#fff", borderRadius: 14, overflow: "hidden", border: restaurant.fromItinerary ? "2px solid #8b5cf6" : "1.5px solid #e2e8f0", boxShadow: restaurant.fromItinerary ? "0 4px 24px #8b5cf620" : "0 2px 8px #0001" }}>
+    <div style={{ background: "#fff", borderRadius: 12, overflow: "hidden", border: restaurant.fromItinerary ? "1.5px solid #8b5cf6" : "1px solid #e2e8f0", boxShadow: restaurant.fromItinerary ? "0 2px 12px #8b5cf615" : "0 1px 4px #0001" }}>
       <ImageSlideshow query={`${restaurant.name} food`} category="restaurant" place={{ name: restaurant.name, location }} />
-      <div style={{ padding: "14px 16px" }}>
-        <div style={{ marginBottom: 8 }}>
-          <span style={{ fontWeight: 700, fontSize: 14, color: "#1e293b" }}>{restaurant.name}</span>
+      <div style={{ padding: "10px 13px" }}>
+        <div style={{ marginBottom: 6 }}>
+          <span style={{ fontWeight: 700, fontSize: 13, color: "#1e293b" }}>{restaurant.name}</span>
           {restaurant.fromItinerary && <ItineraryBadge />}
           <span style={{ display: "block", fontSize: 12, color: "#64748b", marginTop: 2 }}>{restaurant.cuisine} \u00B7 {restaurant.neighborhood} \u00B7 {restaurant.priceRange}</span>
         </div>
@@ -876,11 +876,11 @@ function RestaurantCard({ restaurant, location, startDate }: { restaurant: Resta
 
 function ActivityCard({ activity, location, startDate, endDate }: { activity: Activity; location: string; startDate: string; endDate: string }) {
   return (
-    <div style={{ background: "#fff", borderRadius: 14, overflow: "hidden", border: activity.fromItinerary ? "2px solid #8b5cf6" : "1.5px solid #e2e8f0", boxShadow: activity.fromItinerary ? "0 4px 24px #8b5cf620" : "0 2px 8px #0001" }}>
+    <div style={{ background: "#fff", borderRadius: 12, overflow: "hidden", border: activity.fromItinerary ? "1.5px solid #8b5cf6" : "1px solid #e2e8f0", boxShadow: activity.fromItinerary ? "0 2px 12px #8b5cf615" : "0 1px 4px #0001" }}>
       <ImageSlideshow query={`${activity.name} ${location}`} category="activity" place={{ name: activity.name, location }} />
-      <div style={{ padding: "14px 16px" }}>
-        <div style={{ marginBottom: 8 }}>
-          <span style={{ fontWeight: 700, fontSize: 14, color: "#1e293b" }}>{activity.name}</span>
+      <div style={{ padding: "10px 13px" }}>
+        <div style={{ marginBottom: 6 }}>
+          <span style={{ fontWeight: 700, fontSize: 13, color: "#1e293b" }}>{activity.name}</span>
           {activity.fromItinerary && <ItineraryBadge />}
           <span style={{ display: "block", fontSize: 12, color: "#64748b", marginTop: 2 }}>{activity.duration} \u00B7 {activity.priceEstimate}</span>
         </div>
@@ -1266,7 +1266,7 @@ function CarRentalSection({ location, startDate, endDate }: {
   const cityEnc = encodeURIComponent(location);
   const dep = startDate; const ret = endDate;
   return (
-    <section style={{ marginBottom: 44 }}>
+    <section style={{ marginBottom: 28 }}>
       <SectionHeader icon={String.fromCodePoint(0x1F697)} title="Car Rental" />
       <div style={{ background: "linear-gradient(135deg,#f0fdf4,#ecfdf5)", borderRadius: 12, padding: "14px 16px", marginBottom: 12, border: "1.5px solid #bbf7d0" }}>
         {loading && !text ? <Skeleton h={48} /> : (
@@ -1294,7 +1294,7 @@ function AirportTransferSection({ location }: { location: string }) {
   const airportName = airport ? `${airport.name} (${airport.iata})` : `${location} airport`;
   const cityEnc = encodeURIComponent(location);
   return (
-    <section style={{ marginBottom: 44 }}>
+    <section style={{ marginBottom: 28 }}>
       <SectionHeader icon={String.fromCodePoint(0x1F690)} title="Airport Transfer" />
       <div style={{ background: "linear-gradient(135deg,#f8fafc,#e0f2fe)", borderRadius: 12, padding: "14px 16px", border: "1.5px solid #bae6fd" }}>
         <p style={{ margin: "0 0 10px", fontSize: 12, color: "#0c4a6e", lineHeight: 1.6 }}>
@@ -1318,7 +1318,7 @@ function TravelInsuranceSection({ location, startDate, endDate }: {
 }) {
   const destEnc = encodeURIComponent(location);
   return (
-    <section style={{ marginBottom: 44 }}>
+    <section style={{ marginBottom: 28 }}>
       <SectionHeader icon={String.fromCodePoint(0x1F6E1, 0xFE0F)} title="Travel Insurance" />
       <div style={{ background: "linear-gradient(135deg,#faf5ff,#f5f3ff)", borderRadius: 12, padding: "14px 16px", border: "1.5px solid #ddd6fe" }}>
         <p style={{ margin: "0 0 10px", fontSize: 12, color: "#5b21b6", lineHeight: 1.6 }}>
@@ -1341,7 +1341,7 @@ function TravelInsuranceSection({ location, startDate, endDate }: {
 function SimCardSection({ location }: { location: string }) {
   const cityEnc = encodeURIComponent(location);
   return (
-    <section style={{ marginBottom: 44 }}>
+    <section style={{ marginBottom: 28 }}>
       <SectionHeader icon={String.fromCodePoint(0x1F4F1)} title="SIM Card &amp; eSIM" />
       <div style={{ background: "linear-gradient(135deg,#fff7ed,#fef3c7)", borderRadius: 12, padding: "14px 16px", border: "1.5px solid #fed7aa" }}>
         <p style={{ margin: "0 0 10px", fontSize: 12, color: "#7c2d12", lineHeight: 1.6 }}>
@@ -1378,7 +1378,7 @@ function LocalTransitSection({ legs, cities, budget, startDate, railPasses }: {
     return { iso: `${yyyy}-${mm}-${dd}`, flix: `${dd}.${mm}.${yyyy}` };
   }
   return (
-    <section style={{ marginBottom: 44 }}>
+    <section style={{ marginBottom: 28 }}>
       <SectionHeader icon={String.fromCodePoint(0x1F68C)} title="Bus &amp; Subway" />
 
       {busSubwayLegs.length > 0 ? (
@@ -1455,7 +1455,7 @@ function LocalTransitSection({ legs, cities, budget, startDate, railPasses }: {
       <p style={{ margin: "0 0 12px", fontWeight: 700, fontSize: 13, color: "#1e293b" }}>
         {String.fromCodePoint(0x1F687)} City transit passes
       </p>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(270px,1fr))", gap: 14 }}>
         {cities.map((city, i) => (
           <SubwayPassBox key={i} city={city} budget={budget} />
         ))}
@@ -1647,9 +1647,9 @@ export default function BookTab({
 
       {/* ── Trip Setup panel ── */}
       <div style={{ background: "linear-gradient(135deg,#f8fafc 0%,#ede9fe 100%)", borderRadius: 16, marginBottom: 28, border: "1px solid #e2e8f0" }}>
-        <div style={{ padding: "28px 24px 24px" }}>
-          <p style={{ margin: "0 0 4px", fontSize: 11, color: "#94a3b8", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>Trip Setup</p>
-          <h2 style={{ margin: "0 0 22px", fontSize: 22, fontWeight: 800, color: "#1e293b" }}>Plan your trip</h2>
+        <div style={{ padding: "16px 18px 14px" }}>
+          <p style={{ margin: "0 0 2px", fontSize: 10, color: "#94a3b8", letterSpacing: "0.1em", textTransform: "uppercase", fontWeight: 600 }}>Trip Setup</p>
+          <h2 style={{ margin: "0 0 14px", fontSize: 16, fontWeight: 700, color: "#1e293b" }}>Plan your trip</h2>
 
           {/* Traveling from */}
           <div style={{ marginBottom: 20 }}>
@@ -1812,14 +1812,14 @@ export default function BookTab({
         )}
 
         {/* Hotels */}
-        <section style={{ marginBottom: 44 }}>
+        <section style={{ marginBottom: 28 }}>
           <SectionHeader icon={String.fromCodePoint(0x1F3E8)} title="Hotels" loading={recsLoading} count={!recsLoading ? recommendations?.hotels.length : undefined} />
           {recsLoading ? (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(290px,1fr))", gap: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 16 }}>
               <Skeleton h={420} /><Skeleton h={420} /><Skeleton h={420} />
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(290px,1fr))", gap: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 16 }}>
               {(recommendations?.hotels ?? []).map((h, i) => (
                 <HotelCard key={i} hotel={h} location={location} checkIn={startDate} checkOut={endDate} />
               ))}
@@ -1828,14 +1828,14 @@ export default function BookTab({
         </section>
 
         {/* Restaurants */}
-        <section style={{ marginBottom: 44 }}>
+        <section style={{ marginBottom: 28 }}>
           <SectionHeader icon={String.fromCodePoint(0x1F37D, 0xFE0F)} title="Restaurants" loading={recsLoading} count={!recsLoading ? recommendations?.restaurants.length : undefined} />
           {recsLoading ? (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(290px,1fr))", gap: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 16 }}>
               <Skeleton h={340} /><Skeleton h={340} /><Skeleton h={340} />
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(290px,1fr))", gap: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 16 }}>
               {(recommendations?.restaurants ?? []).map((r, i) => (
                 <RestaurantCard key={i} restaurant={r} location={location} startDate={startDate} />
               ))}
@@ -1844,14 +1844,14 @@ export default function BookTab({
         </section>
 
         {/* Activities */}
-        <section style={{ marginBottom: 44 }}>
+        <section style={{ marginBottom: 28 }}>
           <SectionHeader icon={String.fromCodePoint(0x1F3AF)} title="Activities &amp; Experiences" loading={recsLoading} count={!recsLoading ? recommendations?.activities.length : undefined} />
           {recsLoading ? (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(290px,1fr))", gap: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 16 }}>
               <Skeleton h={340} /><Skeleton h={340} /><Skeleton h={340} />
             </div>
           ) : (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(290px,1fr))", gap: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 16 }}>
               {(recommendations?.activities ?? []).map((a, i) => (
                 <ActivityCard key={i} activity={a} location={location} startDate={startDate} endDate={endDate} />
               ))}
