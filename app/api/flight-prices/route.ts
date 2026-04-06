@@ -28,65 +28,7 @@ async function getAmadeusToken(): Promise<string | null> {
   } catch { return null; }
 }
 
-// ─── 1. RapidAPI Sky Scrapper — real Skyscanner price calendar ────────────────
-// Passes IATA codes directly as skyId — no airport lookup needed (saves quota).
-async function fetchSkyScrapper(
-  originIata: string,
-  destIata: string,
-  month: string        // YYYY-MM
-): Promise<Record<string, number> | null> {
-  const key = process.env.RAPIDAPI_KEY;
-  if (!key) return null;
-
-  const fromDate = `${month}-01`;
-  const url = `https://sky-scrapper.p.rapidapi.com/api/v1/flights/getPriceCalendar`
-    + `?originSkyId=${encodeURIComponent(originIata)}`
-    + `&destinationSkyId=${encodeURIComponent(destIata)}`
-    + `&fromDate=${fromDate}&currency=USD`;
-
-  try {
-    const res = await fetch(url, {
-      headers: {
-        "X-RapidAPI-Key":  key,
-        "X-RapidAPI-Host": "sky-scrapper.p.rapidapi.com",
-      },
-    });
-
-    const text = await res.text();
-    if (!res.ok) {
-      console.error("Sky Scrapper getPriceCalendar error:", res.status, text.slice(0, 200));
-      return null;
-    }
-
-    const data = JSON.parse(text);
-
-    // Try multiple known response shapes
-    const days: Array<{ day: string; price: number }> =
-      data?.data?.flights?.days ??
-      data?.data?.days ??
-      data?.flights?.days ??
-      [];
-
-    if (!days.length) {
-      console.error("Sky Scrapper: no days in response", JSON.stringify(data).slice(0, 300));
-      return null;
-    }
-
-    const prices: Record<string, number> = {};
-    for (const d of days) {
-      if (d.day && typeof d.price === "number") {
-        prices[d.day] = Math.round(d.price);
-      }
-    }
-    console.log(`Sky Scrapper: got ${Object.keys(prices).length} prices for ${originIata}→${destIata}`);
-    return Object.keys(prices).length > 0 ? prices : null;
-  } catch (err) {
-    console.error("Sky Scrapper fetch exception:", err);
-    return null;
-  }
-}
-
-// ─── 2. Amadeus Flight Dates API — GDS prices ────────────────────────────────
+// ─── 1. Amadeus Flight Dates API — GDS prices ────────────────────────────────
 async function fetchAmadeusPrices(
   origin: string,
   destination: string,
@@ -244,13 +186,7 @@ export async function GET(req: Request) {
       return Response.json({ prices: tpPrices, source: "travelpayouts" });
     }
 
-    // 2️⃣  RapidAPI Skyscanner (real-time prices, if key set)
-    const skyScrapper = await fetchSkyScrapper(origin, destination, month);
-    if (skyScrapper && Object.keys(skyScrapper).length > 0) {
-      return Response.json({ prices: skyScrapper, source: "skyscanner" });
-    }
-
-    // 3️⃣  AI estimate (always-available fallback)
+    // 2️⃣  AI estimate (always-available fallback)
     const aiPrices = await fetchAIPrices(origin, destination, month, daysInMonth, nights);
     return Response.json({ prices: aiPrices, source: "ai-estimate" });
 

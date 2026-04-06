@@ -520,11 +520,13 @@ export default function FlightPriceChart({
           </span>
         )}
         <span style={{ fontSize:9.5, color:'rgba(255,255,255,0.22)', lineHeight:1.4 }}>
-          {source === 'skyscanner'
-            ? 'Live prices pulled directly from Skyscanner.'
+          {source === 'travelpayouts'
+            ? 'Live prices from Travelpayouts.'
+            : source === 'skyscanner'
+            ? 'Live prices from Skyscanner.'
             : source === 'amadeus'
-            ? 'Prices from Amadeus GDS — same data used by Skyscanner & Kayak.'
-            : 'Estimated prices. Add RAPIDAPI_KEY to .env.local for live Skyscanner data.'}
+            ? 'Prices from Amadeus GDS.'
+            : 'Estimated prices — route not covered by live data.'}
         </span>
       </div>
     </div>
