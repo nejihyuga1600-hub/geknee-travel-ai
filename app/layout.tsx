@@ -19,11 +19,8 @@ export default function RootLayout({
     <html lang="en">
       <head>
         {/* Travelpayouts affiliate tracking */}
-        <script
-          dangerouslySetInnerHTML={{
-            __html: `(function(){var s=document.createElement("script");s.async=1;s.src="https://tp-em.com/NTE1NTYz.js?t=515563";document.head.appendChild(s);})();`,
-          }}
-        />
+        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+        <script src="https://tp-em.com/NTE1NTYz.js?t=515563" async />
       </head>
       <body suppressHydrationWarning>
         <SessionProvider>{children}</SessionProvider>
