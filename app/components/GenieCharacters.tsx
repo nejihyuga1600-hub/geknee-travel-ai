@@ -1,5 +1,7 @@
 'use client';
 
+import React from 'react';
+
 export interface GenieCharacter {
   id: string;
   name: string;
@@ -498,7 +500,7 @@ function Stella({ size }: { size: number; colors: GenieCharacter['colors'] }) {
 
 // ── Avatar map ────────────────────────────────────────────────────────────────
 
-const GENIE_SVG_MAP: Record<string, (props: { size: number; colors: GenieCharacter['colors'] }) => JSX.Element> = {
+const GENIE_SVG_MAP: Record<string, (props: { size: number; colors: GenieCharacter['colors'] }) => React.JSX.Element> = {
   lumina: Lumina,
   cosmo:  Cosmo,
   nova:   Nova,
