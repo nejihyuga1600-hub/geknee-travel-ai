@@ -57,8 +57,8 @@ export default function FlightPriceChart({
   const [loading,   setLoading]   = useState(false);
   const [noData,    setNoData]    = useState(false);
   const [hovered,   setHovered]   = useState<string | null>(null);
-  const [source,    setSource]    = useState<'skyscanner'|'amadeus'|'ai-estimate'|null>(null);
-  const [cache,     setCache]     = useState<Record<string, { prices: PriceMap; source: 'skyscanner'|'amadeus'|'ai-estimate' }>>({});
+  const [source,    setSource]    = useState<'skyscanner'|'amadeus'|'travelpayouts'|'ai-estimate'|null>(null);
+  const [cache,     setCache]     = useState<Record<string, { prices: PriceMap; source: 'skyscanner'|'amadeus'|'travelpayouts'|'ai-estimate' }>>({});
 
   // For cursor styling only — actual drag state lives in dragRef
   const [dragType, setDragType] = useState<'start'|'end'|'pan'|null>(null);
@@ -88,7 +88,7 @@ export default function FlightPriceChart({
       const res  = await fetch(`/api/flight-prices?origin=${orig}&destination=${dest}&month=${month}&nights=${n}`);
       const data = await res.json();
       const p: PriceMap = data.prices ?? {};
-      const src: 'skyscanner'|'amadeus'|'ai-estimate' = data.source === 'skyscanner' ? 'skyscanner' : data.source === 'amadeus' ? 'amadeus' : 'ai-estimate';
+      const src: 'skyscanner'|'amadeus'|'travelpayouts'|'ai-estimate' = data.source === 'skyscanner' ? 'skyscanner' : data.source === 'amadeus' ? 'amadeus' : data.source === 'travelpayouts' ? 'travelpayouts' : 'ai-estimate';
       if (Object.keys(p).length > 0) {
         setPrices(p); setSource(src); setCache(c => ({ ...c, [key]: { prices: p, source: src } })); setNoData(false);
       } else { setPrices({}); setSource(null); setNoData(true); }
