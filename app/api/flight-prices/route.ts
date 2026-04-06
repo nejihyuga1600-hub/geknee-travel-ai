@@ -238,16 +238,16 @@ export async function GET(req: Request) {
   const daysInMonth = new Date(year, mon, 0).getDate();
 
   try {
-    // 1️⃣  RapidAPI Skyscanner (real-time prices)
-    const skyScrapper = await fetchSkyScrapper(origin, destination, month);
-    if (skyScrapper && Object.keys(skyScrapper).length > 0) {
-      return Response.json({ prices: skyScrapper, source: "skyscanner" });
-    }
-
-    // 2️⃣  Travelpayouts month-matrix (affiliate real prices, free tier)
+    // 1️⃣  Travelpayouts month-matrix (affiliate real prices)
     const tpPrices = await fetchTravelpayoutsPrices(origin, destination, month);
     if (tpPrices && Object.keys(tpPrices).length > 0) {
       return Response.json({ prices: tpPrices, source: "travelpayouts" });
+    }
+
+    // 2️⃣  RapidAPI Skyscanner (real-time prices, if key set)
+    const skyScrapper = await fetchSkyScrapper(origin, destination, month);
+    if (skyScrapper && Object.keys(skyScrapper).length > 0) {
+      return Response.json({ prices: skyScrapper, source: "skyscanner" });
     }
 
     // 3️⃣  AI estimate (always-available fallback)
