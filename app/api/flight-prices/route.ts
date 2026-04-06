@@ -109,7 +109,59 @@ async function fetchTravelpayoutsPrices(
   }
 }
 
-// ─── 3. AI price estimation using Opus ───────────────────────────────────────
+// ─── 3. SerpAPI Google Flights — real prices sampled across the month ────────
+async function fetchSerpApiPrices(
+  origin: string,
+  destination: string,
+  month: string,
+  daysInMonth: number,
+  nights: number
+): Promise<Record<string, number> | null> {
+  const key = process.env.SERPAPI_KEY;
+  if (!key) return null;
+
+  // Sample ~5 dates spread across the month (every 6 days)
+  const sampleDays = [1, 6, 12, 18, 24, Math.min(28, daysInMonth)];
+
+  const results = await Promise.all(
+    sampleDays.map(async (day) => {
+      const dep = `${month}-${String(day).padStart(2, "0")}`;
+      const retDate = new Date(dep + "T00:00:00");
+      retDate.setDate(retDate.getDate() + nights);
+      const ret = retDate.toISOString().split("T")[0];
+
+      const url = `https://serpapi.com/search.json?engine=google_flights`
+        + `&departure_id=${encodeURIComponent(origin)}`
+        + `&arrival_id=${encodeURIComponent(destination)}`
+        + `&outbound_date=${dep}`
+        + `&return_date=${ret}`
+        + `&currency=USD&type=1&hl=en`
+        + `&api_key=${encodeURIComponent(key)}`;
+
+      try {
+        const res = await fetch(url);
+        if (!res.ok) return null;
+        const data = await res.json();
+        const price: number | undefined =
+          data?.best_flights?.[0]?.price ??
+          data?.other_flights?.[0]?.price;
+        if (typeof price !== "number") return null;
+        return { date: dep, price: Math.round(price) };
+      } catch {
+        return null;
+      }
+    })
+  );
+
+  const prices: Record<string, number> = {};
+  for (const r of results) {
+    if (r) prices[r.date] = r.price;
+  }
+  console.log(`SerpAPI: got ${Object.keys(prices).length} prices for ${origin}→${destination}`);
+  return Object.keys(prices).length > 0 ? prices : null;
+}
+
+// ─── 4. AI price estimation using Claude ─────────────────────────────────────
 async function fetchAIPrices(
   origin: string,
   destination: string,
@@ -180,13 +232,19 @@ export async function GET(req: Request) {
   const daysInMonth = new Date(year, mon, 0).getDate();
 
   try {
-    // 1️⃣  Travelpayouts month-matrix (affiliate real prices)
+    // 1️⃣  Travelpayouts month-matrix (affiliate real prices, full calendar)
     const tpPrices = await fetchTravelpayoutsPrices(origin, destination, month);
     if (tpPrices && Object.keys(tpPrices).length > 0) {
       return Response.json({ prices: tpPrices, source: "travelpayouts" });
     }
 
-    // 2️⃣  AI estimate (always-available fallback)
+    // 2️⃣  SerpAPI Google Flights (real prices, 5 sampled dates)
+    const serpPrices = await fetchSerpApiPrices(origin, destination, month, daysInMonth, nights);
+    if (serpPrices && Object.keys(serpPrices).length > 0) {
+      return Response.json({ prices: serpPrices, source: "serpapi" });
+    }
+
+    // 3️⃣  AI estimate (always-available fallback)
     const aiPrices = await fetchAIPrices(origin, destination, month, daysInMonth, nights);
     return Response.json({ prices: aiPrices, source: "ai-estimate" });
 

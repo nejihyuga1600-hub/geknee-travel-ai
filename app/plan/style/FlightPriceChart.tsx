@@ -57,8 +57,8 @@ export default function FlightPriceChart({
   const [loading,   setLoading]   = useState(false);
   const [noData,    setNoData]    = useState(false);
   const [hovered,   setHovered]   = useState<string | null>(null);
-  const [source,    setSource]    = useState<'skyscanner'|'amadeus'|'travelpayouts'|'ai-estimate'|null>(null);
-  const [cache,     setCache]     = useState<Record<string, { prices: PriceMap; source: 'skyscanner'|'amadeus'|'travelpayouts'|'ai-estimate' }>>({});
+  const [source,    setSource]    = useState<'skyscanner'|'amadeus'|'travelpayouts'|'serpapi'|'ai-estimate'|null>(null);
+  const [cache,     setCache]     = useState<Record<string, { prices: PriceMap; source: 'skyscanner'|'amadeus'|'travelpayouts'|'serpapi'|'ai-estimate' }>>({});
 
   // For cursor styling only — actual drag state lives in dragRef
   const [dragType, setDragType] = useState<'start'|'end'|'pan'|null>(null);
@@ -88,7 +88,7 @@ export default function FlightPriceChart({
       const res  = await fetch(`/api/flight-prices?origin=${orig}&destination=${dest}&month=${month}&nights=${n}`);
       const data = await res.json();
       const p: PriceMap = data.prices ?? {};
-      const src: 'skyscanner'|'amadeus'|'travelpayouts'|'ai-estimate' = data.source === 'skyscanner' ? 'skyscanner' : data.source === 'amadeus' ? 'amadeus' : data.source === 'travelpayouts' ? 'travelpayouts' : 'ai-estimate';
+      const src: 'skyscanner'|'amadeus'|'travelpayouts'|'serpapi'|'ai-estimate' = data.source === 'skyscanner' ? 'skyscanner' : data.source === 'amadeus' ? 'amadeus' : data.source === 'travelpayouts' ? 'travelpayouts' : data.source === 'serpapi' ? 'serpapi' : 'ai-estimate';
       if (Object.keys(p).length > 0) {
         setPrices(p); setSource(src); setCache(c => ({ ...c, [key]: { prices: p, source: src } })); setNoData(false);
       } else { setPrices({}); setSource(null); setNoData(true); }
@@ -514,6 +514,11 @@ export default function FlightPriceChart({
             LIVE · Amadeus GDS
           </span>
         )}
+        {source === 'serpapi' && (
+          <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.06em', color:'#34d399', background:'rgba(52,211,153,0.1)', border:'1px solid rgba(52,211,153,0.25)', borderRadius:5, padding:'2px 7px' }}>
+            LIVE · Google Flights
+          </span>
+        )}
         {source === 'ai-estimate' && (
           <span style={{ fontSize:9, fontWeight:700, letterSpacing:'0.06em', color:'rgba(251,191,36,0.8)', background:'rgba(251,191,36,0.08)', border:'1px solid rgba(251,191,36,0.2)', borderRadius:5, padding:'2px 7px' }}>
             AI ESTIMATE
@@ -522,6 +527,8 @@ export default function FlightPriceChart({
         <span style={{ fontSize:9.5, color:'rgba(255,255,255,0.22)', lineHeight:1.4 }}>
           {source === 'travelpayouts'
             ? 'Live prices from Travelpayouts.'
+            : source === 'serpapi'
+            ? 'Sampled prices from Google Flights via SerpAPI.'
             : source === 'skyscanner'
             ? 'Live prices from Skyscanner.'
             : source === 'amadeus'
