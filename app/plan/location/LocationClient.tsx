@@ -5560,14 +5560,10 @@ function NearbyCities({ lat, lon }: { lat: number; lon: number }) {
 function DroppedStar({ lat, lon }: { lat: number; lon: number }) {
   const { pos, q } = useMemo(() => geo(lat, lon), [lat, lon]);
   const portalRef  = useRef<THREE.Group>(null);
-  const elapsed    = useRef(0);
 
   useFrame((_, delta) => {
-    elapsed.current += delta * 1.6;
     if (portalRef.current) {
-      portalRef.current.rotation.y += delta * 1.8;
-      const pulse = 1 + 0.1 * Math.sin(elapsed.current * 5);
-      portalRef.current.scale.setScalar(pulse);
+      portalRef.current.rotation.y += delta * 0.4;
     }
   });
 
