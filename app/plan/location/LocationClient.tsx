@@ -4696,7 +4696,7 @@ function GeoLabels({ countries, states, zoomLevel }: {
         if (!name) continue;
         const c = featureCentroid(f);
         if (!c) continue;
-        const labelR = R * (HIGH_ELEVATION_COUNTRIES.has(name) ? 1.075 : 1.019);
+        const labelR = R * (HIGH_ELEVATION_COUNTRIES.has(name) ? 1.075 : 1.040);
         const cPos = geoPos(c[1], c[0], labelR);
         result.push({ key: `c-${name}`, name, pos: cPos, kind: "country", orientation: computeOrientation(cPos) });
       }
@@ -4732,7 +4732,7 @@ function GeoLabels({ countries, states, zoomLevel }: {
         // No size minimum for North America — show every state/province/territory.
         const isNorthAmerica = admin === "United States of America" || admin === "Canada" || admin === "Mexico";
         if (!isNorthAmerica && Math.max(maxLon - minLon, maxLat - minLat) < 2.5) continue;
-        const sPos = geoPos(c[1], c[0], R * 1.019);
+        const sPos = geoPos(c[1], c[0], R * 1.040);
         result.push({ key: `s-${admin}-${name}`, name, pos: sPos, kind: "state", orientation: computeOrientation(sPos) });
       }
     }
@@ -4770,15 +4770,17 @@ function GeoLabels({ countries, states, zoomLevel }: {
           position={pos}
           quaternion={orientation}
           fontSize={fontSize}
-          color={kind === "country" ? "#ffffff" : "#b8ccff"}
-          outlineWidth={kind === "country" ? 0.013 : 0.008}
-          outlineColor="#000000"
+          color={kind === "country" ? "#ffffff" : "#ddeeff"}
+          outlineWidth={kind === "country" ? 0.028 : 0.020}
+          outlineColor="#05080f"
+          outlineOpacity={0.88}
           anchorX="center"
           anchorY="middle"
-          letterSpacing={kind === "country" ? 0.10 : 0.04}
+          letterSpacing={kind === "country" ? 0.10 : 0.05}
           sdfGlyphSize={64}
+          renderOrder={5}
           material-side={THREE.FrontSide}
-          material-depthTest
+          material-depthTest={false}
         >
           {name.toUpperCase()}
         </Text>
@@ -5376,7 +5378,7 @@ const CITIES: { n: string; lat: number; lon: number }[] = [
 function CityLabels({ visible }: { visible: boolean }) {
   const items = useMemo(() => {
     const base = CITIES.map(({ n, lat, lon }) => {
-      const pos = geoPos(lat, lon, R * 1.019);
+      const pos = geoPos(lat, lon, R * 1.040);
       return { n, pos, orientation: computeOrientation(pos) };
     });
     const units = base.map(it => new THREE.Vector3(...it.pos).normalize());
@@ -5402,15 +5404,17 @@ function CityLabels({ visible }: { visible: boolean }) {
           {/* Visual label */}
           <Text
             fontSize={fontSize}
-            color="#c8d8ff"
-            outlineWidth={0.006}
-            outlineColor="#111111"
+            color="#ddeeff"
+            outlineWidth={0.018}
+            outlineColor="#05080f"
+            outlineOpacity={0.85}
             anchorX="center"
             anchorY="middle"
             letterSpacing={0.01}
             sdfGlyphSize={64}
-            renderOrder={2}
+            renderOrder={5}
             material-depthWrite={false}
+            material-depthTest={false}
             material-side={THREE.DoubleSide}
           >
             {`\u2022 ${n}`}
