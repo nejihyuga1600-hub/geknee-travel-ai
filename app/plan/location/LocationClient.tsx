@@ -5580,7 +5580,7 @@ function DroppedStar({ lat, lon }: { lat: number; lon: number }) {
       ease = 1 + Math.sin(bt * Math.PI) * 0.22 * (1 - bt);
     }
     if (groupRef.current) {
-      groupRef.current.position.y = 1.2 - 1.1 * ease;
+      groupRef.current.position.y = 1.2 - 1.05 * ease; // lands at ~0.15, floating above portal
     }
     // Spin portal rings around the surface normal (local Y = radially outward)
     if (portalRef.current) {
@@ -5605,7 +5605,7 @@ function DroppedStar({ lat, lon }: { lat: number; lon: number }) {
       </group>
       <group ref={groupRef} position={[0, 1.2, 0]}>
         {tex && (
-          <sprite ref={spriteRef} scale={[0.11, 0.11, 1]}>
+          <sprite ref={spriteRef} scale={[0.28, 0.38, 1]}>
             <spriteMaterial map={tex} transparent sizeAttenuation depthTest={false} />
           </sprite>
         )}
