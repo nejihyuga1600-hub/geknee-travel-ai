@@ -2,6 +2,10 @@ import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { FREE_LIMITS } from '@/lib/plan';
 
+const DEVELOPER_EMAILS = new Set(
+  (process.env.DEVELOPER_EMAILS ?? '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean)
+);
+
 export async function GET() {
   const session = await auth();
   const userId = (session?.user as { id?: string })?.id;
@@ -10,6 +14,7 @@ export async function GET() {
   const user = await prisma.user.findUnique({
     where: { id: userId },
     select: {
+      email: true,
       plan: true,
       itineraryGenerations: true,
       generationsResetAt: true,
@@ -19,8 +24,10 @@ export async function GET() {
 
   if (!user) return Response.json({ plan: 'free', itineraryGenerations: 0, savedTripCount: 0 });
 
+  const isDev = DEVELOPER_EMAILS.has((user as unknown as { email?: string }).email?.toLowerCase() ?? '');
+
   return Response.json({
-    plan: user.plan,
+    plan: isDev ? 'pro' : user.plan,
     itineraryGenerations: user.itineraryGenerations,
     generationsResetAt: user.generationsResetAt,
     savedTripCount: user._count.trips,

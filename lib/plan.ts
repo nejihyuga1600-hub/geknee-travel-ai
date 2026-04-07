@@ -1,5 +1,15 @@
 import { prisma } from '@/lib/prisma';
 
+const DEVELOPER_EMAILS = new Set(
+  (process.env.DEVELOPER_EMAILS ?? '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean)
+);
+
+async function isDevAccount(userId: string): Promise<boolean> {
+  if (DEVELOPER_EMAILS.size === 0) return false;
+  const user = await prisma.user.findUnique({ where: { id: userId }, select: { email: true } });
+  return !!user?.email && DEVELOPER_EMAILS.has(user.email.toLowerCase());
+}
+
 export const FREE_LIMITS = {
   savedTrips: 3,
   generationsPerMonth: 3,
@@ -27,6 +37,7 @@ export async function getUserPlan(userId: string) {
 export async function checkAndIncrementGeneration(
   userId: string
 ): Promise<{ allowed: boolean; reason?: string }> {
+  if (await isDevAccount(userId)) return { allowed: true };
   const info = await getUserPlan(userId);
   if (info.plan === 'pro') return { allowed: true };
 
@@ -59,6 +70,7 @@ export async function checkAndIncrementGeneration(
 }
 
 export async function checkTripSaveLimit(userId: string): Promise<string | null> {
+  if (await isDevAccount(userId)) return null;
   const info = await getUserPlan(userId);
   if (info.plan === 'pro') return null;
   if (info.savedTripCount >= FREE_LIMITS.savedTrips) {
