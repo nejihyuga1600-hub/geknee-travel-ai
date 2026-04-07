@@ -5559,30 +5559,11 @@ function NearbyCities({ lat, lon }: { lat: number; lon: number }) {
 // ─── DroppedStar — animated Geknee pin that falls onto the globe ──────────────
 function DroppedStar({ lat, lon }: { lat: number; lon: number }) {
   const { pos, q } = useMemo(() => geo(lat, lon), [lat, lon]);
-  const groupRef   = useRef<THREE.Group>(null);
   const portalRef  = useRef<THREE.Group>(null);
-  const spriteRef  = useRef<THREE.Sprite>(null);
   const elapsed    = useRef(0);
-  const [tex, setTex] = useState<THREE.Texture | null>(null);
-
-  useEffect(() => {
-    new THREE.TextureLoader().load('/Geknee.png', (t) => setTex(t));
-  }, []);
 
   useFrame((_, delta) => {
     elapsed.current += delta * 1.6;
-    const t = Math.min(elapsed.current, 1);
-    let ease: number;
-    if (t < 0.75) {
-      ease = (t / 0.75) * (t / 0.75);
-    } else {
-      const bt = (t - 0.75) / 0.25;
-      ease = 1 + Math.sin(bt * Math.PI) * 0.22 * (1 - bt);
-    }
-    if (groupRef.current) {
-      groupRef.current.position.y = 1.2 - 1.05 * ease; // lands at ~0.15, floating above portal
-    }
-    // Spin portal rings around the surface normal (local Y = radially outward)
     if (portalRef.current) {
       portalRef.current.rotation.y += delta * 1.8;
       const pulse = 1 + 0.1 * Math.sin(elapsed.current * 5);
@@ -5602,13 +5583,6 @@ function DroppedStar({ lat, lon }: { lat: number; lon: number }) {
           <torusGeometry args={[0.065, 0.007, 8, 48]} />
           <meshBasicMaterial color="#c084fc" transparent opacity={0.6} depthTest={false} />
         </mesh>
-      </group>
-      <group ref={groupRef} position={[0, 1.2, 0]}>
-        {tex && (
-          <sprite ref={spriteRef} scale={[0.28, 0.38, 1]}>
-            <spriteMaterial map={tex} transparent sizeAttenuation depthTest={false} />
-          </sprite>
-        )}
       </group>
     </group>
   );
