@@ -984,7 +984,7 @@ function createEarthTexture(
   statesGeo: GeoCollection | null,
   terrainBitmap?: ImageBitmap | null,
 ): THREE.CanvasTexture {
-  const W = 16384, H = 8192;
+  const W = 8192, H = 4096;
   const canvas = document.createElement("canvas");
   canvas.width = W;
   canvas.height = H;
@@ -1187,13 +1187,13 @@ function createEarthTexture(
 
   // ── Borders on top — thinner + slightly more transparent over satellite ────
   // Satellite imagery has its own landmass colouring so borders need less weight.
-  const bdrAlpha  = terrainBitmap ? 0.30 : 0.45;
-  const bdrWidth  = terrainBitmap ? 3.5  : 5.0;
-  const stateWdth = terrainBitmap ? 2.0  : 3.2;
+  const bdrAlpha  = terrainBitmap ? 0.52 : 0.65;
+  const bdrWidth  = terrainBitmap ? 6.0  : 8.8;
+  const stateWdth = terrainBitmap ? 3.8  : 5.6;
   drawBorders(countriesGeo, `rgba(255,255,255,${bdrAlpha})`, bdrWidth);
 
   const STATE_FILTER = new Set(["USA", "CAN", "AUS", "BRA", "MEX", "RUS", "CHN", "IND", "ARG"]);
-  drawBorders(statesGeo, `rgba(255,255,255,${terrainBitmap ? 0.14 : 0.20})`, stateWdth,
+  drawBorders(statesGeo, `rgba(255,255,255,${terrainBitmap ? 0.28 : 0.32})`, stateWdth,
     f => STATE_FILTER.has(f.properties.adm0_a3));
 
   const tex = new THREE.CanvasTexture(canvas);
@@ -1418,11 +1418,6 @@ let _lmNav: ((loc: string) => void) | null = null;
 function _setLmNav(fn: (loc: string) => void) { _lmNav = fn; }
 let _globeClick: (() => void) | null = null;
 function _setGlobeClick(fn: () => void) { _globeClick = fn; }
-
-// City hover bridge: fires when mouse enters/leaves a city label
-type CityHoverPayload = { name: string; summary: string; imgUrl: string | null } | null;
-let _setCityHover: ((payload: CityHoverPayload) => void) | null = null;
-function _fireCityHover(payload: CityHoverPayload) { _setCityHover?.(payload); }
 
 function Lm({ p, s = 0.4, info, mk, children }: { p: SurfPos; s?: number; info?: LmInfo; mk?: string; children: ReactNode }) {
   const [hovered, setHovered] = useState(false);
@@ -4649,28 +4644,6 @@ function geoPos(lat: number, lon: number, r: number): [number, number, number] {
   ];
 }
 
-// Hardcoded centroids for US states (overrides GeoJSON centroid which is unreliable for complex shapes)
-const US_STATE_CENTROIDS: Record<string, [number, number]> = {
-  "Alabama": [32.8, -86.8], "Alaska": [64.2, -153.4], "Arizona": [34.3, -111.1],
-  "Arkansas": [34.9, -92.4], "California": [36.8, -119.4], "Colorado": [39.0, -105.5],
-  "Connecticut": [41.6, -72.7], "Delaware": [39.0, -75.5], "Florida": [27.8, -81.5],
-  "Georgia": [32.7, -83.4], "Hawaii": [20.3, -156.4], "Idaho": [44.4, -114.6],
-  "Illinois": [40.0, -89.2], "Indiana": [40.3, -86.1], "Iowa": [42.0, -93.5],
-  "Kansas": [38.5, -98.4], "Kentucky": [37.5, -85.3], "Louisiana": [31.2, -91.8],
-  "Maine": [45.3, -69.0], "Maryland": [39.1, -76.8], "Massachusetts": [42.2, -71.5],
-  "Michigan": [44.3, -85.4], "Minnesota": [46.4, -93.1], "Mississippi": [32.7, -89.7],
-  "Missouri": [38.5, -92.5], "Montana": [47.0, -110.4], "Nebraska": [41.5, -99.9],
-  "Nevada": [38.5, -117.1], "New Hampshire": [43.7, -71.6], "New Jersey": [40.1, -74.5],
-  "New Mexico": [34.5, -106.2], "New York": [42.9, -75.6], "North Carolina": [35.6, -79.4],
-  "North Dakota": [47.5, -100.5], "Ohio": [40.4, -82.8], "Oklahoma": [35.6, -97.5],
-  "Oregon": [44.6, -122.1], "Pennsylvania": [40.9, -77.8], "Rhode Island": [41.7, -71.5],
-  "South Carolina": [33.9, -80.9], "South Dakota": [44.4, -100.2], "Tennessee": [35.9, -86.4],
-  "Texas": [31.5, -99.3], "Utah": [39.3, -111.1], "Vermont": [44.0, -72.7],
-  "Virginia": [37.8, -78.2], "Washington": [47.4, -120.5], "West Virginia": [38.6, -80.6],
-  "Wisconsin": [44.3, -89.6], "Wyoming": [43.0, -107.6],
-  "District of Columbia": [38.9, -77.0],
-};
-
 const STATE_COUNTRIES = new Set([
   "United States of America", "Canada", "Australia", "Brazil", "Russia",
   "China", "India", "Mexico", "Argentina", "Germany", "France", "Italy",
@@ -4706,10 +4679,10 @@ const HIGH_ELEVATION_COUNTRIES = new Set([
 ]);
 
 // --- Country + State labels ----------------------------------------------------
-function GeoLabels({ countries, states, camDist }: {
+function GeoLabels({ countries, states, zoomLevel }: {
   countries:  GeoCollection | null;
   states:     GeoCollection | null;
-  camDist:    number;
+  zoomLevel:  number;
 }) {
   const items = useMemo(() => {
     const result: Array<{
@@ -4734,10 +4707,8 @@ function GeoLabels({ countries, states, camDist }: {
         const name  = (f.properties?.name  || f.properties?.NAME)  as string | undefined;
         const admin = (f.properties?.admin || f.properties?.adm0_name || "") as string;
         if (!name || !STATE_COUNTRIES.has(admin)) continue;
-        // Use hardcoded centroid for US states (more accurate than polygon centroid)
-        const hardcoded = US_STATE_CENTROIDS[name];
-        const c: [number, number] = hardcoded ? [hardcoded[1], hardcoded[0]] : (featureCentroid(f) ?? [0, 0]);
-        if (!hardcoded && !featureCentroid(f)) continue;
+        const c = featureCentroid(f);
+        if (!c) continue;
         const geom = f.geometry;
         if (!geom) continue;
         // Find the largest polygon ring (same logic as featureCentroid) so that
@@ -4768,10 +4739,7 @@ function GeoLabels({ countries, states, camDist }: {
     return result;
   }, [countries, states]);
 
-  // States appear at continent zoom (~20), fade out when far away
-  const visible = items.filter(it =>
-    it.kind === "state" && camDist <= 20
-  );
+  const visible = items.filter(it => it.kind === "country" || zoomLevel >= 1);
 
   // Scale font size down for densely-packed labels: find each label's nearest
   // angular neighbour and shrink proportionally when below the threshold.
@@ -4813,207 +4781,6 @@ function GeoLabels({ countries, states, camDist }: {
           material-depthTest
         >
           {name.toUpperCase()}
-        </Text>
-      ))}
-    </>
-  );
-}
-
-// --- Country centroid labels (hardcoded, always visible — no GeoJSON needed) ---
-const COUNTRY_CENTROIDS: { n: string; lat: number; lon: number }[] = [
-  { n: "Afghanistan", lat: 33.9, lon: 67.7 },
-  { n: "Albania", lat: 41.2, lon: 20.2 },
-  { n: "Algeria", lat: 28.0, lon: 2.6 },
-  { n: "Angola", lat: -11.2, lon: 17.9 },
-  { n: "Argentina", lat: -38.4, lon: -63.6 },
-  { n: "Armenia", lat: 40.1, lon: 45.0 },
-  { n: "Australia", lat: -25.3, lon: 133.8 },
-  { n: "Austria", lat: 47.5, lon: 14.6 },
-  { n: "Azerbaijan", lat: 40.1, lon: 47.6 },
-  { n: "Bangladesh", lat: 23.7, lon: 90.4 },
-  { n: "Belarus", lat: 53.7, lon: 28.0 },
-  { n: "Belgium", lat: 50.5, lon: 4.5 },
-  { n: "Benin", lat: 9.3, lon: 2.3 },
-  { n: "Bolivia", lat: -16.3, lon: -63.6 },
-  { n: "Bosnia", lat: 44.2, lon: 17.7 },
-  { n: "Botswana", lat: -22.3, lon: 24.7 },
-  { n: "Brazil", lat: -14.2, lon: -51.9 },
-  { n: "Bulgaria", lat: 42.7, lon: 25.5 },
-  { n: "Burkina Faso", lat: 12.4, lon: -1.6 },
-  { n: "Burundi", lat: -3.4, lon: 29.9 },
-  { n: "Cambodia", lat: 12.6, lon: 104.9 },
-  { n: "Cameroon", lat: 3.8, lon: 11.5 },
-  { n: "Canada", lat: 60.0, lon: -96.8 },
-  { n: "Central African Rep.", lat: 6.6, lon: 20.9 },
-  { n: "Chad", lat: 15.5, lon: 18.7 },
-  { n: "Chile", lat: -35.7, lon: -71.5 },
-  { n: "China", lat: 35.9, lon: 104.2 },
-  { n: "Colombia", lat: 4.6, lon: -74.3 },
-  { n: "Congo", lat: -0.2, lon: 15.8 },
-  { n: "DR Congo", lat: -4.0, lon: 21.8 },
-  { n: "Costa Rica", lat: 9.7, lon: -83.8 },
-  { n: "Croatia", lat: 45.1, lon: 15.2 },
-  { n: "Cuba", lat: 21.5, lon: -79.5 },
-  { n: "Czech Republic", lat: 49.8, lon: 15.5 },
-  { n: "Denmark", lat: 56.3, lon: 9.5 },
-  { n: "Dominican Rep.", lat: 18.7, lon: -70.2 },
-  { n: "Ecuador", lat: -1.8, lon: -78.2 },
-  { n: "Egypt", lat: 26.8, lon: 30.8 },
-  { n: "El Salvador", lat: 13.8, lon: -88.9 },
-  { n: "Eritrea", lat: 15.2, lon: 39.8 },
-  { n: "Estonia", lat: 58.6, lon: 25.0 },
-  { n: "Ethiopia", lat: 9.1, lon: 40.5 },
-  { n: "Finland", lat: 64.0, lon: 26.0 },
-  { n: "France", lat: 46.2, lon: 2.2 },
-  { n: "Gabon", lat: -0.8, lon: 11.6 },
-  { n: "Georgia", lat: 42.3, lon: 43.4 },
-  { n: "Germany", lat: 51.2, lon: 10.5 },
-  { n: "Ghana", lat: 7.9, lon: -1.0 },
-  { n: "Greece", lat: 39.1, lon: 21.8 },
-  { n: "Guatemala", lat: 15.8, lon: -90.2 },
-  { n: "Guinea", lat: 11.0, lon: -10.9 },
-  { n: "Haiti", lat: 18.9, lon: -72.7 },
-  { n: "Honduras", lat: 15.2, lon: -86.2 },
-  { n: "Hungary", lat: 47.2, lon: 19.5 },
-  { n: "Iceland", lat: 65.0, lon: -18.7 },
-  { n: "India", lat: 20.6, lon: 79.1 },
-  { n: "Indonesia", lat: -2.5, lon: 118.0 },
-  { n: "Iran", lat: 32.4, lon: 53.7 },
-  { n: "Iraq", lat: 33.2, lon: 43.7 },
-  { n: "Ireland", lat: 53.1, lon: -8.2 },
-  { n: "Israel", lat: 31.0, lon: 34.9 },
-  { n: "Italy", lat: 42.5, lon: 12.6 },
-  { n: "Ivory Coast", lat: 7.5, lon: -5.5 },
-  { n: "Jamaica", lat: 18.1, lon: -77.3 },
-  { n: "Japan", lat: 36.2, lon: 138.3 },
-  { n: "Jordan", lat: 30.6, lon: 36.2 },
-  { n: "Kazakhstan", lat: 48.0, lon: 66.9 },
-  { n: "Kenya", lat: -0.0, lon: 37.9 },
-  { n: "Kosovo", lat: 42.6, lon: 20.9 },
-  { n: "Kuwait", lat: 29.3, lon: 47.5 },
-  { n: "Kyrgyzstan", lat: 41.2, lon: 74.8 },
-  { n: "Laos", lat: 17.9, lon: 102.5 },
-  { n: "Latvia", lat: 56.9, lon: 24.6 },
-  { n: "Lebanon", lat: 33.9, lon: 35.5 },
-  { n: "Liberia", lat: 6.4, lon: -9.4 },
-  { n: "Libya", lat: 26.3, lon: 17.2 },
-  { n: "Lithuania", lat: 55.2, lon: 23.9 },
-  { n: "Madagascar", lat: -18.8, lon: 46.9 },
-  { n: "Malawi", lat: -13.3, lon: 34.3 },
-  { n: "Malaysia", lat: 4.2, lon: 108.0 },
-  { n: "Mali", lat: 17.6, lon: -4.0 },
-  { n: "Mauritania", lat: 21.0, lon: -10.9 },
-  { n: "Mexico", lat: 23.6, lon: -102.5 },
-  { n: "Moldova", lat: 47.4, lon: 28.4 },
-  { n: "Mongolia", lat: 46.9, lon: 103.8 },
-  { n: "Morocco", lat: 31.8, lon: -7.1 },
-  { n: "Mozambique", lat: -18.7, lon: 35.5 },
-  { n: "Myanmar", lat: 19.2, lon: 96.7 },
-  { n: "Namibia", lat: -22.0, lon: 17.1 },
-  { n: "Nepal", lat: 28.4, lon: 84.1 },
-  { n: "Netherlands", lat: 52.3, lon: 5.3 },
-  { n: "New Zealand", lat: -40.9, lon: 174.9 },
-  { n: "Nicaragua", lat: 12.9, lon: -85.2 },
-  { n: "Niger", lat: 17.6, lon: 8.1 },
-  { n: "Nigeria", lat: 9.1, lon: 8.7 },
-  { n: "North Korea", lat: 40.3, lon: 127.5 },
-  { n: "North Macedonia", lat: 41.6, lon: 21.7 },
-  { n: "Norway", lat: 64.5, lon: 17.9 },
-  { n: "Oman", lat: 21.5, lon: 55.9 },
-  { n: "Pakistan", lat: 30.4, lon: 69.3 },
-  { n: "Panama", lat: 8.5, lon: -80.8 },
-  { n: "Papua New Guinea", lat: -6.3, lon: 143.9 },
-  { n: "Paraguay", lat: -23.4, lon: -58.4 },
-  { n: "Peru", lat: -9.2, lon: -75.0 },
-  { n: "Philippines", lat: 12.9, lon: 121.8 },
-  { n: "Poland", lat: 52.0, lon: 19.1 },
-  { n: "Portugal", lat: 39.4, lon: -8.2 },
-  { n: "Qatar", lat: 25.4, lon: 51.2 },
-  { n: "Romania", lat: 45.9, lon: 25.0 },
-  { n: "Russia", lat: 61.5, lon: 105.3 },
-  { n: "Rwanda", lat: -1.9, lon: 29.9 },
-  { n: "Saudi Arabia", lat: 24.0, lon: 45.1 },
-  { n: "Senegal", lat: 14.5, lon: -14.5 },
-  { n: "Serbia", lat: 44.0, lon: 21.0 },
-  { n: "Sierra Leone", lat: 8.5, lon: -11.8 },
-  { n: "Slovakia", lat: 48.7, lon: 19.7 },
-  { n: "Slovenia", lat: 46.2, lon: 14.9 },
-  { n: "Somalia", lat: 5.2, lon: 46.2 },
-  { n: "South Africa", lat: -30.6, lon: 22.9 },
-  { n: "South Korea", lat: 36.0, lon: 127.8 },
-  { n: "South Sudan", lat: 7.9, lon: 29.7 },
-  { n: "Spain", lat: 40.5, lon: -3.7 },
-  { n: "Sri Lanka", lat: 7.9, lon: 80.8 },
-  { n: "Sudan", lat: 15.6, lon: 30.2 },
-  { n: "Sweden", lat: 63.1, lon: 18.6 },
-  { n: "Switzerland", lat: 46.8, lon: 8.2 },
-  { n: "Syria", lat: 35.0, lon: 38.0 },
-  { n: "Taiwan", lat: 23.7, lon: 121.0 },
-  { n: "Tajikistan", lat: 38.9, lon: 71.3 },
-  { n: "Tanzania", lat: -6.4, lon: 34.9 },
-  { n: "Thailand", lat: 15.9, lon: 100.9 },
-  { n: "Togo", lat: 8.6, lon: 0.8 },
-  { n: "Tunisia", lat: 33.9, lon: 9.6 },
-  { n: "Turkey", lat: 38.9, lon: 35.2 },
-  { n: "Turkmenistan", lat: 39.0, lon: 59.6 },
-  { n: "Uganda", lat: 1.4, lon: 32.3 },
-  { n: "Ukraine", lat: 48.4, lon: 31.2 },
-  { n: "United Arab Emirates", lat: 24.0, lon: 54.0 },
-  { n: "United Kingdom", lat: 55.4, lon: -3.4 },
-  { n: "United States", lat: 37.1, lon: -95.7 },
-  { n: "Uruguay", lat: -32.5, lon: -55.8 },
-  { n: "Uzbekistan", lat: 41.4, lon: 64.6 },
-  { n: "Venezuela", lat: 6.4, lon: -66.6 },
-  { n: "Vietnam", lat: 14.1, lon: 108.3 },
-  { n: "Yemen", lat: 15.6, lon: 48.5 },
-  { n: "Zambia", lat: -13.1, lon: 27.9 },
-  { n: "Zimbabwe", lat: -19.0, lon: 29.2 },
-];
-
-function CountryLabels({ camDist }: { camDist: number }) {
-  const items = useMemo(() => COUNTRY_CENTROIDS.map(({ n, lat, lon }) => {
-    const pos = geoPos(lat, lon, R * 1.019);
-    return { n, pos, orientation: computeOrientation(pos) };
-  }), []);
-
-  const visible = useMemo(() => {
-    if (camDist > 32) return [];
-    const units = items.map(it => new THREE.Vector3(...it.pos).normalize());
-    return items.map((it, i) => {
-      let minDeg = 180;
-      for (let j = 0; j < units.length; j++) {
-        if (i === j) continue;
-        const dot = Math.max(-1, Math.min(1, units[i].dot(units[j])));
-        const deg = Math.acos(dot) * (180 / Math.PI);
-        if (deg < minDeg) minDeg = deg;
-      }
-      const base = 0.20, thr = 18, min = 0.08;
-      const fontSize = minDeg >= thr ? base : Math.max(min, base * (minDeg / thr));
-      return { ...it, fontSize };
-    });
-  }, [items, camDist]);
-
-  if (visible.length === 0) return null;
-
-  return (
-    <>
-      {visible.map(({ n, pos, orientation, fontSize }) => (
-        <Text
-          key={`cc-${n}`}
-          position={pos}
-          quaternion={orientation}
-          fontSize={fontSize}
-          color="#ffffff"
-          outlineWidth={0.013}
-          outlineColor="#000000"
-          anchorX="center"
-          anchorY="middle"
-          letterSpacing={0.10}
-          sdfGlyphSize={64}
-          material-side={THREE.FrontSide}
-          material-depthTest
-        >
-          {n}
         </Text>
       ))}
     </>
@@ -5634,144 +5401,190 @@ const CITY_TIER1 = new Set([
   "Sydney","Melbourne","Brisbane","Perth","Auckland",
 ]);
 
-// ─── City hover card ─────────────────────────────────────────────────────────
-// Cache fetched city info so we only hit the API once per city per session
-const _cityInfoCache = new Map<string, CityHoverPayload>();
+// ─── City fun facts ──────────────────────────────────────────────────────────
+const CITY_FACTS: Record<string, string> = {
+  // Americas
+  "New York":         "Home to 800+ languages — the world's most linguistically diverse city!",
+  "Los Angeles":      "More car lanes than any other U.S. city, yet traffic still wins every time.",
+  "Chicago":          "The first skyscraper in history was built here in 1885.",
+  "Houston":          "The most ethnically diverse major U.S. city, with 145 languages spoken.",
+  "Phoenix":          "The only U.S. state capital with over 1 million residents.",
+  "Philadelphia":     "Birthplace of both the U.S. Constitution and the Philly cheesesteak.",
+  "San Antonio":      "The Alamo, fought over in 1836, sits in the middle of its downtown.",
+  "San Diego":        "Enjoys 266 sunny days per year — most of any major U.S. city.",
+  "Dallas":           "Home to more restaurants per capita than New York City.",
+  "Austin":           "Live music capital of the world with 250+ live music venues.",
+  "San Francisco":    "The Golden Gate's famous red is officially called 'International Orange'.",
+  "Seattle":          "Birthplace of Amazon, Starbucks, and Boeing — all within a few miles.",
+  "Denver":           "Exactly one mile above sea level — the 'Mile High City' takes it literally.",
+  "Washington DC":    "The city was designed in a 10-mile diamond with grand diagonal avenues.",
+  "Nashville":        "Over 180 live music venues make it the 'Music City' of the world.",
+  "Las Vegas":        "The Strip's hotels use more electricity than some small countries.",
+  "Portland":         "Has more food carts per capita than any other U.S. city.",
+  "Memphis":          "Birthplace of blues, soul, and rock 'n' roll — Elvis included.",
+  "Miami":            "Over 70% of Miami's residents speak a language other than English at home.",
+  "Minneapolis":      "Has more theater seats per capita than any city outside New York.",
+  "New Orleans":      "The U.S. city most below sea level — some spots sit 6 feet underwater.",
+  "Atlanta":          "Delta Air Lines, Coca-Cola, CNN, and Home Depot all started here.",
+  "Detroit":          "Invented the moving assembly line, which changed manufacturing forever.",
+  "Boston":           "Home to the oldest public park in the U.S., dating back to 1634.",
+  "Charlotte":        "Second largest U.S. banking center after New York City.",
+  "St. Louis":        "The Gateway Arch is taller than the Statue of Liberty and the Eiffel Tower.",
+  "Orlando":          "The world's most visited tourist destination with 75 million visitors/year.",
+  "Salt Lake City":   "Has the widest streets of any city in the U.S. — wide enough for a U-turn.",
+  "Indianapolis":     "Hosts the world's largest single-day sporting event: the Indy 500.",
+  "Columbus":         "Home to the largest university campus by enrollment in the U.S.",
+  "Tampa":            "Ybor City here rolled the first commercially made cigars in the U.S.",
+  "Pittsburgh":       "Has more bridges than any other city in the world — 446 in total!",
+  "Cincinnati":       "Birthplace of professional baseball — the Reds are the oldest MLB team.",
+  "Sacramento":       "California's capital, founded during the Gold Rush of 1848.",
+  "Baltimore":        "Home of the first umbrella factory in the United States (1828).",
+  "Milwaukee":        "Brewing capital of the U.S. — once home to four of the world's largest breweries.",
+  "Kansas City":      "Claims the most fountains of any city in the world after Rome.",
+  "Cleveland":        "Home of the Rock & Roll Hall of Fame — rock music was named here.",
+  "Honolulu":         "The only U.S. state capital that is also an island city.",
+  "Anchorage":        "25% of the world's air cargo passes through Ted Stevens airport annually.",
+  "Fairbanks":        "One of the best places on Earth to see the Northern Lights.",
+  "Toronto":          "The most multicultural city in the world — half its residents are foreign-born.",
+  "Montreal":         "The second-largest French-speaking city after Paris.",
+  "Vancouver":        "Rated one of the world's most livable cities for 30 years running.",
+  "Calgary":          "Hosts the world-famous Calgary Stampede, the greatest outdoor show on Earth.",
+  "Ottawa":           "Canada's capital has the world's largest naturally frozen skating rink.",
+  "Edmonton":         "Hosts the world's longest stretch of connected urban parkland.",
+  "Quebec City":      "The only walled city north of Mexico — its walls are still standing.",
+  "Mexico City":      "One of the largest cities on Earth, built on an ancient Aztec lake bed.",
+  "Guadalajara":      "Birthplace of tequila, mariachi music, and the Mexican hat dance.",
+  "Cancun":           "Was a tiny fishing village of just 117 people before 1970.",
+  "Havana":           "Home to more vintage American cars from the 1950s than anywhere else.",
+  "Bogota":           "At 8,660 ft elevation, it's one of the highest capital cities in the world.",
+  "Lima":             "Home to some of the world's best restaurants — a global foodie destination.",
+  "Santiago":         "Backed by the Andes mountains, which are visible on clear days.",
+  "Buenos Aires":     "Has more bookstores per person than any other city in the world.",
+  "Sao Paulo":        "The largest city in the Southern Hemisphere with 22 million people.",
+  "Rio de Janeiro":   "Home to the world's largest Carnival celebration with 2 million revelers/day.",
+  "Cartagena":        "A UNESCO World Heritage walled city with some of the best-preserved colonial architecture.",
+  "Medellin":         "Once the most dangerous city in the world, now a global model for urban renewal.",
+  // Europe
+  "London":           "Has over 170 museums, more than any other city in the world.",
+  "Paris":            "The Eiffel Tower was meant to be torn down after 20 years — it's now 135 years old.",
+  "Berlin":           "Has more bridges than Venice — 1,700 vs Venice's 400.",
+  "Madrid":           "At 2,188 ft, it's the highest capital city in the European Union.",
+  "Rome":             "Built on seven hills and home to the world's smallest country: Vatican City.",
+  "Barcelona":        "Gaudí's Sagrada Família has been under construction since 1882.",
+  "Amsterdam":        "Has more bicycles (900,000) than residents (875,000).",
+  "Vienna":           "Produced Mozart, Beethoven, Schubert, and Brahms — classical music's home.",
+  "Stockholm":        "Built on 14 islands connected by 57 bridges.",
+  "Warsaw":           "After WWII, 90% of the city was destroyed — it was entirely rebuilt from scratch.",
+  "Brussels":         "Headquarters of NATO and the European Union.",
+  "Prague":           "Its Old Town astronomical clock has been running since 1410.",
+  "Lisbon":           "One of the oldest capital cities in Europe, founded before Rome.",
+  "Budapest":         "Has the oldest metro system in continental Europe (opened 1896).",
+  "Oslo":             "The Nobel Peace Prize is awarded here every December 10.",
+  "Copenhagen":       "Consistently ranked as the world's happiest and most livable city.",
+  "Helsinki":         "Over 30% of the city is covered by sea, lake, or river.",
+  "Zurich":           "Consistently ranks as the city with the world's highest quality of life.",
+  "Milan":            "Fashion and design capital of the world — hosts 4 fashion weeks annually.",
+  "Munich":           "Hosts Oktoberfest, which serves 7–8 million liters of beer annually.",
+  "Athens":           "The world's oldest continuously inhabited city, occupied for 7,000 years.",
+  "Bucharest":        "Has the world's second-largest administrative building (Palace of Parliament).",
+  "Hamburg":          "Europe's second-largest port handles 134 million tons of cargo per year.",
+  "Kyiv":             "One of Europe's oldest cities, founded in the 5th century AD.",
+  "Istanbul":         "The only city in the world that straddles two continents: Europe and Asia.",
+  "Dublin":           "More Nobel Prize winners in literature per capita than any other country.",
+  "Edinburgh":        "Has more listed buildings per square mile than anywhere else in the world.",
+  "Manchester":       "Birthplace of the Industrial Revolution and the modern music scene.",
+  "Venice":           "Built on 118 small islands connected by 400+ bridges — no cars allowed!",
+  "Florence":         "Produced more great artists than any other city in history.",
+  "Naples":           "Pizza was invented here — the original Margherita was made in Naples in 1889.",
+  "Seville":          "In summer, temperatures can exceed 50°C — the hottest city in Western Europe.",
+  "Porto":            "Its name gave Portugal its name — originally 'Portus Cale'.",
+  "Geneva":           "Home to 40+ international organizations, including the UN and Red Cross.",
+  "Krakow":           "One of the few major European cities that wasn't bombed in WWII.",
+  "Reykjavik":        "The world's northernmost capital city, powered almost entirely by geothermal energy.",
+  "Tallinn":          "One of the best-preserved medieval cities in Northern Europe.",
+  "Vilnius":          "Has 65 churches — more per capita than almost any other European city.",
+  "Riga":             "Home to the world's first decorated Christmas tree (1510).",
+  // Russia & Central Asia
+  "Moscow":           "The Moscow Metro is one of the most beautiful subway systems in the world.",
+  "Saint Petersburg": "Built on 101 islands across the Neva Delta — the 'Venice of the North'.",
+  "Vladivostok":      "Sits closer to San Francisco (by sea) than to Moscow.",
+  "Samarkand":        "One of the oldest continuously inhabited cities in Central Asia.",
+  // Middle East
+  "Dubai":            "Home to the world's tallest building — the Burj Khalifa at 828 meters.",
+  "Abu Dhabi":        "Sits on one of the world's largest oil reserves.",
+  "Doha":             "Hosted the 2022 FIFA World Cup — the first in the Middle East.",
+  "Riyadh":           "One of the fastest-growing cities in the world — population doubled in 20 years.",
+  "Tehran":           "One of the world's highest capital cities, flanked by the Alborz mountains.",
+  "Jerusalem":        "Sacred to three of the world's major religions: Judaism, Christianity, Islam.",
+  "Tel Aviv":         "The world's second-largest concentration of startups after Silicon Valley.",
+  "Beirut":           "Known as the 'Paris of the Middle East' for its vibrant culture and cuisine.",
+  "Amman":            "One of the world's oldest continuously inhabited cities — dating back 9,000 years.",
+  "Kuwait City":      "Was once the wealthiest country per capita in the world.",
+  // South Asia
+  "Delhi":            "One of the world's oldest and most historically rich cities — over 3,000 years old.",
+  "Mumbai":           "Bollywood produces more films per year than Hollywood.",
+  "Karachi":          "One of the world's largest cities with the world's largest bus rapid transit system.",
+  "Dhaka":            "One of the world's most densely populated cities — 44,000 people per sq km.",
+  "Kolkata":          "Home to Asia's oldest operating tramway system (1873).",
+  "Bangalore":        "Silicon Valley of India — home to 1,000+ tech companies.",
+  "Chennai":          "The Detroit of India — produces 30% of all automobiles in the country.",
+  "Hyderabad":        "Famous for the Hyderabadi biryani, considered one of the world's greatest dishes.",
+  "Kathmandu":        "Gateway to 8 of the world's 14 highest mountains above 8,000 meters.",
+  "Colombo":          "One of the largest natural harbors in South Asia.",
+  // East & Southeast Asia
+  "Tokyo":            "The world's largest metropolitan area with 37.4 million people.",
+  "Shanghai":         "Has the world's largest metro system by total route length (831 km).",
+  "Beijing":          "Has been China's capital for most of the last 700 years.",
+  "Seoul":            "Has the fastest average internet speed of any major city in the world.",
+  "Osaka":            "Known as Japan's kitchen — Japanese consider its food the best in the country.",
+  "Kyoto":            "Was Japan's capital for over 1,000 years and home to 1,600+ temples.",
+  "Hong Kong":        "Has the world's most skyscrapers per capita — 482 buildings over 100m tall.",
+  "Singapore":        "The only city-state in Southeast Asia — an entire country in one city.",
+  "Bangkok":          "Has the world's longest city name — 169 characters in Thai.",
+  "Ho Chi Minh City": "Named after Vietnam's famous revolutionary leader — formerly Saigon.",
+  "Jakarta":          "Home to the world's largest bus rapid transit (TransJakarta) system.",
+  "Manila":           "One of the world's most densely populated cities with over 71,000 people/km².",
+  "Kuala Lumpur":     "The Petronas Towers were the world's tallest buildings from 1998 to 2004.",
+  "Taipei":           "Home to Taipei 101, which was the world's tallest building until 2010.",
+  "Chengdu":          "Home of the Giant Panda Breeding Research Base — pandas are everywhere!",
+  "Ulaanbaatar":      "The world's coldest capital city, with temperatures reaching -40°C in winter.",
+  "Bali":             "One of the world's top island destinations with 6 million visitors yearly.",
+  "Phuket":           "Thailand's largest island has more dive sites than almost anywhere in Asia.",
+  // Africa
+  "Cairo":            "The largest city in Africa, home to the 4,500-year-old Great Pyramids.",
+  "Lagos":            "Africa's largest city and fastest-growing megacity — adds 77 people per hour.",
+  "Nairobi":          "The only city in the world with a national park inside city limits.",
+  "Johannesburg":     "The world's largest city NOT on a river, lake, or coastline.",
+  "Cape Town":        "Table Mountain is one of the world's oldest mountains — 600 million years old.",
+  "Casablanca":       "Morocco's economic capital and home to Africa's largest mosque.",
+  "Addis Ababa":      "Headquarters of the African Union and home to the UN's African offices.",
+  "Accra":            "Labadi Beach draws crowds year-round — one of West Africa's best beaches.",
+  "Dar es Salaam":    "Tanzania's largest city means 'Haven of Peace' in Arabic.",
+  "Kigali":           "Consistently ranked as Africa's cleanest city — plastic bags are banned.",
+  // Oceania
+  "Sydney":           "The Opera House & the Harbour Bridge — took over 1,400 workers and decades to build.",
+  "Melbourne":        "Has the world's largest tram network outside Europe.",
+  "Brisbane":         "Hosted the 1982 and 2032 Summer Olympics — 50 years apart!",
+  "Perth":            "The most isolated major city in the world — 2,700 km from the next city.",
+  "Auckland":         "Nicknamed the 'City of Sails' — has more boats per capita than anywhere on Earth.",
+};
 
-/** Score a sentence for how interesting it is — higher = better */
-function scoreSentence(s: string): number {
-  let score = 0;
-  // Reward historical facts, records, landmarks
-  if (/\b(founded|established|built|constructed|erected|opened|completed)\b/i.test(s)) score += 4;
-  if (/\b(oldest|tallest|largest|first|only|deepest|longest|highest|smallest|biggest)\b/i.test(s)) score += 4;
-  if (/\b(century|ancient|historic|medieval|empire|dynasty|war|battle|revolution|olymp)\b/i.test(s)) score += 3;
-  if (/\b(world|record|famous|renowned|landmark|wonder|heritage|unesco)\b/i.test(s)) score += 2;
-  if (/\b(known for|home to|site of|birthplace)\b/i.test(s)) score += 2;
-  // Reward years (specific historical facts)
-  if (/\b(1[0-9]{3}|20[0-2][0-9])\b/.test(s)) score += 2;
-  // Heavily penalise population/area/density sentences
-  if (/\bpopulation\b|\binhabitants\b|\bresidents\b|\bpeople\b.*\blive\b|\bdensity\b|\bsq(uare)? (km|mi)\b|\barea\b.*\bkm/i.test(s)) score -= 8;
-  // Penalise generic city-description openers
-  if (/is (a|the) (city|town|municipality|commune|major|large|small|port|capital)/i.test(s)) score -= 3;
-  if (/one of the world.s greatest/i.test(s)) score -= 6;
-  if (/located in|situated in|in the .* of/i.test(s)) score -= 2;
-  if (/most populous|urban area|metropolitan area/i.test(s)) score -= 4;
-  // Prefer medium-length sentences
-  const words = s.split(/\s+/).length;
-  if (words >= 10 && words <= 40) score += 1;
-  return score;
-}
 
-function pickInterestingFact(extract: string, _name: string): string {
-  const sentences = extract.match(/[^.!?]+[.!?]+/g) ?? [];
-  if (!sentences.length) return extract.slice(0, 220);
-  // Score all sentences, pick the best one that isn't the very first
-  const scored = sentences.map((s, i) => ({ s: s.trim(), score: scoreSentence(s) - (i === 0 ? 1 : 0) }));
-  scored.sort((a, b) => b.score - a.score);
-  const best = scored[0].s;
-  return best.length > 220 ? best.slice(0, 217) + "\u2026" : best;
-}
-
-async function fetchCityInfo(name: string): Promise<CityHoverPayload> {
-  if (_cityInfoCache.has(name)) return _cityInfoCache.get(name)!;
-
-  const slug = encodeURIComponent(name.replace(/ /g, "_"));
-
-  // Primary: Wikipedia — REST summary for image + MediaWiki extracts for rich facts
-  try {
-    const [summaryRes, extractRes] = await Promise.all([
-      fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${slug}`, { headers: { "User-Agent": "GeKneeApp/1.0" } }),
-      fetch(`https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exsentences=20&explaintext=1&titles=${slug}&format=json&origin=*`, { headers: { "User-Agent": "GeKneeApp/1.0" } }),
-    ]);
-    const summaryData = await summaryRes.json();
-    const extractData = await extractRes.json();
-
-    const pages = extractData?.query?.pages ?? {};
-    const fullExtract: string = (Object.values(pages)[0] as any)?.extract ?? summaryData.extract ?? "";
-
-    if (fullExtract) {
-      let imgUrl: string | null = summaryData.thumbnail?.source ?? null;
-      if (!imgUrl) {
-        try {
-          const media = await (await fetch(`https://en.wikipedia.org/api/rest_v1/page/media-list/${slug}`)).json();
-          const lead = media?.items?.find((i: any) => i.type === "image" && i.srcset?.[0]?.src);
-          if (lead) imgUrl = "https:" + lead.srcset[0].src;
-        } catch {}
-      }
-      const summary = pickInterestingFact(fullExtract, name);
-      const payload: CityHoverPayload = { name, summary, imgUrl };
-      _cityInfoCache.set(name, payload);
-      return payload;
-    }
-  } catch {}
-
-  // Fallback: Wikidata label + description via SPARQL
-  try {
-    const sparql = encodeURIComponent(
-      `SELECT ?desc ?img WHERE { ?city wikibase:label { bd:serviceParam wikibase:language "en". ?city schema:description ?desc. } OPTIONAL { ?city wdt:P18 ?img. } SERVICE wikibase:mwapi { bd:serviceParam wikibase:endpoint "en.wikipedia.org"; wikibase:api "Search"; mwapi:srsearch "${name}"; mwapi:srlimit 1. ?city wikibase:apiOutput mwapi:title. } } LIMIT 1`
-    );
-    const wd = await (await fetch(`https://query.wikidata.org/sparql?query=${sparql}&format=json`)).json();
-    const row = wd?.results?.bindings?.[0];
-    if (row?.desc?.value) {
-      const payload: CityHoverPayload = {
-        name,
-        summary: row.desc.value,
-        imgUrl: row.img?.value ?? null,
-      };
-      _cityInfoCache.set(name, payload);
-      return payload;
-    }
-  } catch {}
-
-  // Last resort: REST Countries — try capital lookup, then name lookup
-  try {
-    const fields = "fields=name,capital,population,region,subregion,flags,currencies";
-    let countries = await (await fetch(`https://restcountries.com/v3.1/capital/${encodeURIComponent(name)}?${fields}`)).json();
-    // If not a capital, try matching by country name
-    if (!Array.isArray(countries) || !countries[0]) {
-      countries = await (await fetch(`https://restcountries.com/v3.1/name/${encodeURIComponent(name)}?${fields}`)).json();
-    }
-    if (Array.isArray(countries) && countries[0]) {
-      const c = countries[0];
-      const currencyNames = Object.values(c.currencies ?? {}).map((v: any) => v.name).join(", ");
-      const parts = [
-        c.name?.common ? `Capital of ${c.name.common}` : null,
-        c.subregion ? c.subregion : c.region ? c.region : null,
-        c.population ? `Pop. ${c.population.toLocaleString()}` : null,
-        currencyNames ? `Currency: ${currencyNames}` : null,
-      ].filter(Boolean);
-      const payload: CityHoverPayload = {
-        name,
-        summary: parts.join(" \u00B7 "),
-        imgUrl: c.flags?.png ?? null,
-      };
-      _cityInfoCache.set(name, payload);
-      return payload;
-    }
-  } catch {}
-
-  const fallback: CityHoverPayload = { name, summary: "", imgUrl: null };
-  _cityInfoCache.set(name, fallback);
-  return fallback;
-}
-
-function CityItem({ n, pos, orientation, fontSize }: { n: string; pos: [number,number,number]; orientation: THREE.Quaternion; fontSize: number }) {
-  const onEnter = (e: any) => {
-    e.stopPropagation();
-    document.body.style.cursor = 'pointer';
-    fetchCityInfo(n).then(payload => _fireCityHover(payload));
-  };
-  const onLeave = (e: any) => {
-    e.stopPropagation();
-    document.body.style.cursor = 'auto';
-    _fireCityHover(null);
-  };
+function CityLabel({ n, pos, orientation, fontSize }: {
+  n: string;
+  pos: [number, number, number];
+  orientation: THREE.Quaternion;
+  fontSize: number;
+}) {
+  const [hovered, setHovered] = useState(false);
+  const fact = CITY_FACTS[n];
 
   return (
     <group position={pos} quaternion={orientation}>
+      {/* Visual label */}
       <Text
         fontSize={fontSize}
-        color="#c8d8ff"
+        color={hovered ? "#ffffff" : "#c8d8ff"}
         outlineWidth={0.006}
         outlineColor="#111111"
         anchorX="center"
@@ -5785,12 +5598,62 @@ function CityItem({ n, pos, orientation, fontSize }: { n: string; pos: [number,n
       >
         {`\u2022 ${n}`}
       </Text>
+      {/* Fun fact tooltip */}
+      {hovered && (
+        <Html
+          center
+          position={[0, 0.30, 0]}
+          distanceFactor={9}
+          zIndexRange={[300, 200]}
+          style={{ pointerEvents: "none" }}
+        >
+          <div style={{
+            background: "linear-gradient(160deg, rgba(8, 12, 45, 0.97) 0%, rgba(14, 22, 65, 0.97) 100%)",
+            border: "1px solid rgba(140, 180, 255, 0.55)",
+            borderRadius: "12px",
+            padding: "10px 14px 10px",
+            maxWidth: "220px",
+            minWidth: "140px",
+            textAlign: "center",
+            color: "#c8d8ff",
+            fontSize: "11px",
+            lineHeight: "1.55",
+            whiteSpace: "normal",
+            boxShadow: "0 6px 28px rgba(0, 20, 120, 0.65), inset 0 1px 0 rgba(255,255,255,0.07)",
+            fontFamily: "system-ui, sans-serif",
+            position: "relative",
+          }}>
+            <div style={{
+              fontWeight: 700,
+              marginBottom: "5px",
+              color: "#ffffff",
+              fontSize: "12px",
+              letterSpacing: "0.04em",
+              textShadow: "0 0 14px rgba(100, 160, 255, 0.7)",
+            }}>{n}</div>
+            <div style={{ opacity: 0.9 }}>{fact ?? `One of the world's great cities — click to explore!`}</div>
+            {/* Down-pointing arrow */}
+            <div style={{
+              position: "absolute",
+              bottom: "-6px",
+              left: "50%",
+              transform: "translateX(-50%)",
+              width: 0,
+              height: 0,
+              borderLeft: "6px solid transparent",
+              borderRight: "6px solid transparent",
+              borderTop: "6px solid rgba(140, 180, 255, 0.55)",
+            }} />
+          </div>
+        </Html>
+      )}
+      {/* Sprite hitbox — always faces camera so raycast always works */}
       <sprite
-        scale={[0.55, 0.13, 1]}
+        scale={[0.65, 0.16, 1]}
         renderOrder={2}
         onClick={(e: any) => { e.stopPropagation(); _lmNav?.(n); }}
-        onPointerOver={onEnter}
-        onPointerOut={onLeave}
+        onPointerOver={(e: any) => { e.stopPropagation(); setHovered(true); document.body.style.cursor = "pointer"; }}
+        onPointerOut={(e: any) => { e.stopPropagation(); setHovered(false); document.body.style.cursor = "auto"; }}
       >
         <spriteMaterial transparent opacity={0} depthTest={false} />
       </sprite>
@@ -5801,7 +5664,7 @@ function CityItem({ n, pos, orientation, fontSize }: { n: string; pos: [number,n
 function CityLabels({ camDist }: { camDist: number }) {
   // Dynamic separation threshold: wider zoom = stricter = fewer cities shown.
   // camDist ~21 → thresh ~4°, camDist ~14 → thresh ~1.5°, camDist <12 → ~0.6°
-  const sepThresh = camDist > 22 ? 4.0 : camDist > 18 ? 2.5 : camDist > 14 ? 1.2 : 0.6;
+  const sepThresh = camDist > 18 ? 4.0 : camDist > 15 ? 2.5 : camDist > 12 ? 1.2 : 0.6;
 
   const items = useMemo(() => {
     return CITIES.map(({ n, lat, lon }) => {
@@ -5813,12 +5676,12 @@ function CityLabels({ camDist }: { camDist: number }) {
   // Greedy spatial dedup: sort tier-1 first, then pick cities that are
   // at least sepThresh° away from any already-selected city.
   const visible = useMemo(() => {
-    if (camDist >= 26) return [];
+    if (camDist >= 21) return [];
     const sorted = [...items].sort((a, b) => a.tier - b.tier);
     const selected: typeof sorted = [];
     const selUnits: THREE.Vector3[] = [];
     for (const city of sorted) {
-      if (city.tier === 2 && camDist > 18) continue; // tier-2 only at close zoom
+      if (city.tier === 2 && camDist > 15) continue; // tier-2 only at close zoom
       const u = new THREE.Vector3(...city.pos).normalize();
       let tooClose = false;
       for (const su of selUnits) {
@@ -5843,12 +5706,12 @@ function CityLabels({ camDist }: { camDist: number }) {
     });
   }, [items, camDist, sepThresh]);
 
-  if (camDist >= 26) return null;
+  if (camDist >= 21) return null;
 
   return (
     <>
       {visible.map(({ n, pos, orientation, fontSize }) => (
-        <CityItem key={n} n={n} pos={pos as [number,number,number]} orientation={orientation} fontSize={fontSize} />
+        <CityLabel key={n} n={n} pos={pos} orientation={orientation} fontSize={fontSize} />
       ))}
     </>
   );
@@ -6341,8 +6204,7 @@ function GlobeScene() {
         {starPos && zoomLevel >= 1 && <NearbyCities key={`nc-${starPos.key}`} lat={starPos.lat} lon={starPos.lon} />}
 
         {/* Geographic labels floating above surface */}
-        <GeoLabels countries={countries} states={states} camDist={camDist} />
-        <CountryLabels camDist={camDist} />
+        <GeoLabels countries={countries} states={states} zoomLevel={zoomLevel} />
         <CityLabels camDist={camDist} />
 
       </group>
@@ -6363,7 +6225,6 @@ const MonumentShop    = dynamic(() => import("@/app/components/MonumentShop"),  
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function LocationPage() {
   const [location, setLocation] = useState("");
-  const [hoveredCity, setHoveredCity] = useState<CityHoverPayload>(null);
   const [authOpen,      setAuthOpen]      = useState(false);
   const [panelOpen,     setPanelOpen]     = useState(false);
   const [settingsOpen,  setSettingsOpen]  = useState(false);
@@ -6396,7 +6257,6 @@ export default function LocationPage() {
     _setGlobeClick(() => {
       window.dispatchEvent(new CustomEvent('geknee:globeselect', { detail: { location: '' } }));
     });
-    _setCityHover = setHoveredCity;
   });
 
   const handleInitialize = () => {
@@ -6426,64 +6286,6 @@ export default function LocationPage() {
         <DampingUpdater />
         <GlobeScene />
       </Canvas>
-
-      {/* ── City hover info panel — left side ── */}
-      <div style={{
-        position: "fixed",
-        left: hoveredCity ? "20px" : "-320px",
-        top: "50%",
-        transform: "translateY(-50%)",
-        width: "280px",
-        zIndex: 30,
-        transition: "left 0.28s cubic-bezier(0.22,1,0.36,1)",
-        pointerEvents: "none",
-      }}>
-        {hoveredCity && (
-          <div style={{
-            background: "linear-gradient(150deg, rgba(14,42,110,0.97) 0%, rgba(6,24,64,0.98) 100%)",
-            border: "2px solid #50c8ff",
-            borderRadius: "20px",
-            overflow: "hidden",
-            boxShadow: "0 0 28px rgba(60,180,255,0.4), 0 8px 32px rgba(0,0,0,0.6)",
-            fontFamily: '"Segoe UI", system-ui, -apple-system, sans-serif',
-            backdropFilter: "blur(12px)",
-          }}>
-            {hoveredCity.imgUrl && (
-              <img
-                src={hoveredCity.imgUrl}
-                alt={hoveredCity.name}
-                style={{ display: "block", width: "100%", height: "140px", objectFit: "cover", borderBottom: "1.5px solid #50c8ff" }}
-              />
-            )}
-            <div style={{ padding: "14px 16px 16px" }}>
-              <div style={{
-                fontSize: "15px", fontWeight: 800, color: "#ffffff",
-                letterSpacing: "0.03em", marginBottom: "4px",
-                textShadow: "0 0 14px rgba(100,210,255,0.9)",
-              }}>
-                {String.fromCodePoint(0x1F4CD)} {hoveredCity.name}
-              </div>
-              <div style={{
-                width: "40px", height: "2px",
-                background: "linear-gradient(90deg,#50c8ff,transparent)",
-                marginBottom: "10px",
-              }} />
-              {hoveredCity.summary ? (
-                <div style={{ fontSize: "11.5px", color: "#c8e8ff", lineHeight: 1.65 }}>
-                  {hoveredCity.summary}
-                </div>
-              ) : (
-                <div style={{ fontSize: "11px", color: "#6090b0", fontStyle: "italic" }}>
-                  Loading\u2026
-                </div>
-              )}
-              <div style={{ marginTop: "12px", fontSize: "10px", color: "#3a7090", textAlign: "right" }}>
-                Click to plan a trip \u2192
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
 
       {/* Initialize / home button — top-center */}
       <div style={{ position: "fixed", top: 18, left: "50%", transform: "translateX(-50%)", zIndex: 20 }}>
