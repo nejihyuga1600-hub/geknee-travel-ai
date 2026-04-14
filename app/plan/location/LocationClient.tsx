@@ -5655,6 +5655,7 @@ function scoreSentence(s: string): number {
   if (/is (a|the) (city|town|municipality|commune|major|large|small|port|capital)/i.test(s)) score -= 3;
   if (/one of the world.s greatest/i.test(s)) score -= 6;
   if (/located in|situated in|in the .* of/i.test(s)) score -= 2;
+  if (/most populous|urban area|metropolitan area/i.test(s)) score -= 4;
   // Prefer medium-length sentences
   const words = s.split(/\s+/).length;
   if (words >= 10 && words <= 40) score += 1;
@@ -5676,12 +5677,20 @@ async function fetchCityInfo(name: string): Promise<CityHoverPayload> {
 
   const slug = encodeURIComponent(name.replace(/ /g, "_"));
 
-  // Primary: Wikipedia REST summary
+  // Primary: Wikipedia — REST summary for image + MediaWiki extracts for rich facts
   try {
-    const d = await (await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${slug}`)).json();
-    if (d.extract) {
-      let imgUrl: string | null = d.thumbnail?.source ?? null;
-      // If no thumbnail, try the page media endpoint for a lead image
+    const [summaryRes, extractRes] = await Promise.all([
+      fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${slug}`, { headers: { "User-Agent": "GeKneeApp/1.0" } }),
+      fetch(`https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exsentences=20&explaintext=1&titles=${slug}&format=json&origin=*`, { headers: { "User-Agent": "GeKneeApp/1.0" } }),
+    ]);
+    const summaryData = await summaryRes.json();
+    const extractData = await extractRes.json();
+
+    const pages = extractData?.query?.pages ?? {};
+    const fullExtract: string = (Object.values(pages)[0] as any)?.extract ?? summaryData.extract ?? "";
+
+    if (fullExtract) {
+      let imgUrl: string | null = summaryData.thumbnail?.source ?? null;
       if (!imgUrl) {
         try {
           const media = await (await fetch(`https://en.wikipedia.org/api/rest_v1/page/media-list/${slug}`)).json();
@@ -5689,7 +5698,7 @@ async function fetchCityInfo(name: string): Promise<CityHoverPayload> {
           if (lead) imgUrl = "https:" + lead.srcset[0].src;
         } catch {}
       }
-      const summary = pickInterestingFact(d.extract, name);
+      const summary = pickInterestingFact(fullExtract, name);
       const payload: CityHoverPayload = { name, summary, imgUrl };
       _cityInfoCache.set(name, payload);
       return payload;
