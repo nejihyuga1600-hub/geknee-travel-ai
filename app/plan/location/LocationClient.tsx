@@ -5641,17 +5641,23 @@ const _cityInfoCache = new Map<string, CityHoverPayload>();
 /** Score a sentence for how interesting it is — higher = better */
 function scoreSentence(s: string): number {
   let score = 0;
-  // Reward numbers, years, stats
-  if (/\d/.test(s)) score += 2;
-  // Reward superlatives and notable words
-  if (/largest|oldest|tallest|first|only|most|biggest|deepest|highest|longest|smallest|ancient|founded|built|century|million|billion|record|world|famous|known for|landmark|capital/i.test(s)) score += 3;
-  // Penalise generic opener sentences
-  if (/is a (city|town|municipality|commune|major|large|small|port)/i.test(s)) score -= 3;
-  if (/one of the world.s greatest/i.test(s)) score -= 5;
-  if (/located in|situated in|in the .* of/i.test(s)) score -= 1;
+  // Reward historical facts, records, landmarks
+  if (/\b(founded|established|built|constructed|erected|opened|completed)\b/i.test(s)) score += 4;
+  if (/\b(oldest|tallest|largest|first|only|deepest|longest|highest|smallest|biggest)\b/i.test(s)) score += 4;
+  if (/\b(century|ancient|historic|medieval|empire|dynasty|war|battle|revolution|olymp)\b/i.test(s)) score += 3;
+  if (/\b(world|record|famous|renowned|landmark|wonder|heritage|unesco)\b/i.test(s)) score += 2;
+  if (/\b(known for|home to|site of|birthplace)\b/i.test(s)) score += 2;
+  // Reward years (specific historical facts)
+  if (/\b(1[0-9]{3}|20[0-2][0-9])\b/.test(s)) score += 2;
+  // Heavily penalise population/area/density sentences
+  if (/\bpopulation\b|\binhabitants\b|\bresidents\b|\bpeople\b.*\blive\b|\bdensity\b|\bsq(uare)? (km|mi)\b|\barea\b.*\bkm/i.test(s)) score -= 8;
+  // Penalise generic city-description openers
+  if (/is (a|the) (city|town|municipality|commune|major|large|small|port|capital)/i.test(s)) score -= 3;
+  if (/one of the world.s greatest/i.test(s)) score -= 6;
+  if (/located in|situated in|in the .* of/i.test(s)) score -= 2;
   // Prefer medium-length sentences
   const words = s.split(/\s+/).length;
-  if (words >= 12 && words <= 40) score += 1;
+  if (words >= 10 && words <= 40) score += 1;
   return score;
 }
 
