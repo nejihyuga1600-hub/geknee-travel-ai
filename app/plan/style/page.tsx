@@ -6,6 +6,11 @@ import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
 
+// ─── Mobile performance detection ────────────────────────────────────────────
+const isMobile = typeof window !== "undefined" && (
+  /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768
+);
+
 const FlightPriceChart = dynamic(() => import('./FlightPriceChart'), { ssr: false });
 
 // ─── Preference step data ─────────────────────────────────────────────────────
@@ -1043,7 +1048,7 @@ function GlobeScene({ rotX, rotY, camZ, cities, startLat, startLon, selectedCiti
       <group rotation={[rotX, rotY, 0]}>
         {/* Earth sphere — same material props as home page */}
         <mesh>
-          <sphereGeometry args={[1, 64, 64]} />
+          <sphereGeometry args={[1, isMobile ? 32 : 64, isMobile ? 32 : 64]} />
           <meshStandardMaterial
             map={terrain ?? undefined}
             color={terrain ? '#ffffff' : '#1e40af'}
@@ -1056,7 +1061,7 @@ function GlobeScene({ rotX, rotY, camZ, cities, startLat, startLon, selectedCiti
 
         {/* Atmosphere rim */}
         <mesh scale={1.055}>
-          <sphereGeometry args={[1, 32, 32]} />
+          <sphereGeometry args={[1, isMobile ? 16 : 32, isMobile ? 16 : 32]} />
           <meshBasicMaterial color="#3b72ff" transparent opacity={0.065} side={THREE.BackSide} />
         </mesh>
 
@@ -1219,7 +1224,8 @@ function GlobePicker({ startCity, selectedCities, onToggle, onHover }: {
       <Canvas
         camera={{ position: [0, 0, 1.30], fov: 45, near: 0.01, far: 10 }}
         style={{ display: 'block', position: 'absolute', inset: 0, width: '100%', height: '100%' }}
-        gl={{ antialias: true, alpha: false }}
+        dpr={[1, isMobile ? 1.5 : 2]}
+        gl={{ antialias: !isMobile, alpha: false, powerPreference: isMobile ? "default" : "high-performance" }}
       >
         <GlobeScene
           rotX={rot[0]} rotY={rot[1]} camZ={camZ}

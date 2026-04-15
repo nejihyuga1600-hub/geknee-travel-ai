@@ -3,6 +3,11 @@
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Sphere, Stars, Html, useGLTF, Text, useTexture } from "@react-three/drei";
 import { useEffect, useRef, useState, useMemo, Component, Suspense, type ReactNode } from "react";
+
+// ─── Mobile performance detection ────────────────────────────────────────────
+const isMobile = typeof window !== "undefined" && (
+  /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768
+);
 import * as THREE from "three";
 import { useRouter } from "next/navigation";
 import { consumeGlobeTarget, consumeCameraZoom, flyToGlobe, zoomCamera, resetGlobeTilt, consumeResetTilt } from "@/lib/globeAnim";
@@ -6279,8 +6284,11 @@ export default function LocationPage() {
       <Canvas
         style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", zIndex: 1 }}
         camera={{ position: [0, 0, 26], fov: 50 }}
-        dpr={[1, Math.min(window.devicePixelRatio, 3)]}
-        gl={{ antialias: true, powerPreference: "high-performance" }}
+        dpr={[1, isMobile ? 1.5 : 2]}
+        gl={{
+          antialias: !isMobile,
+          powerPreference: isMobile ? "default" : "high-performance",
+        }}
       >
         <OrbitControls makeDefault enableZoom enablePan={false} enableRotate={false} minDistance={11.5} maxDistance={45} zoomSpeed={1.2} enableDamping dampingFactor={0.12} />
         <DampingUpdater />
