@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { auth } from "@/auth";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -10,6 +11,9 @@ interface FlightsBody {
 }
 
 export async function POST(req: Request) {
+  const session = await auth();
+  if (!session?.user) return new Response("Unauthorized", { status: 401 });
+
   let body: FlightsBody;
   try {
     body = await req.json();

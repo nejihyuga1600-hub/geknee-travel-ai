@@ -146,7 +146,13 @@ FORMATTING RULES:
 export async function POST(req: Request) {
   // ── Auth + generation limit ───────────────────────────────────────────────
   const session = await auth();
-  const userId = (session?.user as { id?: string })?.id;
+  if (!session?.user) {
+    return new Response(JSON.stringify({ error: "Sign in to generate itineraries", code: "AUTH_REQUIRED" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+  const userId = (session.user as { id?: string })?.id;
   if (userId) {
     const { allowed, reason } = await checkAndIncrementGeneration(userId);
     if (!allowed) {

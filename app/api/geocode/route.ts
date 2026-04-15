@@ -12,7 +12,7 @@ export async function GET(req: Request) {
   const hit = cache.get(address);
   if (hit) return Response.json(hit);
 
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const apiKey = process.env.GOOGLE_GEOCODE_KEY;
   if (!apiKey) return Response.json({ error: 'no API key' }, { status: 500 });
 
   const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${apiKey}`;

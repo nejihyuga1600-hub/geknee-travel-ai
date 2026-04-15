@@ -53,7 +53,7 @@ async function fetchAmadeusPrices(
     const res = await fetch(url.toString(), {
       headers: { Authorization: `Bearer ${token}` },
     });
-    if (!res.ok) { console.error("Amadeus error:", res.status); return null; }
+    if (!res.ok) { return null; }
     const data = await res.json();
     const items: Array<{ departureDate: string; price: { total: string } }> =
       data.data ?? [];
@@ -63,8 +63,7 @@ async function fetchAmadeusPrices(
       prices[item.departureDate] = Math.round(parseFloat(item.price.total));
     }
     return prices;
-  } catch (err) {
-    console.error("Amadeus fetch error:", err);
+  } catch {
     return null;
   }
 }
@@ -101,7 +100,6 @@ async function fetchTravelpayoutsPrices(
         prices[item.depart_date] = Math.round(item.value);
       }
     }
-    console.log(`Travelpayouts: got ${Object.keys(prices).length} prices for ${origin}→${destination}`);
     return Object.keys(prices).length > 0 ? prices : null;
   } catch (err) {
     console.error("Travelpayouts fetch exception:", err);
@@ -157,7 +155,6 @@ async function fetchSerpApiPrices(
   for (const r of results) {
     if (r) prices[r.date] = r.price;
   }
-  console.log(`SerpAPI: got ${Object.keys(prices).length} prices for ${origin}→${destination}`);
   return Object.keys(prices).length > 0 ? prices : null;
 }
 

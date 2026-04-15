@@ -6027,6 +6027,7 @@ function GlobeScene() {
   const [zoomLevel, setZoomLevel] = useState(0);
   const zoomLevelRef = useRef(0);
   const [camDist, setCamDist] = useState(30);
+  const [globeReady, setGlobeReady] = useState(false);
   const camDistRef = useRef(30);
 
   // Rebuild canvas texture whenever GeoJSON borders or terrain image change
@@ -6369,6 +6370,7 @@ export default function LocationPage() {
           gl.domElement.style.touchAction = "none";
           // Handle WebGL context loss gracefully (Safari drops context during app switch)
           gl.domElement.addEventListener("webglcontextlost", (e) => { e.preventDefault(); }, false);
+          setGlobeReady(true);
         }}
       >
         <OrbitControls
@@ -6387,6 +6389,27 @@ export default function LocationPage() {
         <GlobeScene />
       </Canvas>
 
+      {/* Globe loading overlay */}
+      {!globeReady && (
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 50,
+          background: "rgba(4,5,16,0.92)",
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          gap: 16,
+        }}>
+          <div style={{
+            width: 48, height: 48, borderRadius: "50%",
+            border: "3px solid rgba(99,102,241,0.25)",
+            borderTopColor: "#6366f1",
+            animation: "spin 0.9s linear infinite",
+          }} />
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          <span style={{ color: "#818cf8", fontSize: 13, fontWeight: 600, letterSpacing: "0.08em" }}>
+            Loading Globe…
+          </span>
+        </div>
+      )}
+
       {/* Initialize / home button — top-center */}
       <div style={{ position: "fixed", top: 18, left: "50%", transform: "translateX(-50%)", zIndex: 20 }}>
         <button
@@ -6404,7 +6427,7 @@ export default function LocationPage() {
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
           </svg>
-          Initialize
+          Reset Globe
         </button>
       </div>
 
@@ -6413,21 +6436,19 @@ export default function LocationPage() {
         {session?.user ? (
           <>
             {/* Monument Shop button */}
-            {!isMobile && (
             <button
               onClick={() => setShopOpen(true)}
               style={{
                 background: "rgba(6,8,22,0.75)", border: "1px solid rgba(139,92,246,0.4)",
                 backdropFilter: "blur(12px)", borderRadius: 10,
                 color: "#c4b5fd", fontSize: 12, fontWeight: 700,
-                padding: "8px 14px", cursor: "pointer",
+                padding: isMobile ? "7px 10px" : "8px 14px", cursor: "pointer",
                 display: "flex", alignItems: "center", gap: 6,
                 boxShadow: "0 2px 12px rgba(139,92,246,0.2)",
               }}
             >
-              {String.fromCodePoint(0x1F3DB)} Collection
+              {String.fromCodePoint(0x1F3DB)} {isMobile ? "Shop" : "Collection"}
             </button>
-            )}
 
             {/* Go Pro button */}
             <button

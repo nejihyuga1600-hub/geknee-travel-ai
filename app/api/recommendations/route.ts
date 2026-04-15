@@ -1,4 +1,5 @@
 import Anthropic from "@anthropic-ai/sdk";
+import { auth } from "@/auth";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -15,6 +16,9 @@ interface RecommendationsBody {
 }
 
 export async function POST(req: Request) {
+  const session = await auth();
+  if (!session?.user) return new Response("Unauthorized", { status: 401 });
+
   let body: RecommendationsBody;
   try {
     body = await req.json();

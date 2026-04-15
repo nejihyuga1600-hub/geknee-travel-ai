@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
 
   const stream = await client.messages.stream({
-    model: 'claude-sonnet-4-5',
+    model: 'claude-sonnet-4-6',
     max_tokens: 1024,
     system: `You are GeKnee AI Genie, a travel inspiration expert.
 

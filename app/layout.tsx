@@ -1,4 +1,6 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 import { SessionProvider } from "next-auth/react";
 import GlobalChat from "./components/GlobalChat";
@@ -10,13 +12,19 @@ export const metadata: Metadata = {
   description: "Plan trips step-by-step with AI.",
 };
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <head>
         {/* Travelpayouts affiliate tracking */}
         {/* eslint-disable-next-line @next/next/no-sync-scripts */}
