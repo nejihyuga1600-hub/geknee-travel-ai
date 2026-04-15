@@ -5575,6 +5575,35 @@ const CITY_FACTS: Record<string, string> = {
 };
 
 
+// ─── City hover card cache ────────────────────────────────────────────────────
+const _cityCardCache = new Map<string, { imgUrl: string | null; fact: string }>();
+
+function scoreSentence(s: string): number {
+  let score = 0;
+  if (/\b(founded|established|built|constructed|opened|completed)\b/i.test(s)) score += 4;
+  if (/\b(oldest|tallest|largest|first|only|deepest|longest|highest|smallest|biggest)\b/i.test(s)) score += 4;
+  if (/\b(century|ancient|historic|medieval|empire|dynasty|war|battle|revolution|olymp)\b/i.test(s)) score += 3;
+  if (/\b(world|record|famous|renowned|landmark|wonder|heritage|unesco)\b/i.test(s)) score += 2;
+  if (/\b(known for|home to|site of|birthplace)\b/i.test(s)) score += 2;
+  if (/\b(1[0-9]{3}|20[0-2][0-9])\b/.test(s)) score += 2;
+  if (/\bpopulation\b|\binhabitants\b|\bresidents\b|\bpeople\b.*\blive\b|\bdensity\b|\bsq(uare)? (km|mi)\b|\barea\b.*\bkm/i.test(s)) score -= 8;
+  if (/is (a|the) (city|town|municipality|commune|major|large|small|port|capital)/i.test(s)) score -= 3;
+  if (/located in|situated in|in the .* of/i.test(s)) score -= 2;
+  if (/most populous|urban area|metropolitan area/i.test(s)) score -= 4;
+  const words = s.split(/\s+/).length;
+  if (words >= 10 && words <= 40) score += 1;
+  return score;
+}
+
+function pickBestFact(extract: string): string {
+  const sentences = extract.match(/[^.!?]+[.!?]+/g) ?? [];
+  if (!sentences.length) return extract.slice(0, 200);
+  const scored = sentences.map((s, i) => ({ s: s.trim(), score: scoreSentence(s) - (i === 0 ? 1 : 0) }));
+  scored.sort((a, b) => b.score - a.score);
+  const best = scored[0].s;
+  return best.length > 200 ? best.slice(0, 197) + "…" : best;
+}
+
 function CityLabel({ n, pos, orientation, fontSize }: {
   n: string;
   pos: [number, number, number];
@@ -5582,11 +5611,38 @@ function CityLabel({ n, pos, orientation, fontSize }: {
   fontSize: number;
 }) {
   const [hovered, setHovered] = useState(false);
-  const fact = CITY_FACTS[n];
+  const [imgUrl,  setImgUrl]  = useState<string | null>(null);
+  const [fact,    setFact]    = useState<string>(CITY_FACTS[n] ?? "");
+
+  useEffect(() => {
+    if (!hovered) return;
+    if (_cityCardCache.has(n)) {
+      const c = _cityCardCache.get(n)!;
+      setImgUrl(c.imgUrl);
+      if (c.fact) setFact(c.fact);
+      return;
+    }
+    const slug = encodeURIComponent(n.replace(/ /g, "_"));
+    let cancelled = false;
+    Promise.all([
+      fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${slug}`, { headers: { "User-Agent": "GeKneeApp/1.0" } }).then(r => r.ok ? r.json() : null).catch(() => null),
+      fetch(`https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exsentences=20&explaintext=1&titles=${slug}&format=json&origin=*`).then(r => r.ok ? r.json() : null).catch(() => null),
+    ]).then(([summary, extractData]) => {
+      if (cancelled) return;
+      const img = summary?.thumbnail?.source ?? null;
+      const pages = extractData?.query?.pages ?? {};
+      const extract: string = (Object.values(pages)[0] as any)?.extract ?? summary?.extract ?? "";
+      const wikiF = extract ? pickBestFact(extract) : "";
+      const resolved = wikiF || CITY_FACTS[n] || "";
+      _cityCardCache.set(n, { imgUrl: img, fact: resolved });
+      setImgUrl(img);
+      if (resolved) setFact(resolved);
+    });
+    return () => { cancelled = true; };
+  }, [hovered, n]);
 
   return (
     <group position={pos} quaternion={orientation}>
-      {/* Visual label */}
       <Text
         fontSize={fontSize}
         color={hovered ? "#ffffff" : "#c8d8ff"}
@@ -5603,56 +5659,63 @@ function CityLabel({ n, pos, orientation, fontSize }: {
       >
         {`\u2022 ${n}`}
       </Text>
-      {/* Fun fact tooltip */}
+
       {hovered && (
         <Html
           center
-          position={[0, 0.30, 0]}
+          position={[0, 0.75, 0]}
           distanceFactor={9}
           zIndexRange={[300, 200]}
           style={{ pointerEvents: "none" }}
         >
           <div style={{
-            background: "linear-gradient(160deg, rgba(8, 12, 45, 0.97) 0%, rgba(14, 22, 65, 0.97) 100%)",
-            border: "1px solid rgba(140, 180, 255, 0.55)",
-            borderRadius: "12px",
-            padding: "10px 14px 10px",
-            maxWidth: "220px",
-            minWidth: "140px",
-            textAlign: "center",
-            color: "#c8d8ff",
-            fontSize: "11px",
-            lineHeight: "1.55",
-            whiteSpace: "normal",
-            boxShadow: "0 6px 28px rgba(0, 20, 120, 0.65), inset 0 1px 0 rgba(255,255,255,0.07)",
-            fontFamily: "system-ui, sans-serif",
             position: "relative",
+            background: "linear-gradient(150deg, #0e2a6e 0%, #061840 100%)",
+            border: "2px solid #50c8ff",
+            borderRadius: "16px",
+            overflow: "hidden",
+            width: "220px",
+            boxShadow: "0 0 22px rgba(60,180,255,0.45), 0 8px 28px rgba(0,0,0,0.55)",
+            fontFamily: '"Segoe UI", system-ui, -apple-system, sans-serif',
           }}>
+            {imgUrl && (
+              <img src={imgUrl} alt={n} style={{
+                display: "block", width: "100%", height: "120px",
+                objectFit: "cover", borderBottom: "1.5px solid #50c8ff",
+              }} />
+            )}
+            <div style={{ padding: "9px 13px 12px", textAlign: "center" }}>
+              <div style={{
+                fontSize: "13px", fontWeight: 800, color: "#ffffff",
+                letterSpacing: "0.02em", marginBottom: "6px",
+                textShadow: "0 0 12px rgba(100,210,255,0.9)",
+              }}>{n}</div>
+              <div style={{
+                fontSize: "10px", color: "#c0ecff", lineHeight: 1.55,
+                borderTop: imgUrl ? "1px solid rgba(80,200,255,0.2)" : "none",
+                paddingTop: imgUrl ? "7px" : 0,
+                textAlign: "left",
+              }}>
+                {fact || "One of the world's great cities — click to explore!"}
+              </div>
+            </div>
+            {/* Down arrow */}
             <div style={{
-              fontWeight: 700,
-              marginBottom: "5px",
-              color: "#ffffff",
-              fontSize: "12px",
-              letterSpacing: "0.04em",
-              textShadow: "0 0 14px rgba(100, 160, 255, 0.7)",
-            }}>{n}</div>
-            <div style={{ opacity: 0.9 }}>{fact ?? `One of the world's great cities — click to explore!`}</div>
-            {/* Down-pointing arrow */}
+              position: "absolute", bottom: "-11px", left: "50%", transform: "translateX(-50%)",
+              width: 0, height: 0,
+              borderLeft: "8px solid transparent", borderRight: "8px solid transparent",
+              borderTop: "11px solid #50c8ff",
+            }} />
             <div style={{
-              position: "absolute",
-              bottom: "-6px",
-              left: "50%",
-              transform: "translateX(-50%)",
-              width: 0,
-              height: 0,
-              borderLeft: "6px solid transparent",
-              borderRight: "6px solid transparent",
-              borderTop: "6px solid rgba(140, 180, 255, 0.55)",
+              position: "absolute", bottom: "-8px", left: "50%", transform: "translateX(-50%)",
+              width: 0, height: 0,
+              borderLeft: "6px solid transparent", borderRight: "6px solid transparent",
+              borderTop: "9px solid #061840",
             }} />
           </div>
         </Html>
       )}
-      {/* Sprite hitbox — always faces camera so raycast always works */}
+
       <sprite
         scale={[0.65, 0.16, 1]}
         renderOrder={2}
