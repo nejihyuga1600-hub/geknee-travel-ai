@@ -5975,6 +5975,8 @@ function GlobeScene() {
 
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0) return;
+      // Second finger arriving — cancel single-finger drag so OrbitControls can handle pinch-zoom
+      if (!e.isPrimary) { if (dragRef.current) dragRef.current.active = false; return; }
       dragRef.current = { active: true, lastX: e.clientX, lastY: e.clientY, startX: e.clientX, startY: e.clientY, axis: null, didDrag: false };
       el.setPointerCapture(e.pointerId);
     };
@@ -6379,7 +6381,7 @@ export default function LocationPage() {
           zoomSpeed={isMobile ? 0.6 : 1.2}
           enableDamping
           dampingFactor={0.12}
-          touches={{ ONE: 0, TWO: 1 }}
+          touches={{ ONE: 0, TWO: 2 }}
         />
         <DampingUpdater />
         <GlobeScene />
