@@ -5580,27 +5580,31 @@ const _cityCardCache = new Map<string, { imgUrl: string | null; fact: string }>(
 
 function scoreSentence(s: string): number {
   let score = 0;
-  if (/\b(founded|established|built|constructed|opened|completed)\b/i.test(s)) score += 4;
-  if (/\b(oldest|tallest|largest|first|only|deepest|longest|highest|smallest|biggest)\b/i.test(s)) score += 4;
-  if (/\b(century|ancient|historic|medieval|empire|dynasty|war|battle|revolution|olymp)\b/i.test(s)) score += 3;
-  if (/\b(world|record|famous|renowned|landmark|wonder|heritage|unesco)\b/i.test(s)) score += 2;
-  if (/\b(known for|home to|site of|birthplace)\b/i.test(s)) score += 2;
+  if (/\b(founded|established|built|constructed|opened|completed)\b/i.test(s)) score += 5;
+  if (/\b(oldest|tallest|largest|first|only|deepest|longest|highest|smallest|biggest)\b/i.test(s)) score += 5;
+  if (/\b(century|ancient|historic|medieval|empire|dynasty|war|battle|revolution|olymp)\b/i.test(s)) score += 4;
+  if (/\b(world|record|famous|renowned|landmark|wonder|heritage|unesco)\b/i.test(s)) score += 3;
+  if (/\b(known for|home to|site of|birthplace|invented|origin|first ever)\b/i.test(s)) score += 3;
   if (/\b(1[0-9]{3}|20[0-2][0-9])\b/.test(s)) score += 2;
-  if (/\bpopulation\b|\binhabitants\b|\bresidents\b|\bpeople\b.*\blive\b|\bdensity\b|\bsq(uare)? (km|mi)\b|\barea\b.*\bkm/i.test(s)) score -= 8;
-  if (/is (a|the) (city|town|municipality|commune|major|large|small|port|capital)/i.test(s)) score -= 3;
-  if (/located in|situated in|in the .* of/i.test(s)) score -= 2;
-  if (/most populous|urban area|metropolitan area/i.test(s)) score -= 4;
+  // Only penalise the most generic openers — be more lenient than before
+  if (/^[A-Z][a-zA-Z ]+is (a|the) (city|town|municipality|commune) (in|of)/i.test(s.trim())) score -= 5;
+  if (/most populous city\b/i.test(s)) score -= 3;
+  if (/\bpopulation of [0-9]|census|sq(uare)? (km|mi)\b/i.test(s)) score -= 4;
   const words = s.split(/\s+/).length;
-  if (words >= 10 && words <= 40) score += 1;
+  if (words >= 8 && words <= 45) score += 1;
   return score;
 }
 
 function pickBestFact(extract: string): string {
   const sentences = extract.match(/[^.!?]+[.!?]+/g) ?? [];
   if (!sentences.length) return extract.slice(0, 200);
-  const scored = sentences.map((s, i) => ({ s: s.trim(), score: scoreSentence(s) - (i === 0 ? 1 : 0) }));
+  // Score all sentences; give first sentence a small penalty (usually "X is a city in Y")
+  const scored = sentences.map((s, i) => ({ s: s.trim(), score: scoreSentence(s) - (i === 0 ? 2 : 0) }));
   scored.sort((a, b) => b.score - a.score);
-  const best = scored[0].s;
+  // If best score is still very negative, just take the 2nd sentence as it's usually more interesting
+  const best = scored[0].score < -2 && sentences.length > 1
+    ? sentences[1].trim()
+    : scored[0].s;
   return best.length > 200 ? best.slice(0, 197) + "…" : best;
 }
 
@@ -5627,22 +5631,24 @@ function CityLabel({ n, pos, orientation, fontSize }: {
     }
     fetchedRef.current = true; // mark so we don't re-fetch on re-hover
     const slug = encodeURIComponent(n.replace(/ /g, "_"));
-    Promise.all([
-      fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${slug}`)
-        .then(r => r.ok ? r.json() : null).catch(() => null),
-      fetch(`https://en.wikipedia.org/w/api.php?action=query&prop=extracts&exsentences=20&explaintext=1&titles=${slug}&format=json&origin=*`)
-        .then(r => r.ok ? r.json() : null).catch(() => null),
-    ]).then(([summary, extractData]) => {
-      // Try thumbnail; fallback to media-list
-      let img: string | null = summary?.thumbnail?.source ?? null;
-      const pages = extractData?.query?.pages ?? {};
-      const extract: string = (Object.values(pages)[0] as any)?.extract ?? summary?.extract ?? "";
-      const wikiF = extract ? pickBestFact(extract) : "";
-      const resolved = wikiF || CITY_FACTS[n] || "";
-      _cityCardCache.set(n, { imgUrl: img, fact: resolved });
-      setImgUrl(img);
-      if (resolved) setFact(resolved);
-    }).catch(() => {});
+    // Use REST summary (short curated extract + thumbnail) + full extract for scoring
+    fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${slug}`)
+      .then(r => r.ok ? r.json() : null).catch(() => null)
+      .then(summary => {
+        if (!summary) {
+          _cityCardCache.set(n, { imgUrl: null, fact: CITY_FACTS[n] || "" });
+          if (CITY_FACTS[n]) setFact(CITY_FACTS[n]);
+          return;
+        }
+        const img: string | null = summary.thumbnail?.source ?? null;
+        // summary.extract is already curated (2-5 clean sentences) — prefer it
+        const extract: string = summary.extract ?? "";
+        const wikiF = extract ? pickBestFact(extract) : "";
+        const resolved = wikiF || CITY_FACTS[n] || summary.description || "";
+        _cityCardCache.set(n, { imgUrl: img, fact: resolved });
+        setImgUrl(img);
+        if (resolved) setFact(resolved);
+      }).catch(() => {});
     // No cleanup cancel — let fetch always complete so cache is populated
   }, [hovered, n]);
 
@@ -6338,7 +6344,7 @@ export default function LocationPage() {
   return (
     // position:fixed on canvas bypasses the entire layout chain — no parent
     // needs explicit height. The main just provides the stacking context.
-    <main style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#060816" }}>
+    <main style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#060816", touchAction: "none" }}>
 
       {/* Deep-space gradient background */}
       <div style={{
@@ -6349,15 +6355,32 @@ export default function LocationPage() {
 
       {/* Full-page 3D canvas — fixed to viewport so it always fills edge-to-edge */}
       <Canvas
-        style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100vh", zIndex: 1 }}
+        style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100svh", zIndex: 1, touchAction: "none" }}
         camera={{ position: [0, 0, 26], fov: 50 }}
         dpr={[1, isMobile ? 1.5 : 2]}
         gl={{
           antialias: !isMobile,
           powerPreference: isMobile ? "default" : "high-performance",
         }}
+        onCreated={({ gl }) => {
+          // Prevent Safari from intercepting touch events on the WebGL canvas
+          gl.domElement.style.touchAction = "none";
+          // Handle WebGL context loss gracefully (Safari drops context during app switch)
+          gl.domElement.addEventListener("webglcontextlost", (e) => { e.preventDefault(); }, false);
+        }}
       >
-        <OrbitControls makeDefault enableZoom enablePan={false} enableRotate={false} minDistance={11.5} maxDistance={45} zoomSpeed={1.2} enableDamping dampingFactor={0.12} />
+        <OrbitControls
+          makeDefault
+          enableZoom
+          enablePan={false}
+          enableRotate={false}
+          minDistance={11.5}
+          maxDistance={45}
+          zoomSpeed={isMobile ? 0.6 : 1.2}
+          enableDamping
+          dampingFactor={0.12}
+          touches={{ ONE: 0, TWO: 1 }}
+        />
         <DampingUpdater />
         <GlobeScene />
       </Canvas>
