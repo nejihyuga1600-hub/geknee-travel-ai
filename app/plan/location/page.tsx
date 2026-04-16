@@ -1,14 +1,6 @@
-import dynamic from 'next/dynamic';
-import type { Viewport } from 'next';
+'use client';
 
-// Override root layout viewport for the globe page — OrbitControls handles pinch zoom
-export const viewport: Viewport = {
-  width: 'device-width',
-  initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
-  viewportFit: 'cover',
-};
+import dynamic from 'next/dynamic';
 
 const LocationClient = dynamic(() => import('./LocationClient'), { ssr: false });
 
