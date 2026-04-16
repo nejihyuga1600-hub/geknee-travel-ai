@@ -325,13 +325,6 @@ function GlobalChatUI({ ctx }: { ctx: ReturnType<typeof usePageContext> }) {
             {/* Header */}
             <div style={{ padding: '10px 14px', borderBottom: '1px solid rgba(129,140,248,0.15)', background: 'rgba(109,40,217,0.12)', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <button
-                  onClick={() => setSelectorOpen(true)}
-                  title="Change your Genie"
-                  style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', flexShrink: 0, lineHeight: 0 }}
-                >
-                  <GenieAvatar id={genieId} size={34} />
-                </button>
                 {/* Today's token cost summary */}
                 {todayStats && (
                   <span title={`${todayStats.callCount} API calls today`} style={{ fontSize: 10, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.03em', lineHeight: 1.2 }}>
@@ -347,53 +340,6 @@ function GlobalChatUI({ ctx }: { ctx: ReturnType<typeof usePageContext> }) {
               </button>
             </div>
 
-            {/* ── Destination input (globe page only) ── */}
-            {ctx.page === 'globe' && (
-              <div style={{ padding: '12px 14px', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-                {destFlying ? (
-                  /* ── Animating to location ── */
-                  <div style={{ textAlign: 'center', color: '#a78bfa', fontSize: 13, fontWeight: 600, padding: '6px 0' }}>
-                    {String.fromCodePoint(0x1F30D)} Flying to {destFlying}...
-                  </div>
-                ) : (
-                  /* ── Default destination input ── */
-                  <>
-                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 7, fontWeight: 600, letterSpacing: '0.04em' }}>
-                      WHERE DO YOU WANT TO TRAVEL?
-                    </div>
-                    <div style={{ display: 'flex', gap: 7 }}>
-                      <input
-                        ref={destRef}
-                        value={destInput}
-                        onChange={e => { setDestInput(e.target.value); setDestError(''); }}
-                        onKeyDown={e => { if (e.key === 'Enter') handleDest(); }}
-                        placeholder="City or country..."
-                        disabled={destLoading}
-                        style={{
-                          flex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(129,140,248,0.3)',
-                          borderRadius: 10, color: '#fff', fontSize: 13, padding: '9px 12px', outline: 'none',
-                        }}
-                      />
-                      <button
-                        onClick={handleDest}
-                        disabled={destLoading || !destInput.trim()}
-                        style={{
-                          width: 38, height: 38, borderRadius: 10, border: 'none', flexShrink: 0,
-                          background: destInput.trim() && !destLoading ? 'linear-gradient(135deg,#06b6d4,#6366f1)' : 'rgba(255,255,255,0.08)',
-                          color: '#fff', fontSize: 15, cursor: destInput.trim() && !destLoading ? 'pointer' : 'not-allowed',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        }}
-                      >
-                        {destLoading ? (
-                          <span style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', display: 'inline-block', animation: 'spin 0.7s linear infinite' }} />
-                        ) : String.fromCodePoint(0x27A4)}
-                      </button>
-                    </div>
-                    {destError && <div style={{ fontSize: 11, color: '#f87171', marginTop: 5 }}>{destError}</div>}
-                  </>
-                )}
-              </div>
-            )}
 
             {/* Messages */}
             <div style={{ flex: 1, overflowY: 'auto', padding: '14px 14px 8px', display: 'flex', flexDirection: 'column', gap: 10 }}>

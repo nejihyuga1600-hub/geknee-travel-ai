@@ -1356,7 +1356,7 @@ function LandmarkLabel({ info, planUrl }: { info: LmInfo; planUrl?: string }) {
     const slug = encodeURIComponent(info.name.replace(/ /g, "_"));
     fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${slug}`)
       .then(r => r.ok ? r.json() : Promise.reject())
-      .then(d => { if (!cancelled && d.thumbnail?.source) setImgUrl(d.thumbnail.source); })
+      .then(d => { if (!cancelled) { const src = d.originalimage?.source ?? d.thumbnail?.source; if (src) setImgUrl(src); } })
       .catch(() => {});
     return () => { cancelled = true; };
   }, [info.name]);
@@ -4782,7 +4782,7 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind }: {
       .then(r => r.ok ? r.json() : null).catch(() => null)
       .then(summary => {
         if (!summary) { _geoCardCache.set(name, { imgUrl: null, fact: "" }); return; }
-        const img: string | null = summary.thumbnail?.source ?? null;
+        const img: string | null = summary.originalimage?.source ?? summary.thumbnail?.source ?? null;
         const extract: string = summary.extract ?? "";
         const resolved = extract ? pickBestFact(extract) : (summary.description || "");
         _geoCardCache.set(name, { imgUrl: img, fact: resolved });
@@ -5886,7 +5886,7 @@ function CityLabel({ n, pos, orientation, fontSize }: {
           if (CITY_FACTS[n]) setFact(CITY_FACTS[n]);
           return;
         }
-        const img: string | null = summary.thumbnail?.source ?? null;
+        const img: string | null = summary.originalimage?.source ?? summary.thumbnail?.source ?? null;
         // summary.extract is already curated (2-5 clean sentences) — prefer it
         const extract: string = summary.extract ?? "";
         const wikiF = extract ? pickBestFact(extract) : "";
