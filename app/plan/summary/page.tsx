@@ -2310,13 +2310,11 @@ function SummaryContent() {
             borderRadius: 16, padding: '28px 32px', minHeight: streamingHeading ? 0 : 200,
           }}>
             {lines.length === 0 ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, color: 'rgba(255,255,255,0.5)' }}>
-                <div style={{
-                  width: 18, height: 18,
-                  border: '2px solid rgba(56,189,248,0.4)', borderTopColor: '#38bdf8',
-                  borderRadius: '50%', animation: 'spin 0.8s linear infinite',
-                }} />
-                Crafting your personalized itinerary&hellip;
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {[60, 90, 80, 70, 50].map((w, i) => (
+                  <div key={i} style={{ width: `${w}%`, height: i === 0 ? 22 : 14, borderRadius: i === 0 ? 8 : 6, background: 'linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 75%)', backgroundSize: '800px 100%', animation: `shimmer 1.5s infinite linear ${i * 0.1}s` }} />
+                ))}
+                <div style={{ marginTop: 4, color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>Crafting your personalized itinerary&hellip;</div>
               </div>
             ) : (
               <>

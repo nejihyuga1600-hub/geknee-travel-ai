@@ -384,10 +384,10 @@ export default function TripSocialPanel({
   return (
     <>
       {/* Backdrop */}
-      <div onClick={() => { if (activeGroup) { setActiveGroup(null); setChatMsgs([]); } else onClose(); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 49 }} />
+      <div onClick={() => { if (activeGroup) { setActiveGroup(null); setChatMsgs([]); } else onClose(); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 49, animation: 'modalFadeIn 0.25s ease-out' }} />
 
       {/* Panel */}
-      <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 380, background: 'rgba(6,8,22,0.97)', backdropFilter: 'blur(24px)', borderLeft: '1px solid rgba(99,102,241,0.2)', zIndex: 50, display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 40px rgba(0,0,0,0.6)' }}>
+      <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 380, background: 'rgba(6,8,22,0.97)', backdropFilter: 'blur(24px)', borderLeft: '1px solid rgba(99,102,241,0.2)', zIndex: 50, display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 40px rgba(0,0,0,0.6)', animation: 'panelSlideIn 0.3s ease-out' }}>
 
         {/* ── Header ── */}
         {!activeGroup ? (

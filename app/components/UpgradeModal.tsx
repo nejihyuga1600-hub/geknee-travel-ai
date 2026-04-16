@@ -45,7 +45,7 @@ export default function UpgradeModal({ open, onClose, feature, reason, generatio
   return (
     <div
       style={{
-        position: 'fixed', inset: 0, zIndex: 99999,
+        position: 'fixed', inset: 0, zIndex: 99999, animation: 'modalFadeIn 0.25s ease-out',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         background: 'rgba(0,0,0,0.80)', backdropFilter: 'blur(8px)',
       }}
@@ -57,7 +57,7 @@ export default function UpgradeModal({ open, onClose, feature, reason, generatio
           background: 'linear-gradient(135deg,#0f172a,#1e1b4b)',
           border: '1px solid rgba(129,140,248,0.3)',
           borderRadius: 24, padding: '36px 32px',
-          maxWidth: 440, width: '92%',
+          maxWidth: 440, width: '92%', animation: 'modalSlideUp 0.3s ease-out',
           boxShadow: '0 32px 80px rgba(0,0,0,0.7)',
         }}
       >

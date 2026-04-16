@@ -4,6 +4,7 @@ import { GeistMono } from "geist/font/mono";
 import "./globals.css";
 import { SessionProvider } from "next-auth/react";
 import GlobalChat from "./components/GlobalChat";
+import { ToastProvider } from "./components/Toast";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 
@@ -31,7 +32,11 @@ export default function RootLayout({
         <script src="https://tp-em.com/NTE1NTYz.js?t=515563" async />
       </head>
       <body suppressHydrationWarning>
-        <SessionProvider>{children}</SessionProvider>
+        <SessionProvider>
+          <ToastProvider>
+            <div style={{ animation: 'pageFadeIn 0.35s ease-out' }}>{children}</div>
+          </ToastProvider>
+        </SessionProvider>
         <GlobalChat />
         <SpeedInsights />
         <Analytics />

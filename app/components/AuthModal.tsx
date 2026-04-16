@@ -127,7 +127,7 @@ export default function AuthModal({ open, onClose }: AuthModalProps) {
       ref={backdropRef}
       onClick={e => { if (e.target === backdropRef.current) onClose(); }}
       style={{
-        position: 'fixed', inset: 0, zIndex: 50,
+        position: 'fixed', inset: 0, zIndex: 50, animation: 'modalFadeIn 0.25s ease-out',
         background: 'rgba(0,0,0,0.72)',
         backdropFilter: 'blur(6px)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -135,7 +135,7 @@ export default function AuthModal({ open, onClose }: AuthModalProps) {
       }}
     >
       <div style={{
-        width: '100%', maxWidth: 420,
+        width: '100%', maxWidth: 420, animation: 'modalSlideUp 0.3s ease-out',
         background: 'rgba(6,8,22,0.97)',
         border: '1px solid rgba(129,140,248,0.2)',
         borderRadius: 20,

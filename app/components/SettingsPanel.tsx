@@ -280,7 +280,7 @@ export default function SettingsPanel({ open, onClose }: Props) {
       <div
         onClick={onClose}
         style={{
-          position: "fixed", inset: 0, zIndex: 40,
+          position: "fixed", inset: 0, zIndex: 40, animation: "modalFadeIn 0.25s ease-out",
           background: "rgba(0,0,0,0.45)", backdropFilter: "blur(4px)",
         }}
       />
@@ -289,7 +289,7 @@ export default function SettingsPanel({ open, onClose }: Props) {
       <div
         ref={drawerRef}
         style={{
-          position: "fixed", top: 0, right: 0, bottom: 0, zIndex: 50,
+          position: "fixed", top: 0, right: 0, bottom: 0, zIndex: 50, animation: "panelSlideIn 0.3s ease-out",
           width: 380, background: BG,
           borderLeft: `1px solid ${BORD}`,
           boxShadow: "-8px 0 40px rgba(0,0,0,0.6)",

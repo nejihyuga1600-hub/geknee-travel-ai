@@ -1,7 +1,8 @@
 "use client";
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { OrbitControls, Sphere, Stars, Html, useGLTF, Text, useTexture } from "@react-three/drei";
+import { OrbitControls, Sphere, Stars, Html, useGLTF, Text, useTexture, Sparkles } from "@react-three/drei";
+import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import { useEffect, useRef, useState, useMemo, Component, Suspense, type ReactNode } from "react";
 
 // ─── Mobile performance detection ────────────────────────────────────────────
@@ -6089,9 +6090,9 @@ function CameraZoomHandler() {
     }
     if (!animRef.current) return;
     animRef.current.elapsed += delta;
-    const duration = 1.5;
+    const duration = 1.8;
     const t = Math.min(animRef.current.elapsed / duration, 1);
-    const ease = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3) / 2;
+    const ease = 1 - Math.pow(1 - t, 3) * Math.cos(t * Math.PI * 0.8);
     const dist = animRef.current.startDist +
       (animRef.current.targetDist - animRef.current.startDist) * ease;
     // Sync OrbitControls' internal spherical radius so it doesn't override us
@@ -6228,6 +6229,7 @@ function GlobeScene() {
     startQ: THREE.Quaternion; targetQ: THREE.Quaternion;
     startT: number; onDone: () => void;
   } | null>(null);
+  const [flying, setFlying] = useState(false);
   const { gl, camera } = useThree();
 
   // Dropped star pin state
@@ -6434,11 +6436,13 @@ function GlobeScene() {
         const Qroll = new THREE.Quaternion().setFromAxisAngle(camDir, rollAngle);
         targetQ = new THREE.Quaternion().multiplyQuaternions(Qroll, Q1);
       }
+      setFlying(true);
+      const origDone = pending.onDone;
       animRef.current = {
         startQ: currentQ.current.clone(),
         targetQ,
         startT: clock.getElapsedTime(),
-        onDone: pending.onDone,
+        onDone: () => { setFlying(false); origDone(); },
       };
     }
 
@@ -6466,9 +6470,10 @@ function GlobeScene() {
 
     if (animRef.current) {
       const elapsed = clock.getElapsedTime() - animRef.current.startT;
-      const duration = 2.2;
+      const duration = 2.4;
       const t = Math.min(elapsed / duration, 1);
-      const ease = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3) / 2;
+      // Damped spring: overshoots slightly then settles — feels organic
+      const ease = 1 - Math.pow(1 - t, 3) * Math.cos(t * Math.PI * 0.8);
       currentQ.current.slerpQuaternions(animRef.current.startQ, animRef.current.targetQ, ease);
       globeRef.current.quaternion.copy(currentQ.current);
       if (t >= 1) { animRef.current.onDone(); animRef.current = null; }
@@ -6548,21 +6553,85 @@ function GlobeScene() {
           />
         </Sphere>
 
-        {/* Inner atmosphere glow */}
-        <Sphere args={[R * 1.03, 96, 96]}>
-          <meshStandardMaterial
-            color="#4488ff" transparent opacity={0.07}
-            side={THREE.BackSide} depthWrite={false}
+        {/* Fresnel atmosphere glow — bright rim, transparent center */}
+        <Sphere args={[R * 1.025, 96, 96]}>
+          <shaderMaterial
+            transparent
+            depthWrite={false}
+            side={THREE.BackSide}
+            uniforms={{
+              glowColor: { value: new THREE.Color("#4488ff") },
+              intensity: { value: 0.7 },
+            }}
+            vertexShader={`
+              varying vec3 vNormal;
+              varying vec3 vPosition;
+              void main() {
+                vNormal = normalize(normalMatrix * normal);
+                vPosition = (modelViewMatrix * vec4(position, 1.0)).xyz;
+                gl_Position = projectionMatrix * vec4(vPosition, 1.0);
+              }
+            `}
+            fragmentShader={`
+              uniform vec3 glowColor;
+              uniform float intensity;
+              varying vec3 vNormal;
+              varying vec3 vPosition;
+              void main() {
+                vec3 viewDir = normalize(-vPosition);
+                float rim = 1.0 - abs(dot(viewDir, vNormal));
+                float glow = pow(rim, 3.0) * intensity;
+                gl_FragColor = vec4(glowColor, glow);
+              }
+            `}
           />
         </Sphere>
 
-        {/* Outer atmosphere halo */}
-        <Sphere args={[R * 1.08, 96, 96]}>
-          <meshStandardMaterial
-            color="#6699ff" transparent opacity={0.03}
-            side={THREE.BackSide} depthWrite={false}
+        {/* Outer atmosphere halo — softer, wider */}
+        <Sphere args={[R * 1.09, 64, 64]}>
+          <shaderMaterial
+            transparent
+            depthWrite={false}
+            side={THREE.BackSide}
+            uniforms={{
+              glowColor: { value: new THREE.Color("#6699ff") },
+              intensity: { value: 0.35 },
+            }}
+            vertexShader={`
+              varying vec3 vNormal;
+              varying vec3 vPosition;
+              void main() {
+                vNormal = normalize(normalMatrix * normal);
+                vPosition = (modelViewMatrix * vec4(position, 1.0)).xyz;
+                gl_Position = projectionMatrix * vec4(vPosition, 1.0);
+              }
+            `}
+            fragmentShader={`
+              uniform vec3 glowColor;
+              uniform float intensity;
+              varying vec3 vNormal;
+              varying vec3 vPosition;
+              void main() {
+                vec3 viewDir = normalize(-vPosition);
+                float rim = 1.0 - abs(dot(viewDir, vNormal));
+                float glow = pow(rim, 2.0) * intensity;
+                gl_FragColor = vec4(glowColor, glow);
+              }
+            `}
           />
         </Sphere>
+
+        {/* Sparkle burst during fly-to animation */}
+        {flying && (
+          <Sparkles
+            count={60}
+            scale={R * 2.5}
+            size={3}
+            speed={1.5}
+            color="#88bbff"
+            opacity={0.6}
+          />
+        )}
 
         {/* Animals removed — now unlockable via the Explorer Collection shop */}
 
@@ -6677,6 +6746,16 @@ export default function LocationPage() {
         />
         <DampingUpdater />
         <GlobeScene />
+        {!isMobile && (
+          <EffectComposer>
+            <Bloom
+              luminanceThreshold={0.6}
+              luminanceSmoothing={0.4}
+              intensity={0.5}
+              mipmapBlur
+            />
+          </EffectComposer>
+        )}
       </Canvas>
 
       {/* Globe loading overlay */}
