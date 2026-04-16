@@ -1368,7 +1368,7 @@ function LandmarkLabel({ info, planUrl }: { info: LmInfo; planUrl?: string }) {
       border: "2.5px solid #50c8ff",
       borderRadius: "18px",
       overflow: "hidden",
-      width: "320px",
+      width: "240px",
       boxShadow: "0 0 22px rgba(60,180,255,0.55), 0 8px 28px rgba(0,0,0,0.5)",
       fontFamily: '"Segoe UI", system-ui, -apple-system, sans-serif',
       pointerEvents: planUrl ? "auto" : "none",
@@ -1376,7 +1376,7 @@ function LandmarkLabel({ info, planUrl }: { info: LmInfo; planUrl?: string }) {
     }}>
       {imgUrl && (
         <img src={imgUrl} alt={info.name} style={{
-          display: "block", width: "100%", height: "170px",
+          display: "block", width: "100%", height: "130px",
           objectFit: "cover", borderBottom: "1.5px solid #50c8ff",
         }} />
       )}
@@ -1511,7 +1511,7 @@ function Lm({ p, s = 0.4, info, mk, children }: { p: SurfPos; s?: number; info?:
         <Html
           center
           position={[0, effS * 1.8 + 0.3, 0]}
-          distanceFactor={7}
+          distanceFactor={14}
           zIndexRange={[200, 100]}
           style={{ pointerEvents: mobileActive ? "auto" : "none" }}
         >
@@ -4804,7 +4804,7 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind }: {
     }
   };
 
-  const cardWidth = kind === "country" ? "180px" : "160px";
+  const cardWidth = kind === "country" ? "130px" : "115px";
 
   return (
     <group position={pos} quaternion={orientation}>
@@ -4827,7 +4827,7 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind }: {
         <Html
           center
           position={[0, 0.75, 0]}
-          distanceFactor={7}
+          distanceFactor={14}
           zIndexRange={[300, 200]}
           style={{ pointerEvents: mobileActive ? "auto" : "none" }}
         >
@@ -5934,7 +5934,7 @@ function CityLabel({ n, pos, orientation, fontSize }: {
         <Html
           center
           position={[0, 0.75, 0]}
-          distanceFactor={7}
+          distanceFactor={14}
           zIndexRange={[300, 200]}
           style={{ pointerEvents: mobileActive ? "auto" : "none" }}
         >
@@ -5944,7 +5944,7 @@ function CityLabel({ n, pos, orientation, fontSize }: {
             border: "1.5px solid #50c8ff",
             borderRadius: "10px",
             overflow: "hidden",
-            width: "160px",
+            width: "115px",
             boxShadow: "0 0 14px rgba(60,180,255,0.4), 0 4px 14px rgba(0,0,0,0.5)",
             fontFamily: '"Segoe UI", system-ui, -apple-system, sans-serif',
             pointerEvents: mobileActive ? "auto" : "none",
