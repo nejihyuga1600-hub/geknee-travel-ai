@@ -4795,7 +4795,7 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind }: {
     setMobileActive(prev => !prev);
   };
 
-  const cardWidth = kind === "country" ? "130px" : "115px";
+  const cardWidth = kind === "country" ? "160px" : "150px";
 
   return (
     <group position={pos} quaternion={orientation}>
@@ -4835,18 +4835,18 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind }: {
           }}>
             {imgUrl && (
               <img src={imgUrl} alt={name} style={{
-                display: "block", width: "100%", height: "60px",
+                display: "block", width: "100%", height: "85px",
                 objectFit: "cover", borderBottom: "1px solid #50c8ff",
               }} />
             )}
-            <div style={{ padding: "5px 7px 7px", textAlign: "center" }}>
+            <div style={{ padding: "7px 9px 9px", textAlign: "center" }}>
               <div style={{
-                fontSize: "7px", fontWeight: 800, color: "#ffffff",
-                letterSpacing: "0.02em", marginBottom: "3px",
+                fontSize: "10px", fontWeight: 800, color: "#ffffff",
+                letterSpacing: "0.02em", marginBottom: "4px",
                 textShadow: "0 0 8px rgba(100,210,255,0.9)",
               }}>{name}</div>
               <div style={{
-                fontSize: "6px", color: "#c0ecff", lineHeight: 1.5,
+                fontSize: "7.5px", color: "#c0ecff", lineHeight: 1.5,
                 borderTop: imgUrl ? "1px solid rgba(80,200,255,0.2)" : "none",
                 paddingTop: imgUrl ? "4px" : 0,
                 textAlign: "left",
@@ -4857,10 +4857,10 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind }: {
                 <a
                   href={`/plan/style?location=${encodeURIComponent(name)}`}
                   style={{
-                    display: "block", marginTop: "5px",
-                    padding: "5px 0", borderRadius: "6px",
+                    display: "block", marginTop: "6px",
+                    padding: "6px 0", borderRadius: "6px",
                     background: "linear-gradient(135deg,#06b6d4,#6366f1)",
-                    color: "#fff", fontSize: "6px", fontWeight: 700,
+                    color: "#fff", fontSize: "8px", fontWeight: 700,
                     textAlign: "center", textDecoration: "none",
                     cursor: "pointer",
                   }}
@@ -4964,7 +4964,7 @@ function GeoLabels({ countries, states, zoomLevel }: {
     return result;
   }, [countries, states]);
 
-  const visible = items.filter(it => it.kind === "country" || zoomLevel >= 2);
+  const visible = items.filter(it => it.kind === "country" || (zoomLevel >= 1 && zoomLevel < 2));
 
   // Scale font size down for densely-packed labels: find each label's nearest
   // angular neighbour and shrink proportionally when below the threshold.
@@ -5921,25 +5921,25 @@ function CityLabel({ n, pos, orientation, fontSize }: {
             border: "1.5px solid #50c8ff",
             borderRadius: "10px",
             overflow: "hidden",
-            width: "115px",
+            width: "150px",
             boxShadow: "0 0 14px rgba(60,180,255,0.4), 0 4px 14px rgba(0,0,0,0.5)",
             fontFamily: '"Segoe UI", system-ui, -apple-system, sans-serif',
             pointerEvents: mobileActive ? "auto" : "none",
           }}>
             {imgUrl && (
               <img src={imgUrl} alt={n} style={{
-                display: "block", width: "100%", height: "60px",
+                display: "block", width: "100%", height: "85px",
                 objectFit: "cover", borderBottom: "1px solid #50c8ff",
               }} />
             )}
-            <div style={{ padding: "5px 7px 7px", textAlign: "center" }}>
+            <div style={{ padding: "7px 9px 9px", textAlign: "center" }}>
               <div style={{
-                fontSize: "7px", fontWeight: 800, color: "#ffffff",
-                letterSpacing: "0.02em", marginBottom: "3px",
+                fontSize: "10px", fontWeight: 800, color: "#ffffff",
+                letterSpacing: "0.02em", marginBottom: "4px",
                 textShadow: "0 0 8px rgba(100,210,255,0.9)",
               }}>{n}</div>
               <div style={{
-                fontSize: "6px", color: "#c0ecff", lineHeight: 1.5,
+                fontSize: "7.5px", color: "#c0ecff", lineHeight: 1.5,
                 borderTop: imgUrl ? "1px solid rgba(80,200,255,0.2)" : "none",
                 paddingTop: imgUrl ? "4px" : 0,
                 textAlign: "left",
@@ -5950,10 +5950,10 @@ function CityLabel({ n, pos, orientation, fontSize }: {
                 <a
                   href={`/plan/style?location=${encodeURIComponent(n)}`}
                   style={{
-                    display: "block", marginTop: "5px",
-                    padding: "5px 0", borderRadius: "6px",
+                    display: "block", marginTop: "6px",
+                    padding: "6px 0", borderRadius: "6px",
                     background: "linear-gradient(135deg,#06b6d4,#6366f1)",
-                    color: "#fff", fontSize: "6px", fontWeight: 700,
+                    color: "#fff", fontSize: "8px", fontWeight: 700,
                     textAlign: "center", textDecoration: "none",
                     cursor: "pointer",
                   }}
