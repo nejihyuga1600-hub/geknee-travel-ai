@@ -1346,8 +1346,14 @@ function GlbModel({ path, scale }: { path: string; scale: number }) {
 }
 
 // ─── Hover label ──────────────────────────────────────────────────────────────
-function wikiHiRes(url: string, px = 800): string {
-  return url.replace(/\/(\d+)px-/, `/${px}px-`);
+async function wikiSummary(title: string, thumbPx = 800): Promise<{ img: string | null; extract: string; description: string }> {
+  const t = encodeURIComponent(title.replace(/ /g, "_"));
+  const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${t}&redirects&prop=pageimages|extracts|description&pithumbsize=${thumbPx}&exintro&explaintext&format=json&origin=*`;
+  const r = await fetch(url);
+  if (!r.ok) return { img: null, extract: "", description: "" };
+  const d = await r.json();
+  const page: any = Object.values(d.query.pages)[0];
+  return { img: page?.thumbnail?.source ?? null, extract: page?.extract ?? "", description: page?.description ?? "" };
 }
 type LmInfo = { name: string; location: string; fact: string };
 
@@ -1356,11 +1362,7 @@ function LandmarkLabel({ info, planUrl }: { info: LmInfo; planUrl?: string }) {
 
   useEffect(() => {
     let cancelled = false;
-    const slug = encodeURIComponent(info.name.replace(/ /g, "_"));
-    fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${slug}`)
-      .then(r => r.ok ? r.json() : Promise.reject())
-      .then(d => { if (!cancelled && d.thumbnail?.source) setImgUrl(d.thumbnail.source); })
-      .catch(() => {});
+    wikiSummary(info.name).then(({ img }) => { if (!cancelled && img) setImgUrl(img); }).catch(() => {});
     return () => { cancelled = true; };
   }, [info.name]);
 
@@ -1378,7 +1380,7 @@ function LandmarkLabel({ info, planUrl }: { info: LmInfo; planUrl?: string }) {
       userSelect: "none",
     }}>
       {imgUrl && (
-        <img src={wikiHiRes(imgUrl)} alt={info.name} onError={e => { (e.target as HTMLImageElement).src = imgUrl; }} style={{
+        <img src={imgUrl} alt={info.name} style={{
           display: "block", width: "100%", height: "130px",
           objectFit: "cover", borderBottom: "1.5px solid #50c8ff",
         }} />
@@ -1471,18 +1473,14 @@ function Lm({ p, s = 0.4, info, mk, children }: { p: SurfPos; s?: number; info?:
   const handleClick = (e: React.PointerEvent<THREE.Mesh>) => {
     e.stopPropagation();
     if (!info) return;
-    if (isMobile) {
-      const key = posKey;
-      if (!mobileActive) {
-        window.dispatchEvent(new CustomEvent('geknee:mobilecity', { detail: { key } }));
-      }
-      setMobileActive(prev => !prev);
-    } else {
-      _lmNav?.(info.name);
+    const key = posKey;
+    if (!mobileActive) {
+      window.dispatchEvent(new CustomEvent('geknee:mobilecity', { detail: { key } }));
     }
+    setMobileActive(prev => !prev);
   };
 
-  const showLabel = isMobile ? mobileActive : hovered;
+  const showLabel = mobileActive;
 
   return (
     <group position={p.pos} quaternion={p.q}>
@@ -4768,7 +4766,7 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind }: {
     return () => window.removeEventListener("geknee:mobilegeo", handler);
   }, [name]);
 
-  const showCard = isMobile ? mobileActive : hovered;
+  const showCard = mobileActive;
 
   useEffect(() => {
     if (!showCard || fetchedRef.current) return;
@@ -4780,31 +4778,21 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind }: {
       return;
     }
     fetchedRef.current = true;
-    const slug = encodeURIComponent(name.replace(/ /g, "_"));
-    fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${slug}`)
-      .then(r => r.ok ? r.json() : null).catch(() => null)
-      .then(summary => {
-        if (!summary) { _geoCardCache.set(name, { imgUrl: null, fact: "" }); return; }
-        const img: string | null = summary.thumbnail?.source ?? null;
-        const extract: string = summary.extract ?? "";
-        const resolved = extract ? pickBestFact(extract) : (summary.description || "");
-        _geoCardCache.set(name, { imgUrl: img, fact: resolved });
-        setImgUrl(img);
-        if (resolved) setFact(resolved);
-      }).catch(() => {});
+    wikiSummary(name).then(({ img, extract, description }) => {
+      const resolved = extract ? pickBestFact(extract) : (description || "");
+      _geoCardCache.set(name, { imgUrl: img, fact: resolved });
+      setImgUrl(img);
+      if (resolved) setFact(resolved);
+    }).catch(() => { _geoCardCache.set(name, { imgUrl: null, fact: "" }); });
   }, [showCard, name]);
 
   const handleClick = (e: any) => {
     e.stopPropagation();
-    if (isMobile) {
-      const key = `geo:${name}`;
-      if (!mobileActive) {
-        window.dispatchEvent(new CustomEvent("geknee:mobilegeo", { detail: { key } }));
-      }
-      setMobileActive(prev => !prev);
-    } else {
-      _lmNav?.(name);
+    const key = `geo:${name}`;
+    if (!mobileActive) {
+      window.dispatchEvent(new CustomEvent("geknee:mobilegeo", { detail: { key } }));
     }
+    setMobileActive(prev => !prev);
   };
 
   const cardWidth = kind === "country" ? "130px" : "115px";
@@ -4813,7 +4801,7 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind }: {
     <group position={pos} quaternion={orientation}>
       <Text
         fontSize={fontSize}
-        color={(hovered || mobileActive) ? "#ffe066" : kind === "country" ? "#ffffff" : "#b8ccff"}
+        color={mobileActive ? "#ffe066" : kind === "country" ? "#ffffff" : "#b8ccff"}
         outlineWidth={kind === "country" ? 0.013 : 0.008}
         outlineColor="#000000"
         anchorX="center"
@@ -4846,7 +4834,7 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind }: {
             pointerEvents: mobileActive ? "auto" : "none",
           }}>
             {imgUrl && (
-              <img src={wikiHiRes(imgUrl)} alt={name} onError={e => { (e.target as HTMLImageElement).src = imgUrl; }} style={{
+              <img src={imgUrl} alt={name} style={{
                 display: "block", width: "100%", height: "60px",
                 objectFit: "cover", borderBottom: "1px solid #50c8ff",
               }} />
@@ -5866,7 +5854,7 @@ function CityLabel({ n, pos, orientation, fontSize }: {
     return () => window.removeEventListener('geknee:mobilecity', handler);
   }, [n]);
 
-  const showCard = isMobile ? mobileActive : hovered;
+  const showCard = mobileActive;
 
   useEffect(() => {
     if (!showCard || fetchedRef.current) return;
@@ -5879,46 +5867,32 @@ function CityLabel({ n, pos, orientation, fontSize }: {
       return;
     }
     fetchedRef.current = true; // mark so we don't re-fetch on re-hover
-    const slug = encodeURIComponent(n.replace(/ /g, "_"));
-    // Use REST summary (short curated extract + thumbnail) + full extract for scoring
-    fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${slug}`)
-      .then(r => r.ok ? r.json() : null).catch(() => null)
-      .then(summary => {
-        if (!summary) {
-          _cityCardCache.set(n, { imgUrl: null, fact: CITY_FACTS[n] || "" });
-          if (CITY_FACTS[n]) setFact(CITY_FACTS[n]);
-          return;
-        }
-        const img: string | null = summary.thumbnail?.source ?? null;
-        // summary.extract is already curated (2-5 clean sentences) — prefer it
-        const extract: string = summary.extract ?? "";
-        const wikiF = extract ? pickBestFact(extract) : "";
-        const resolved = wikiF || CITY_FACTS[n] || summary.description || "";
-        _cityCardCache.set(n, { imgUrl: img, fact: resolved });
-        setImgUrl(img);
-        if (resolved) setFact(resolved);
-      }).catch(() => {});
-    // No cleanup cancel — let fetch always complete so cache is populated
+    wikiSummary(n).then(({ img, extract, description }) => {
+      const wikiF = extract ? pickBestFact(extract) : "";
+      const resolved = wikiF || CITY_FACTS[n] || description || "";
+      _cityCardCache.set(n, { imgUrl: img, fact: resolved });
+      setImgUrl(img);
+      if (resolved) setFact(resolved);
+    }).catch(() => {
+      _cityCardCache.set(n, { imgUrl: null, fact: CITY_FACTS[n] || "" });
+      if (CITY_FACTS[n]) setFact(CITY_FACTS[n]);
+    });
   }, [showCard, n]);
 
   const handleClick = (e: any) => {
     e.stopPropagation();
-    if (isMobile) {
-      const key = `city:${n}`;
-      if (!mobileActive) {
-        window.dispatchEvent(new CustomEvent('geknee:mobilecity', { detail: { key } }));
-      }
-      setMobileActive(prev => !prev);
-    } else {
-      _lmNav?.(n);
+    const key = `city:${n}`;
+    if (!mobileActive) {
+      window.dispatchEvent(new CustomEvent('geknee:mobilecity', { detail: { key } }));
     }
+    setMobileActive(prev => !prev);
   };
 
   return (
     <group position={pos} quaternion={orientation}>
       <Text
         fontSize={fontSize}
-        color={(hovered || mobileActive) ? "#ffffff" : "#c8d8ff"}
+        color={mobileActive ? "#ffffff" : "#c8d8ff"}
         outlineWidth={0.006}
         outlineColor="#111111"
         anchorX="center"
@@ -5953,7 +5927,7 @@ function CityLabel({ n, pos, orientation, fontSize }: {
             pointerEvents: mobileActive ? "auto" : "none",
           }}>
             {imgUrl && (
-              <img src={wikiHiRes(imgUrl)} alt={n} onError={e => { (e.target as HTMLImageElement).src = imgUrl; }} style={{
+              <img src={imgUrl} alt={n} style={{
                 display: "block", width: "100%", height: "60px",
                 objectFit: "cover", borderBottom: "1px solid #50c8ff",
               }} />
