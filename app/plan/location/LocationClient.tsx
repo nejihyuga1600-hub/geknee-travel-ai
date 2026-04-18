@@ -1194,13 +1194,13 @@ function createEarthTexture(
 
   // ── Borders on top — thinner + slightly more transparent over satellite ────
   // Satellite imagery has its own landmass colouring so borders need less weight.
-  const bdrAlpha  = terrainBitmap ? 0.52 : 0.65;
-  const bdrWidth  = terrainBitmap ? 6.0  : 8.8;
-  const stateWdth = terrainBitmap ? 3.8  : 5.6;
+  const bdrAlpha  = terrainBitmap ? 0.75 : 0.85;
+  const bdrWidth  = terrainBitmap ? 8.0  : 10.0;
+  const stateWdth = terrainBitmap ? 5.0  : 7.0;
   drawBorders(countriesGeo, `rgba(255,255,255,${bdrAlpha})`, bdrWidth);
 
   const STATE_FILTER = new Set(["USA", "CAN", "AUS", "BRA", "MEX", "RUS", "CHN", "IND", "ARG"]);
-  drawBorders(statesGeo, `rgba(255,255,255,${terrainBitmap ? 0.28 : 0.32})`, stateWdth,
+  drawBorders(statesGeo, `rgba(255,255,255,${terrainBitmap ? 0.45 : 0.55})`, stateWdth,
     f => STATE_FILTER.has(f.properties.adm0_a3));
 
   const tex = new THREE.CanvasTexture(canvas);
@@ -4795,7 +4795,7 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind }: {
     setMobileActive(prev => !prev);
   };
 
-  const cardWidth = kind === "country" ? "160px" : "150px";
+  const cardWidth = kind === "country" ? "80px" : "75px";
 
   return (
     <group position={pos} quaternion={orientation}>
@@ -4835,18 +4835,18 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind }: {
           }}>
             {imgUrl && (
               <img src={imgUrl} alt={name} style={{
-                display: "block", width: "100%", height: "85px",
+                display: "block", width: "100%", height: "42px",
                 objectFit: "cover", borderBottom: "1px solid #50c8ff",
               }} />
             )}
-            <div style={{ padding: "7px 9px 9px", textAlign: "center" }}>
+            <div style={{ padding: "3px 5px 5px", textAlign: "center" }}>
               <div style={{
-                fontSize: "10px", fontWeight: 800, color: "#ffffff",
-                letterSpacing: "0.02em", marginBottom: "4px",
-                textShadow: "0 0 8px rgba(100,210,255,0.9)",
+                fontSize: "5px", fontWeight: 800, color: "#ffffff",
+                letterSpacing: "0.02em", marginBottom: "2px",
+                textShadow: "0 0 6px rgba(100,210,255,0.9)",
               }}>{name}</div>
               <div style={{
-                fontSize: "7.5px", color: "#c0ecff", lineHeight: 1.5,
+                fontSize: "4px", color: "#c0ecff", lineHeight: 1.4,
                 borderTop: imgUrl ? "1px solid rgba(80,200,255,0.2)" : "none",
                 paddingTop: imgUrl ? "4px" : 0,
                 textAlign: "left",
@@ -4857,10 +4857,10 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind }: {
                 <a
                   href={`/plan/style?location=${encodeURIComponent(name)}`}
                   style={{
-                    display: "block", marginTop: "6px",
-                    padding: "6px 0", borderRadius: "6px",
+                    display: "block", marginTop: "3px",
+                    padding: "3px 0", borderRadius: "4px",
                     background: "linear-gradient(135deg,#06b6d4,#6366f1)",
-                    color: "#fff", fontSize: "8px", fontWeight: 700,
+                    color: "#fff", fontSize: "4px", fontWeight: 700,
                     textAlign: "center", textDecoration: "none",
                     cursor: "pointer",
                   }}
@@ -5921,25 +5921,25 @@ function CityLabel({ n, pos, orientation, fontSize }: {
             border: "1.5px solid #50c8ff",
             borderRadius: "10px",
             overflow: "hidden",
-            width: "150px",
-            boxShadow: "0 0 14px rgba(60,180,255,0.4), 0 4px 14px rgba(0,0,0,0.5)",
+            width: "75px",
+            boxShadow: "0 0 8px rgba(60,180,255,0.4), 0 2px 8px rgba(0,0,0,0.5)",
             fontFamily: '"Segoe UI", system-ui, -apple-system, sans-serif',
             pointerEvents: mobileActive ? "auto" : "none",
           }}>
             {imgUrl && (
               <img src={imgUrl} alt={n} style={{
-                display: "block", width: "100%", height: "85px",
+                display: "block", width: "100%", height: "42px",
                 objectFit: "cover", borderBottom: "1px solid #50c8ff",
               }} />
             )}
-            <div style={{ padding: "7px 9px 9px", textAlign: "center" }}>
+            <div style={{ padding: "3px 5px 5px", textAlign: "center" }}>
               <div style={{
-                fontSize: "10px", fontWeight: 800, color: "#ffffff",
-                letterSpacing: "0.02em", marginBottom: "4px",
-                textShadow: "0 0 8px rgba(100,210,255,0.9)",
+                fontSize: "5px", fontWeight: 800, color: "#ffffff",
+                letterSpacing: "0.02em", marginBottom: "2px",
+                textShadow: "0 0 6px rgba(100,210,255,0.9)",
               }}>{n}</div>
               <div style={{
-                fontSize: "7.5px", color: "#c0ecff", lineHeight: 1.5,
+                fontSize: "4px", color: "#c0ecff", lineHeight: 1.4,
                 borderTop: imgUrl ? "1px solid rgba(80,200,255,0.2)" : "none",
                 paddingTop: imgUrl ? "4px" : 0,
                 textAlign: "left",
@@ -5950,10 +5950,10 @@ function CityLabel({ n, pos, orientation, fontSize }: {
                 <a
                   href={`/plan/style?location=${encodeURIComponent(n)}`}
                   style={{
-                    display: "block", marginTop: "6px",
-                    padding: "6px 0", borderRadius: "6px",
+                    display: "block", marginTop: "3px",
+                    padding: "3px 0", borderRadius: "4px",
                     background: "linear-gradient(135deg,#06b6d4,#6366f1)",
-                    color: "#fff", fontSize: "8px", fontWeight: 700,
+                    color: "#fff", fontSize: "4px", fontWeight: 700,
                     textAlign: "center", textDecoration: "none",
                     cursor: "pointer",
                   }}
@@ -6011,7 +6011,7 @@ function CityLabels({ camDist }: { camDist: number }) {
     const selected: typeof sorted = [];
     const selUnits: THREE.Vector3[] = [];
     for (const city of sorted) {
-      if (city.tier === 2 && camDist > 13) continue; // tier-2 only at close zoom
+      // all tiers appear at the same zoom level — spacing handles density
       const u = new THREE.Vector3(...city.pos).normalize();
       let tooClose = false;
       for (const su of selUnits) {
