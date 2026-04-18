@@ -1,5 +1,6 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
+import { isDevAccount } from '@/lib/plan';
 
 // GET — returns user's collected monuments + completed missions
 export async function GET() {
@@ -7,16 +8,18 @@ export async function GET() {
   const userId = (session?.user as { id?: string })?.id;
   if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const [collected, missions, trips] = await Promise.all([
+  const [collected, missions, trips, isDev] = await Promise.all([
     prisma.collectedMonument.findMany({ where: { userId } }),
     prisma.completedMission.findMany({ where: { userId } }),
     prisma.tripDraft.findMany({ where: { userId }, select: { location: true } }),
+    isDevAccount(userId),
   ]);
 
   return Response.json({
     collected,
     missions,
     tripLocations: trips.map(t => t.location.toLowerCase()),
+    isDev,
   });
 }
 

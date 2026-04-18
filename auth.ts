@@ -72,15 +72,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   ],
 
   callbacks: {
-    // Forward user.id into the JWT token
     async jwt({ token, user }) {
-      if (user) token.id = user.id;
+      if (user) {
+        token.id = user.id;
+        token.email = user.email;
+      }
       return token;
     },
-    // Forward user.id from JWT into the session
     async session({ session, token }) {
       if (session.user) {
-        (session.user as { id?: string }).id = token.id as string;
+        (session.user as { id?: string; email?: string }).id = token.id as string;
+        (session.user as { id?: string; email?: string }).email = token.email as string;
       }
       return session;
     },

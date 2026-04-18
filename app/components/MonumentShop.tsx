@@ -547,7 +547,7 @@ interface Props { open: boolean; onClose: () => void }
 
 export default function MonumentShop({ open, onClose }: Props) {
   const { data: session } = useSession();
-  const isDev = DEV_EMAILS.has(session?.user?.email?.toLowerCase() ?? '');
+  const isDevClient = DEV_EMAILS.has(session?.user?.email?.toLowerCase() ?? '');
   const [tab,       setTab]       = useState<'monuments' | 'animals'>('monuments');
   const [collected, setCollected] = useState<CollectedItem[]>([]);
   const [missions,  setMissions]  = useState<MissionItem[]>([]);
@@ -556,13 +556,15 @@ export default function MonumentShop({ open, onClose }: Props) {
   const [loading,   setLoading]   = useState(false);
   const [msg,       setMsg]       = useState('');
   const [filter,    setFilter]    = useState<'all' | 'unlocked' | 'locked'>('all');
+  const [isDevServer, setIsDevServer] = useState(false);
+  const isDev = isDevClient || isDevServer;
 
   const load = useCallback(async () => {
     try {
       const res = await fetch('/api/monuments');
       if (!res.ok) return;
-      const data = await res.json() as { collected: CollectedItem[]; missions: MissionItem[]; tripLocations: string[] };
-      setCollected(data.collected); setMissions(data.missions); setTripLocs(data.tripLocations);
+      const data = await res.json() as { collected: CollectedItem[]; missions: MissionItem[]; tripLocations: string[]; isDev?: boolean };
+      setCollected(data.collected); setMissions(data.missions); setTripLocs(data.tripLocations); setIsDevServer(!!data.isDev);
     } catch { /* silent */ }
   }, []);
 
