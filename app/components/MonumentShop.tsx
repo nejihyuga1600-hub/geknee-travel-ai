@@ -7,7 +7,7 @@ const DEV_EMAILS = new Set(['nghiaphan081301@gmail.com']);
 // ─── Shared types ─────────────────────────────────────────────────────────────
 
 export type Rarity = 'common' | 'rare' | 'legendary';
-type Skin = { id: string; name: string; color: string };
+type Skin = { id: string; name: string; color: string; rarity?: string };
 type Mission = { id: string; label: string; skin: Skin };
 
 type CollectibleBase = {
@@ -24,12 +24,32 @@ type CollectibleBase = {
 // ─── Skins ────────────────────────────────────────────────────────────────────
 
 const S = {
-  gold:    { id: 'gold',      name: 'Gold',      color: '#f59e0b' },
-  night:   { id: 'night',     name: 'Night',     color: '#6366f1' },
-  crystal: { id: 'crystal',   name: 'Crystal',   color: '#22d3ee' },
-  legend:  { id: 'legendary', name: 'Legendary', color: '#ec4899' },
-  emerald: { id: 'emerald',   name: 'Emerald',   color: '#10b981' },
-  amber:   { id: 'amber',     name: 'Amber',     color: '#f97316' },
+  // Common
+  stone:        { id: 'stone',        name: 'Stone',        color: '#9ca3af', rarity: 'common' },
+  bronze:       { id: 'bronze',       name: 'Bronze',       color: '#cd7f32', rarity: 'common' },
+  // Uncommon
+  silver:       { id: 'silver',       name: 'Silver',       color: '#c0c0c0', rarity: 'uncommon' },
+  sapphire:     { id: 'sapphire',     name: 'Sapphire',     color: '#2563eb', rarity: 'uncommon' },
+  jade:         { id: 'jade',         name: 'Jade',         color: '#059669', rarity: 'uncommon' },
+  // Rare
+  gold:         { id: 'gold',         name: 'Gold',         color: '#f59e0b', rarity: 'rare' },
+  rose_gold:    { id: 'rose_gold',    name: 'Rose Gold',    color: '#f472b6', rarity: 'rare' },
+  carbon_fiber: { id: 'carbon_fiber', name: 'Carbon Fiber', color: '#374151', rarity: 'rare' },
+  // Epic
+  diamond:      { id: 'diamond',      name: 'Diamond',      color: '#67e8f9', rarity: 'epic' },
+  damascus:     { id: 'damascus',     name: 'Damascus',     color: '#64748b', rarity: 'epic' },
+  obsidian:     { id: 'obsidian',     name: 'Obsidian',     color: '#1e1b4b', rarity: 'epic' },
+  neon:         { id: 'neon',         name: 'Neon',         color: '#06b6d4', rarity: 'epic' },
+  // Legendary
+  holographic:  { id: 'holographic',  name: 'Holographic',  color: '#a78bfa', rarity: 'legendary' },
+  radiant:      { id: 'radiant',      name: 'Radiant',      color: '#fbbf24', rarity: 'legendary' },
+  aurora:       { id: 'aurora',       name: 'Aurora',       color: '#34d399', rarity: 'legendary' },
+  lava:         { id: 'lava',         name: 'Lava',         color: '#ef4444', rarity: 'legendary' },
+  // Mythic
+  celestial:    { id: 'celestial',    name: 'Celestial',    color: '#818cf8', rarity: 'mythic' },
+  rainbow:      { id: 'rainbow',      name: 'Rainbow',      color: '#f97316', rarity: 'mythic' },
+  void:         { id: 'void',         name: 'Void',         color: '#6b21a8', rarity: 'mythic' },
+  sakura:       { id: 'sakura',       name: 'Sakura',       color: '#fda4af', rarity: 'mythic' },
 };
 
 // ─── Monument data ────────────────────────────────────────────────────────────
@@ -40,9 +60,9 @@ const MONUMENTS: CollectibleBase[] = [
     cityKeys: ['paris'], emoji: '🗼', rarity: 'rare',
     fact: 'Its iron expands in summer heat — the tower grows up to 15 cm taller on a hot day.',
     missions: [
-      { id: 'eiffel_night',  label: 'Visit after dark when the tower sparkles for 5 minutes every hour', skin: S.night },
       { id: 'eiffel_picnic', label: 'Have a picnic on the Champ de Mars lawn below the tower',          skin: S.gold },
-      { id: 'eiffel_top',    label: 'Reach the summit observation deck at 276 m',                       skin: S.crystal },
+      { id: 'eiffel_night',  label: 'Visit after dark when the tower sparkles for 5 minutes every hour', skin: S.diamond },
+      { id: 'eiffel_top',    label: 'Reach the summit observation deck at 276 m',                       skin: S.celestial },
     ],
   },
   {
@@ -50,9 +70,9 @@ const MONUMENTS: CollectibleBase[] = [
     cityKeys: ['rome', 'roma'], emoji: '🏛️', rarity: 'legendary',
     fact: '80 numbered arches let 50,000 spectators find seats and exit in minutes.',
     missions: [
-      { id: 'colos_gladiator', label: 'Try on a gladiator costume outside the gates',    skin: S.legend },
-      { id: 'colos_night',     label: 'See the Colosseum illuminated at night',           skin: S.night },
-      { id: 'colos_forum',     label: 'Walk through the adjacent Roman Forum & Palatine', skin: S.gold },
+      { id: 'colos_forum',     label: 'Walk through the adjacent Roman Forum & Palatine', skin: S.bronze },
+      { id: 'colos_night',     label: 'See the Colosseum illuminated at night',           skin: S.obsidian },
+      { id: 'colos_gladiator', label: 'Try on a gladiator costume outside the gates',    skin: S.holographic },
     ],
   },
   {
@@ -60,9 +80,9 @@ const MONUMENTS: CollectibleBase[] = [
     cityKeys: ['agra', 'india'], emoji: '🕌', rarity: 'legendary',
     fact: 'Shah Jahan hired 20,000 workers for 22 years to build this perfect marble mausoleum.',
     missions: [
-      { id: 'taj_sunrise',  label: 'Photograph the Taj at sunrise from the reflecting pool', skin: S.gold },
-      { id: 'taj_barefoot', label: 'Remove your shoes and walk barefoot on the white marble plinth', skin: S.crystal },
-      { id: 'taj_moon',     label: 'Attend a full moon night viewing tour',                 skin: S.legend },
+      { id: 'taj_sunrise',  label: 'Photograph the Taj at sunrise from the reflecting pool', skin: S.rose_gold },
+      { id: 'taj_barefoot', label: 'Remove your shoes and walk barefoot on the white marble plinth', skin: S.diamond },
+      { id: 'taj_moon',     label: 'Attend a full moon night viewing tour',                 skin: S.celestial },
     ],
   },
   {
@@ -70,9 +90,9 @@ const MONUMENTS: CollectibleBase[] = [
     cityKeys: ['beijing', 'china', 'badaling'], emoji: '🏯', rarity: 'legendary',
     fact: 'At 13,170 miles long it could circle the Earth more than half a time.',
     missions: [
-      { id: 'wall_hike',   label: 'Hike an unrestored section of the wall at Jiankou',      skin: S.legend },
-      { id: 'wall_photo',  label: 'Capture the wall disappearing into misty mountains',      skin: S.night },
-      { id: 'wall_tower',  label: 'Reach a watchtower and sign your name in the visitor book', skin: S.gold },
+      { id: 'wall_tower',  label: 'Reach a watchtower and sign your name in the visitor book', skin: S.stone },
+      { id: 'wall_photo',  label: 'Capture the wall disappearing into misty mountains',      skin: S.damascus },
+      { id: 'wall_hike',   label: 'Hike an unrestored section of the wall at Jiankou',      skin: S.aurora },
     ],
   },
   {
@@ -80,9 +100,9 @@ const MONUMENTS: CollectibleBase[] = [
     cityKeys: ['new york', 'nyc'], emoji: '🗽', rarity: 'rare',
     fact: "Lady Liberty's index finger is 2.4 m long — the height of an adult standing upright.",
     missions: [
-      { id: 'liberty_crown', label: "Climb all the way up to Lady Liberty's crown",       skin: S.legend },
-      { id: 'liberty_ferry', label: 'Take the Staten Island Ferry for the free iconic view', skin: S.crystal },
-      { id: 'liberty_night', label: 'Photograph her illuminated at dusk from the water',   skin: S.night },
+      { id: 'liberty_ferry', label: 'Take the Staten Island Ferry for the free iconic view', skin: S.silver },
+      { id: 'liberty_night', label: 'Photograph her illuminated at dusk from the water',   skin: S.neon },
+      { id: 'liberty_crown', label: "Climb all the way up to Lady Liberty's crown",       skin: S.lava },
     ],
   },
   {
@@ -90,9 +110,9 @@ const MONUMENTS: CollectibleBase[] = [
     cityKeys: ['barcelona', 'spain'], emoji: '⛪', rarity: 'rare',
     fact: "Construction began in 1882 and still isn't done — the world's most ambitious unfinished building.",
     missions: [
-      { id: 'sagrada_tower',  label: 'Climb one of the Nativity facade towers',              skin: S.gold },
-      { id: 'sagrada_light',  label: 'Stand inside during the magical morning light show',   skin: S.crystal },
-      { id: 'sagrada_sketch', label: 'Sketch or paint the facade from the park opposite',    skin: S.night },
+      { id: 'sagrada_tower',  label: 'Climb one of the Nativity facade towers',              skin: S.sapphire },
+      { id: 'sagrada_light',  label: 'Stand inside during the magical morning light show',   skin: S.holographic },
+      { id: 'sagrada_sketch', label: 'Sketch or paint the facade from the park opposite',    skin: S.sakura },
     ],
   },
   {
@@ -100,9 +120,9 @@ const MONUMENTS: CollectibleBase[] = [
     cityKeys: ['cusco', 'peru', 'machu picchu'], emoji: '🏔️', rarity: 'legendary',
     fact: 'Perched at 2,430 m in the clouds, this Inca citadel was unknown to the outside world until 1911.',
     missions: [
-      { id: 'machu_gate',    label: 'Hike to the Sun Gate (Inti Punku) via the Inca Trail',  skin: S.legend },
-      { id: 'machu_llama',   label: 'Get photobombed by one of the resident llamas',          skin: S.gold },
-      { id: 'machu_sunrise', label: 'Watch sunrise illuminate the ruins from Waynapicchu',    skin: S.crystal },
+      { id: 'machu_llama',   label: 'Get photobombed by one of the resident llamas',          skin: S.jade },
+      { id: 'machu_sunrise', label: 'Watch sunrise illuminate the ruins from Waynapicchu',    skin: S.radiant },
+      { id: 'machu_gate',    label: 'Hike to the Sun Gate (Inti Punku) via the Inca Trail',  skin: S.void },
     ],
   },
   {
@@ -111,8 +131,8 @@ const MONUMENTS: CollectibleBase[] = [
     fact: 'Its outstretched arms span 28 metres — wide enough to shadow a full-size swimming pool.',
     missions: [
       { id: 'christ_train', label: 'Ride the cogwheel train up Corcovado through the rainforest', skin: S.gold },
-      { id: 'christ_arms',  label: "Strike the famous arms-out pose with the statue behind you",  skin: S.crystal },
-      { id: 'christ_cloud', label: 'Visit when clouds roll in and the statue disappears into mist', skin: S.night },
+      { id: 'christ_arms',  label: "Strike the famous arms-out pose with the statue behind you",  skin: S.carbon_fiber },
+      { id: 'christ_cloud', label: 'Visit when clouds roll in and the statue disappears into mist', skin: S.aurora },
     ],
   },
   {
@@ -120,9 +140,9 @@ const MONUMENTS: CollectibleBase[] = [
     cityKeys: ['siem reap', 'cambodia', 'angkor'], emoji: '🛕', rarity: 'legendary',
     fact: "The largest religious monument on Earth — its moat alone could swallow 100 Olympic pools.",
     missions: [
-      { id: 'angkor_sunrise', label: 'Watch the sunrise reflect the towers in the still moat', skin: S.gold },
-      { id: 'angkor_monk',    label: 'Receive a blessing from a resident monk',                skin: S.legend },
-      { id: 'angkor_bike',    label: 'Explore the entire temple complex by bicycle',            skin: S.crystal },
+      { id: 'angkor_sunrise', label: 'Watch the sunrise reflect the towers in the still moat', skin: S.rose_gold },
+      { id: 'angkor_bike',    label: 'Explore the entire temple complex by bicycle',            skin: S.obsidian },
+      { id: 'angkor_monk',    label: 'Receive a blessing from a resident monk',                skin: S.celestial },
     ],
   },
   {
@@ -131,8 +151,8 @@ const MONUMENTS: CollectibleBase[] = [
     fact: "Built from 2.3 million stone blocks, it was the world's tallest structure for 3,800 years.",
     missions: [
       { id: 'pyramid_camel',  label: 'Ride a camel around the Giza plateau',                skin: S.gold },
-      { id: 'pyramid_sphinx', label: 'Photograph the Sphinx with a pyramid aligned behind it', skin: S.crystal },
-      { id: 'pyramid_inside', label: 'Descend into the Grand Gallery inside the pyramid',    skin: S.legend },
+      { id: 'pyramid_sphinx', label: 'Photograph the Sphinx with a pyramid aligned behind it', skin: S.damascus },
+      { id: 'pyramid_inside', label: 'Descend into the Grand Gallery inside the pyramid',    skin: S.rainbow },
     ],
   },
   {
@@ -140,9 +160,9 @@ const MONUMENTS: CollectibleBase[] = [
     cityKeys: ['san francisco', 'sf'], emoji: '🌉', rarity: 'common',
     fact: 'Its suspension cables contain 80,000 miles of wire — enough to wrap the Earth three times.',
     missions: [
-      { id: 'golden_walk',  label: 'Walk or cycle the full length of the bridge',           skin: S.gold },
-      { id: 'golden_fog',   label: 'Photograph it shrouded in famous morning fog',           skin: S.night },
-      { id: 'golden_kayak', label: 'Paddle a kayak directly under the bridge',              skin: S.crystal },
+      { id: 'golden_walk',  label: 'Walk or cycle the full length of the bridge',           skin: S.bronze },
+      { id: 'golden_fog',   label: 'Photograph it shrouded in famous morning fog',           skin: S.silver },
+      { id: 'golden_kayak', label: 'Paddle a kayak directly under the bridge',              skin: S.neon },
     ],
   },
   {
@@ -150,9 +170,9 @@ const MONUMENTS: CollectibleBase[] = [
     cityKeys: ['london', 'england', 'uk'], emoji: '🕰️', rarity: 'common',
     fact: 'Big Ben is the bell — the tower is officially the Elizabeth Tower since 2012.',
     missions: [
-      { id: 'bigben_chime',  label: 'Stand outside when the famous chimes ring on the hour',   skin: S.gold },
-      { id: 'bigben_bridge', label: 'Photograph Big Ben from Westminster Bridge at blue hour',  skin: S.night },
-      { id: 'bigben_tour',   label: 'Join an official Houses of Parliament guided tour',        skin: S.crystal },
+      { id: 'bigben_chime',  label: 'Stand outside when the famous chimes ring on the hour',   skin: S.stone },
+      { id: 'bigben_bridge', label: 'Photograph Big Ben from Westminster Bridge at blue hour',  skin: S.sapphire },
+      { id: 'bigben_tour',   label: 'Join an official Houses of Parliament guided tour',        skin: S.carbon_fiber },
     ],
   },
   {
@@ -161,8 +181,8 @@ const MONUMENTS: CollectibleBase[] = [
     fact: "The Parthenon's columns lean inward slightly — a deliberate optical illusion so they look straight.",
     missions: [
       { id: 'acropolis_sunset', label: 'Watch sunset paint the Parthenon golden from Filopappou Hill', skin: S.gold },
-      { id: 'acropolis_museum', label: 'Visit the Acropolis Museum and see the original carvings',     skin: S.crystal },
-      { id: 'acropolis_five',   label: 'Identify all five structures on the Acropolis hill',           skin: S.legend },
+      { id: 'acropolis_museum', label: 'Visit the Acropolis Museum and see the original carvings',     skin: S.diamond },
+      { id: 'acropolis_five',   label: 'Identify all five structures on the Acropolis hill',           skin: S.radiant },
     ],
   },
   {
@@ -170,9 +190,9 @@ const MONUMENTS: CollectibleBase[] = [
     cityKeys: ['sydney', 'australia'], emoji: '🎭', rarity: 'rare',
     fact: 'Its 1,056,000 roof tiles were made in Sweden — and they self-clean in the rain.',
     missions: [
-      { id: 'sydney_show',   label: 'Attend a live performance inside the Opera House',          skin: S.legend },
-      { id: 'sydney_ferry',  label: 'Photograph it from the harbour ferry at golden hour',       skin: S.gold },
-      { id: 'sydney_bridge', label: 'Climb the Harbour Bridge for an aerial view of the Opera House', skin: S.crystal },
+      { id: 'sydney_ferry',  label: 'Photograph it from the harbour ferry at golden hour',       skin: S.silver },
+      { id: 'sydney_bridge', label: 'Climb the Harbour Bridge for an aerial view of the Opera House', skin: S.obsidian },
+      { id: 'sydney_show',   label: 'Attend a live performance inside the Opera House',          skin: S.holographic },
     ],
   },
   {
@@ -180,9 +200,9 @@ const MONUMENTS: CollectibleBase[] = [
     cityKeys: ['germany', 'munich', 'bavaria', 'fussen'], emoji: '🏰', rarity: 'rare',
     fact: "Walt Disney based Sleeping Beauty's castle on this fairytale palace — it was never finished.",
     missions: [
-      { id: 'neu_bridge', label: 'Cross Marienbrücke bridge for the iconic castle view',  skin: S.gold },
-      { id: 'neu_snow',   label: 'Visit in winter and see the castle blanketed in snow',  skin: S.crystal },
-      { id: 'neu_hike',   label: 'Hike up the mountain trail behind the castle',          skin: S.night },
+      { id: 'neu_bridge', label: 'Cross Marienbrücke bridge for the iconic castle view',  skin: S.jade },
+      { id: 'neu_snow',   label: 'Visit in winter and see the castle blanketed in snow',  skin: S.diamond },
+      { id: 'neu_hike',   label: 'Hike up the mountain trail behind the castle',          skin: S.aurora },
     ],
   },
   {
@@ -190,9 +210,9 @@ const MONUMENTS: CollectibleBase[] = [
     cityKeys: ['england', 'uk', 'london', 'wiltshire', 'salisbury'], emoji: '🪨', rarity: 'rare',
     fact: 'The 25-tonne bluestones were dragged 200 miles from Wales around 2500 BC.',
     missions: [
-      { id: 'stone_solstice', label: 'Attend a summer or winter solstice sunrise ceremony',      skin: S.legend },
-      { id: 'stone_inner',    label: 'Book a special access inner-circle tour',                   skin: S.gold },
-      { id: 'stone_land',     label: 'Explore the surrounding prehistoric burial mounds on foot', skin: S.crystal },
+      { id: 'stone_inner',    label: 'Book a special access inner-circle tour',                   skin: S.stone },
+      { id: 'stone_land',     label: 'Explore the surrounding prehistoric burial mounds on foot', skin: S.damascus },
+      { id: 'stone_solstice', label: 'Attend a summer or winter solstice sunrise ceremony',      skin: S.lava },
     ],
   },
   {
@@ -200,9 +220,9 @@ const MONUMENTS: CollectibleBase[] = [
     cityKeys: ['argentina', 'brazil', 'iguazu', 'iguacu', 'foz do iguacu'], emoji: '💧', rarity: 'legendary',
     fact: 'Nearly 3 km wide — Eleanor Roosevelt reportedly gasped "Poor Niagara!" on first sight.',
     missions: [
-      { id: 'iguazu_boat',  label: 'Take the speedboat ride directly into the spray zone', skin: S.legend },
-      { id: 'iguazu_devil', label: "Walk to the edge of the Devil's Throat viewpoint",    skin: S.gold },
-      { id: 'iguazu_both',  label: 'See the falls from both the Argentine AND Brazilian sides', skin: S.crystal },
+      { id: 'iguazu_devil', label: "Walk to the edge of the Devil's Throat viewpoint",    skin: S.sapphire },
+      { id: 'iguazu_both',  label: 'See the falls from both the Argentine AND Brazilian sides', skin: S.neon },
+      { id: 'iguazu_boat',  label: 'Take the speedboat ride directly into the spray zone', skin: S.rainbow },
     ],
   },
   {
@@ -210,9 +230,9 @@ const MONUMENTS: CollectibleBase[] = [
     cityKeys: ['tokyo', 'japan'], emoji: '📡', rarity: 'rare',
     fact: "At exactly 634 m it's the world's tallest tower — the height spells the region's old name in Japanese.",
     missions: [
-      { id: 'sky_top',     label: 'Reach the Tembo Galleria at 451 m for panoramic views',       skin: S.crystal },
-      { id: 'sky_night',   label: 'Photograph the tower reflected in the Sumida River at night',  skin: S.night },
-      { id: 'sky_hanami',  label: 'Visit during cherry blossom season with the tower in the shot', skin: S.gold },
+      { id: 'sky_hanami',  label: 'Visit during cherry blossom season with the tower in the shot', skin: S.sakura },
+      { id: 'sky_night',   label: 'Photograph the tower reflected in the Sumida River at night',  skin: S.neon },
+      { id: 'sky_top',     label: 'Reach the Tembo Galleria at 451 m for panoramic views',       skin: S.celestial },
     ],
   },
   {
@@ -220,9 +240,9 @@ const MONUMENTS: CollectibleBase[] = [
     cityKeys: ['arizona', 'phoenix', 'las vegas', 'flagstaff', 'grand canyon'], emoji: '🏜️', rarity: 'rare',
     fact: 'Up to 29 km wide and 1.8 km deep — its rock layers tell 2 billion years of Earth history.',
     missions: [
-      { id: 'canyon_rim',   label: 'Stand at the South Rim at sunrise and watch the canyon glow',  skin: S.gold },
-      { id: 'canyon_hike',  label: 'Hike the Bright Angel Trail all the way to the Colorado River', skin: S.legend },
-      { id: 'canyon_raft',  label: 'Raft a section of the Colorado River through the canyon',       skin: S.emerald },
+      { id: 'canyon_rim',   label: 'Stand at the South Rim at sunrise and watch the canyon glow',  skin: S.bronze },
+      { id: 'canyon_hike',  label: 'Hike the Bright Angel Trail all the way to the Colorado River', skin: S.carbon_fiber },
+      { id: 'canyon_raft',  label: 'Raft a section of the Colorado River through the canyon',       skin: S.lava },
     ],
   },
   {
@@ -230,9 +250,9 @@ const MONUMENTS: CollectibleBase[] = [
     cityKeys: ['zimbabwe', 'zambia', 'victoria falls', 'livingstone'], emoji: '🌊', rarity: 'legendary',
     fact: 'At 1.7 km wide and 108 m tall, its mist cloud is visible from over 40 km away.',
     missions: [
-      { id: 'vic_pool',   label: "Swim in Devil's Pool at the very edge (dry season only)", skin: S.legend },
-      { id: 'vic_bungee', label: 'Bungee jump off the Victoria Falls Bridge over the gorge', skin: S.amber },
-      { id: 'vic_soak',   label: 'Stand in the spray — get completely and utterly soaked',   skin: S.crystal },
+      { id: 'vic_soak',   label: 'Stand in the spray — get completely and utterly soaked',   skin: S.jade },
+      { id: 'vic_bungee', label: 'Bungee jump off the Victoria Falls Bridge over the gorge', skin: S.obsidian },
+      { id: 'vic_pool',   label: "Swim in Devil's Pool at the very edge (dry season only)", skin: S.void },
     ],
   },
 ];
@@ -246,9 +266,9 @@ const ANIMALS: CollectibleBase[] = [
     emoji: '🐋', rarity: 'legendary',
     fact: 'The largest animal ever to have lived on Earth — its heart alone is the size of a small car.',
     missions: [
-      { id: 'bwhale_boat',    label: 'Join a whale watching boat tour and spot one surfacing',       skin: S.legend },
-      { id: 'bwhale_breach',  label: 'Witness a whale breaching (full body out of the water)',       skin: S.crystal },
-      { id: 'bwhale_song',    label: 'Listen to whale song underwater with a hydrophone experience', skin: S.night },
+      { id: 'bwhale_boat',    label: 'Join a whale watching boat tour and spot one surfacing',       skin: S.sapphire },
+      { id: 'bwhale_breach',  label: 'Witness a whale breaching (full body out of the water)',       skin: S.holographic },
+      { id: 'bwhale_song',    label: 'Listen to whale song underwater with a hydrophone experience', skin: S.celestial },
     ],
   },
   {
@@ -257,9 +277,9 @@ const ANIMALS: CollectibleBase[] = [
     emoji: '🐳', rarity: 'rare',
     fact: 'Humpbacks compose complex songs that evolve over time — males sing for hours to attract mates.',
     missions: [
-      { id: 'hump_sing',   label: 'Be on the water during active singing season',           skin: S.gold },
-      { id: 'hump_fin',    label: 'Watch a humpback slap the water with its tail flukes',   skin: S.crystal },
-      { id: 'hump_bubble', label: 'Observe a bubble-net feeding group from a boat',         skin: S.legend },
+      { id: 'hump_sing',   label: 'Be on the water during active singing season',           skin: S.silver },
+      { id: 'hump_fin',    label: 'Watch a humpback slap the water with its tail flukes',   skin: S.diamond },
+      { id: 'hump_bubble', label: 'Observe a bubble-net feeding group from a boat',         skin: S.aurora },
     ],
   },
   {
@@ -268,9 +288,9 @@ const ANIMALS: CollectibleBase[] = [
     emoji: '🐬', rarity: 'rare',
     fact: 'Orcas are the apex predator of every ocean — they hunt great white sharks for their livers.',
     missions: [
-      { id: 'orca_pod',    label: 'Watch a full pod of orcas hunting together in the wild', skin: S.night },
-      { id: 'orca_breach', label: 'See an orca completely clear the water in a breach',     skin: S.legend },
-      { id: 'orca_kayak',  label: 'Kayak within sight of a resident orca pod',              skin: S.crystal },
+      { id: 'orca_pod',    label: 'Watch a full pod of orcas hunting together in the wild', skin: S.obsidian },
+      { id: 'orca_breach', label: 'See an orca completely clear the water in a breach',     skin: S.lava },
+      { id: 'orca_kayak',  label: 'Kayak within sight of a resident orca pod',              skin: S.void },
     ],
   },
   {
@@ -279,9 +299,9 @@ const ANIMALS: CollectibleBase[] = [
     emoji: '🐬', rarity: 'common',
     fact: 'Dolphins sleep with one eye open and one brain hemisphere at a time — always half awake.',
     missions: [
-      { id: 'dolphin_bow',  label: 'Watch dolphins ride the bow wave of a boat at speed',  skin: S.gold },
-      { id: 'dolphin_swim', label: 'Swim with wild dolphins in open water',                skin: S.crystal },
-      { id: 'dolphin_spin', label: 'Spot a spinner dolphin doing aerial twirls',           skin: S.emerald },
+      { id: 'dolphin_bow',  label: 'Watch dolphins ride the bow wave of a boat at speed',  skin: S.stone },
+      { id: 'dolphin_swim', label: 'Swim with wild dolphins in open water',                skin: S.gold },
+      { id: 'dolphin_spin', label: 'Spot a spinner dolphin doing aerial twirls',           skin: S.neon },
     ],
   },
   {
@@ -291,8 +311,8 @@ const ANIMALS: CollectibleBase[] = [
     fact: 'A lion\'s roar can be heard 8 km away — they roar to mark territory and reunite the pride.',
     missions: [
       { id: 'lion_dawn',  label: 'Witness a pride hunt at first light on a dawn game drive', skin: S.gold },
-      { id: 'lion_pride', label: 'Find a pride of 10+ lions resting in the shade',           skin: S.legend },
-      { id: 'lion_cub',   label: 'Spot a mother with cubs — the rarest sighting on safari',  skin: S.amber },
+      { id: 'lion_pride', label: 'Find a pride of 10+ lions resting in the shade',           skin: S.radiant },
+      { id: 'lion_cub',   label: 'Spot a mother with cubs — the rarest sighting on safari',  skin: S.rainbow },
     ],
   },
   {
@@ -301,9 +321,9 @@ const ANIMALS: CollectibleBase[] = [
     emoji: '🐘', rarity: 'rare',
     fact: 'Elephants are one of the few animals that recognize themselves in a mirror — and mourn their dead.',
     missions: [
-      { id: 'eleph_herd',  label: 'Watch a herd of 20+ elephants crossing a river',         skin: S.crystal },
-      { id: 'eleph_mud',   label: 'Observe a family group bathing and mud-wallowing',        skin: S.gold },
-      { id: 'eleph_walk',  label: 'Walk alongside an elephant in an ethical sanctuary',      skin: S.emerald },
+      { id: 'eleph_mud',   label: 'Observe a family group bathing and mud-wallowing',        skin: S.bronze },
+      { id: 'eleph_herd',  label: 'Watch a herd of 20+ elephants crossing a river',         skin: S.damascus },
+      { id: 'eleph_walk',  label: 'Walk alongside an elephant in an ethical sanctuary',      skin: S.holographic },
     ],
   },
   {
@@ -312,9 +332,9 @@ const ANIMALS: CollectibleBase[] = [
     emoji: '🐻‍❄️', rarity: 'legendary',
     fact: 'Polar bears are the largest land predator — they can swim 100 km without rest in Arctic waters.',
     missions: [
-      { id: 'polar_tundra', label: 'Spot a polar bear on the Arctic tundra from a tundra buggy', skin: S.legend },
-      { id: 'polar_swim',   label: 'See a polar bear swimming in open Arctic water',              skin: S.crystal },
-      { id: 'polar_cubs',   label: 'Find a mother polar bear emerging from a snow den with cubs', skin: S.night },
+      { id: 'polar_swim',   label: 'See a polar bear swimming in open Arctic water',              skin: S.silver },
+      { id: 'polar_tundra', label: 'Spot a polar bear on the Arctic tundra from a tundra buggy', skin: S.diamond },
+      { id: 'polar_cubs',   label: 'Find a mother polar bear emerging from a snow den with cubs', skin: S.celestial },
     ],
   },
   {
@@ -323,9 +343,9 @@ const ANIMALS: CollectibleBase[] = [
     emoji: '🐧', rarity: 'rare',
     fact: 'Emperor penguins dive deeper than 500 m and hold their breath for over 20 minutes.',
     missions: [
-      { id: 'peng_colony',  label: 'Stand inside a penguin colony of 10,000+ birds',          skin: S.crystal },
-      { id: 'peng_march',   label: 'Watch the famous penguin march to and from the sea',       skin: S.gold },
-      { id: 'peng_chick',   label: 'Spot a fluffy penguin chick peeking out from a parent',   skin: S.legend },
+      { id: 'peng_march',   label: 'Watch the famous penguin march to and from the sea',       skin: S.jade },
+      { id: 'peng_colony',  label: 'Stand inside a penguin colony of 10,000+ birds',          skin: S.carbon_fiber },
+      { id: 'peng_chick',   label: 'Spot a fluffy penguin chick peeking out from a parent',   skin: S.aurora },
     ],
   },
   {
@@ -334,9 +354,9 @@ const ANIMALS: CollectibleBase[] = [
     emoji: '🦘', rarity: 'common',
     fact: 'A red kangaroo can leap 9 m in a single bound and reach 56 km/h — the world\'s fastest marsupial.',
     missions: [
-      { id: 'kang_mob',    label: 'Find a mob of 50+ kangaroos grazing in the outback at dusk', skin: S.gold },
-      { id: 'kang_joey',   label: 'Spot a joey poking its head out of the pouch',               skin: S.emerald },
-      { id: 'kang_boxing', label: 'Watch two male kangaroos box each other',                    skin: S.legend },
+      { id: 'kang_mob',    label: 'Find a mob of 50+ kangaroos grazing in the outback at dusk', skin: S.stone },
+      { id: 'kang_joey',   label: 'Spot a joey poking its head out of the pouch',               skin: S.rose_gold },
+      { id: 'kang_boxing', label: 'Watch two male kangaroos box each other',                    skin: S.radiant },
     ],
   },
   {
@@ -345,9 +365,9 @@ const ANIMALS: CollectibleBase[] = [
     emoji: '🦒', rarity: 'common',
     fact: "A giraffe's heart weighs 11 kg and pumps blood 2 m uphill to reach its brain.",
     missions: [
-      { id: 'giraffe_tower', label: 'Find a tower of 5+ giraffes feeding together in acacia trees', skin: S.gold },
-      { id: 'giraffe_baby',  label: 'See a newborn giraffe taking its first wobbly steps',          skin: S.amber },
-      { id: 'giraffe_feed',  label: 'Hand-feed a giraffe at a responsible wildlife sanctuary',      skin: S.crystal },
+      { id: 'giraffe_tower', label: 'Find a tower of 5+ giraffes feeding together in acacia trees', skin: S.bronze },
+      { id: 'giraffe_baby',  label: 'See a newborn giraffe taking its first wobbly steps',          skin: S.gold },
+      { id: 'giraffe_feed',  label: 'Hand-feed a giraffe at a responsible wildlife sanctuary',      skin: S.obsidian },
     ],
   },
   {
@@ -355,9 +375,9 @@ const ANIMALS: CollectibleBase[] = [
     cityKeys: ['chengdu', 'china', 'beijing', 'sichuan'], emoji: '🐼', rarity: 'legendary',
     fact: 'Giant pandas eat 12–38 kg of bamboo a day — they spend 14 hours a day just eating.',
     missions: [
-      { id: 'panda_center', label: 'Visit the Chengdu Research Base of Giant Panda Breeding',    skin: S.gold },
-      { id: 'panda_bamboo', label: 'Watch a panda sit and methodically eat bamboo for 10+ mins', skin: S.crystal },
-      { id: 'panda_cub',    label: 'See a panda cub — one of the rarest sights in the wild',    skin: S.legend },
+      { id: 'panda_center', label: 'Visit the Chengdu Research Base of Giant Panda Breeding',    skin: S.jade },
+      { id: 'panda_bamboo', label: 'Watch a panda sit and methodically eat bamboo for 10+ mins', skin: S.damascus },
+      { id: 'panda_cub',    label: 'See a panda cub — one of the rarest sights in the wild',    skin: S.sakura },
     ],
   },
   {
@@ -366,9 +386,9 @@ const ANIMALS: CollectibleBase[] = [
     emoji: '🐆', rarity: 'legendary',
     fact: "Called the 'ghost of the mountains' — fewer than 7,000 remain in the wild and sightings are ultra-rare.",
     missions: [
-      { id: 'snow_track',  label: 'Find fresh snow leopard paw prints in the Himalayas',         skin: S.crystal },
-      { id: 'snow_spot',   label: 'Spot a snow leopard in the wild — an incredibly rare feat',   skin: S.legend },
-      { id: 'snow_patrol', label: 'Join a conservation patrol tracking snow leopards by radio',   skin: S.night },
+      { id: 'snow_track',  label: 'Find fresh snow leopard paw prints in the Himalayas',         skin: S.silver },
+      { id: 'snow_patrol', label: 'Join a conservation patrol tracking snow leopards by radio',   skin: S.diamond },
+      { id: 'snow_spot',   label: 'Spot a snow leopard in the wild — an incredibly rare feat',   skin: S.void },
     ],
   },
 ];
@@ -585,19 +605,46 @@ export default function MonumentShop({ open, onClose }: Props) {
     });
     const data = await res.json();
     if (res.ok) { setMsg(`${item.name} added to your collection!`); await load(); window.dispatchEvent(new Event('geknee:monuments-updated')); }
-    else setMsg(data.error ?? 'Error');
+    else { setMsg(data.error ?? 'Error'); await load(); } // refresh state on error too (e.g. "Already collected" from another session)
     setLoading(false);
   }
 
   async function completeMission(item: CollectibleBase, ms: Mission) {
     setLoading(true); setMsg('');
-    const res = await fetch('/api/monuments', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'mission', monumentId: item.id, missionId: ms.id, skin: ms.skin.id }),
-    });
-    const data = await res.json();
-    if (res.ok) { setMsg(`${ms.skin.name} skin unlocked!`); await load(); }
-    else setMsg(data.error ?? 'Error');
+    try {
+      // Get user's current location for verification
+      let lat: number | undefined;
+      let lon: number | undefined;
+      if (!isDev && navigator.geolocation) {
+        try {
+          const pos = await new Promise<GeolocationPosition>((resolve, reject) =>
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 10000, enableHighAccuracy: false })
+          );
+          lat = pos.coords.latitude;
+          lon = pos.coords.longitude;
+        } catch {
+          setMsg('Location access required — enable location services to complete missions near monuments');
+          setLoading(false);
+          return;
+        }
+      }
+
+      const res = await fetch('/api/monuments', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'mission', monumentId: item.id, missionId: ms.id, skin: ms.skin.id, lat, lon }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMsg(`${ms.skin.name} skin unlocked!`);
+        await load();
+        window.dispatchEvent(new Event('geknee:monuments-updated'));
+      } else {
+        setMsg(data.error ?? 'Error');
+        await load(); // refresh state on error too (e.g. "Mission already completed" from another session)
+      }
+    } catch {
+      setMsg('Failed to complete mission');
+    }
     setLoading(false);
   }
 

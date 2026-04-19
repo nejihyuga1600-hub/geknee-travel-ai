@@ -1479,13 +1479,258 @@ let _onGlobeReady: (() => void) | null = null;
 let _collectedMonuments = new Set<string>();
 function _setCollectedMonuments(ids: Set<string>) { _collectedMonuments = ids; }
 
+// ─── Active skin bridge (LocationPage → Lm) — maps monumentId → skin id
+let _activeSkins = new Map<string, string>();
+function _setActiveSkins(skins: Map<string, string>) { _activeSkins = skins; }
+
+// Monument-to-filename mapping for skin GLBs (e.g. eiffelTower → eiffel_tower)
+const MONUMENT_FILE_PREFIX: Record<string, string> = {
+  eiffelTower: 'eiffel_tower',
+  colosseum: 'Colosseum',
+  tajMahal: 'taj_mahal',
+  greatWall: 'great_wall',
+  statueLiberty: 'statue_liberty',
+  sagradaFamilia: 'sagrada_familia',
+  machuPicchu: 'machu_picchu',
+  christRedeem: 'christ_redeemer',
+  angkorWat: 'angkor_wat',
+  pyramidGiza: 'pyramid_giza',
+  goldenGate: 'golden_gate',
+  bigBen: 'big_ben',
+  acropolis: 'acropolis',
+  sydneyOpera: 'sydney_opera',
+  neuschwanstein: 'neuschwanstein',
+  stonehenge: 'stonehenge',
+  iguazuFalls: 'iguazu_falls',
+  tokyoSkytree: 'tokyo_skytree',
+  victoriaFalls: 'victoria_falls',
+};
+
+// ─── Skin rarity ring colors ─────────────────────────────────────────────────
+const SKIN_RING_COLOR: Record<string, string> = {
+  stone: '#808080',
+  bronze: '#cd7f32',
+  silver: '#c0c0c0',
+  gold: '#ffd700',
+  diamond: '#b9f2ff',
+  aurora: '#00ff88',
+  celestial: '#9370db',
+};
+
 function Lm({ p, s = 0.4, info, mk, children }: { p: SurfPos; s?: number; info?: LmInfo; mk?: string; children: ReactNode }) {
   const isCollected = mk ? _collectedMonuments.has(mk) : false;
   const [hovered, setHovered]         = useState(false);
   const [mobileActive, setMobileActive] = useState(false);
+  const activeSkin = mk ? _activeSkins.get(mk) : undefined;
+  const skinPath = (activeSkin && activeSkin !== 'default' && mk) ?
+    `/models/${MONUMENT_FILE_PREFIX[mk] ?? mk}_${activeSkin}.glb` : undefined;
   const model   = mk ? MODELS[mk] : undefined;
   const density = LM_DENSITY.get(p) ?? 1;
   const effS    = s * density;
+
+  // ─── Animation state refs ───────────────────────────────────────────────────
+  const prevCollectedRef = useRef(isCollected);
+  const prevSkinRef = useRef(activeSkin);
+
+  // Unlock celebration animation state
+  const unlockAnimRef = useRef({
+    active: false,
+    time: 0,               // elapsed seconds since unlock
+    ringScale: 0,
+    ringOpacity: 0.7,
+    modelScale: 1,
+    sparkleActive: false,
+  });
+
+  // Skin switch animation state
+  const skinAnimRef = useRef({
+    active: false,
+    time: 0,
+    phase: 'idle' as 'idle' | 'fadeOut' | 'flash' | 'fadeIn',
+    opacity: 1,
+    rotation: 0,
+    flashIntensity: 0,
+  });
+
+  // Ring animation ref (continuous for collected monuments)
+  const ringRef = useRef<THREE.Mesh>(null);
+  const ringMatRef = useRef<THREE.MeshBasicMaterial>(null);
+  const modelGroupRef = useRef<THREE.Group>(null);
+  const sparkleGroupRef = useRef<THREE.Group>(null);
+  const flashLightRef = useRef<THREE.PointLight>(null);
+
+  // Detect unlock transition (isCollected: false → true)
+  useEffect(() => {
+    if (isCollected && !prevCollectedRef.current) {
+      unlockAnimRef.current = {
+        active: true,
+        time: 0,
+        ringScale: 0,
+        ringOpacity: 1.0,
+        modelScale: 1.0,
+        sparkleActive: true,
+      };
+    }
+    prevCollectedRef.current = isCollected;
+  }, [isCollected]);
+
+  // Detect skin switch (activeSkin changes)
+  useEffect(() => {
+    if (prevSkinRef.current !== undefined && activeSkin !== prevSkinRef.current) {
+      skinAnimRef.current = {
+        active: true,
+        time: 0,
+        phase: 'fadeOut',
+        opacity: 1,
+        rotation: 0,
+        flashIntensity: 0,
+      };
+    }
+    prevSkinRef.current = activeSkin;
+  }, [activeSkin]);
+
+  // Ring color based on current skin rarity
+  const ringColor = activeSkin ? (SKIN_RING_COLOR[activeSkin] ?? '#ffd700') : '#ffd700';
+
+  // ─── Per-frame animation loop ───────────────────────────────────────────────
+  useFrame((_, delta) => {
+    const dt = Math.min(delta, 0.05); // clamp to avoid jumps
+
+    // === Unlock celebration animation ===
+    const ua = unlockAnimRef.current;
+    if (ua.active) {
+      ua.time += dt;
+
+      // Ring scale: 0 → 1.2 → 1.0 (spring bounce over 0.6s)
+      if (ua.time < 0.3) {
+        ua.ringScale = (ua.time / 0.3) * 1.2;
+      } else if (ua.time < 0.6) {
+        const t = (ua.time - 0.3) / 0.3;
+        ua.ringScale = 1.2 - 0.2 * t; // 1.2 → 1.0
+      } else {
+        ua.ringScale = 1.0;
+      }
+
+      // Ring pulse glow for 3 seconds (opacity 0.5 → 1.0 pulsing)
+      if (ua.time < 3.0) {
+        ua.ringOpacity = 0.75 + 0.25 * Math.sin(ua.time * 6);
+      } else {
+        ua.ringOpacity = 0.7;
+      }
+
+      // Model scale pop: 1.0 → 1.15 → 1.0 over 0.5s
+      if (ua.time < 0.25) {
+        ua.modelScale = 1.0 + 0.15 * (ua.time / 0.25);
+      } else if (ua.time < 0.5) {
+        const t = (ua.time - 0.25) / 0.25;
+        ua.modelScale = 1.15 - 0.15 * t;
+      } else {
+        ua.modelScale = 1.0;
+      }
+
+      // Sparkles active for 2 seconds
+      if (ua.time > 2.0) {
+        ua.sparkleActive = false;
+      }
+
+      // End unlock animation after 3 seconds
+      if (ua.time >= 3.0) {
+        ua.active = false;
+        ua.ringScale = 1.0;
+        ua.modelScale = 1.0;
+      }
+
+      // Apply model scale
+      if (modelGroupRef.current) {
+        const ms = ua.modelScale;
+        modelGroupRef.current.scale.set(ms, ms, ms);
+      }
+    }
+
+    // Apply ring animation (scale + opacity)
+    if (ringRef.current) {
+      const rs = ua.active ? ua.ringScale : 1.0;
+      ringRef.current.scale.set(rs, rs, rs);
+      // Slow continuous rotation for collected rings
+      ringRef.current.rotation.z += dt * 0.3;
+    }
+    if (ringMatRef.current) {
+      ringMatRef.current.opacity = ua.active ? ua.ringOpacity : 0.7;
+    }
+
+    // Sparkle group visibility
+    if (sparkleGroupRef.current) {
+      sparkleGroupRef.current.visible = ua.sparkleActive;
+    }
+
+    // === Skin switch animation ===
+    const sa = skinAnimRef.current;
+    if (sa.active) {
+      sa.time += dt;
+
+      switch (sa.phase) {
+        case 'fadeOut':
+          // Fade out over 0.3s
+          sa.opacity = Math.max(0, 1 - sa.time / 0.3);
+          if (sa.time >= 0.3) {
+            sa.phase = 'flash';
+            sa.time = 0;
+            sa.opacity = 0;
+            sa.flashIntensity = 2.0;
+          }
+          break;
+        case 'flash':
+          // Brief flash for 0.15s
+          sa.flashIntensity = 2.0 * Math.max(0, 1 - sa.time / 0.15);
+          if (sa.time >= 0.15) {
+            sa.phase = 'fadeIn';
+            sa.time = 0;
+            sa.flashIntensity = 0;
+          }
+          break;
+        case 'fadeIn':
+          // Fade in over 0.5s
+          sa.opacity = Math.min(1, sa.time / 0.5);
+          // 360° rotation over 0.8s
+          sa.rotation = Math.min(1, sa.time / 0.8) * Math.PI * 2;
+          if (sa.time >= 0.8) {
+            sa.active = false;
+            sa.phase = 'idle';
+            sa.opacity = 1;
+            sa.rotation = 0;
+            sa.flashIntensity = 0;
+          }
+          break;
+      }
+
+      // Apply skin switch visual effects
+      if (modelGroupRef.current) {
+        // Apply opacity to all mesh materials in the model
+        modelGroupRef.current.traverse((child) => {
+          if ((child as THREE.Mesh).isMesh) {
+            const mesh = child as THREE.Mesh;
+            const mat = mesh.material as THREE.MeshStandardMaterial;
+            if (mat && mat.isMeshStandardMaterial) {
+              mat.transparent = true;
+              mat.opacity = sa.opacity;
+              mat.needsUpdate = true;
+            }
+          }
+        });
+        // Apply rotation spin
+        if (sa.phase === 'fadeIn' || sa.phase === 'flash') {
+          modelGroupRef.current.rotation.y = sa.rotation;
+        } else {
+          modelGroupRef.current.rotation.y = 0;
+        }
+      }
+
+      // Flash light
+      if (flashLightRef.current) {
+        flashLightRef.current.intensity = sa.flashIntensity;
+      }
+    }
+  });
 
   // Dismiss when another mobile city card is activated
   const posKey = `${p.pos[0]},${p.pos[1]},${p.pos[2]}`;
@@ -1513,18 +1758,41 @@ function Lm({ p, s = 0.4, info, mk, children }: { p: SurfPos; s?: number; info?:
   return (
     <group position={p.pos} quaternion={p.q}>
       <group scale={effS}>
-        {model ? (
-          <ModelErrorBoundary fallback={<>{children}</>}>
-            <Suspense fallback={<>{children}</>}>
-              <GlbModel path={model.path} scale={1} />
-            </Suspense>
-          </ModelErrorBoundary>
-        ) : children}
+        <group ref={modelGroupRef}>
+          {(skinPath || model) ? (
+            <ModelErrorBoundary fallback={model ? (
+              <ModelErrorBoundary fallback={<>{children}</>}>
+                <Suspense fallback={<>{children}</>}>
+                  <GlbModel path={model.path} scale={1} />
+                </Suspense>
+              </ModelErrorBoundary>
+            ) : <>{children}</>}>
+              <Suspense fallback={<>{children}</>}>
+                <GlbModel path={skinPath ?? model!.path} scale={1} />
+              </Suspense>
+            </ModelErrorBoundary>
+          ) : children}
+        </group>
+
+        {/* Flash point light for skin switch transition */}
+        <pointLight ref={flashLightRef} position={[0, 0.5, 0]} color="#fffbe6" intensity={0} distance={3} />
+
+        {/* Unlock sparkle burst */}
+        <group ref={sparkleGroupRef} visible={false}>
+          <Sparkles
+            count={40}
+            scale={[2, 2, 2]}
+            size={6}
+            speed={2}
+            opacity={0.8}
+            color="#ffd700"
+          />
+        </group>
 
         {isCollected && (
-          <mesh position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
+          <mesh ref={ringRef} position={[0, 0.05, 0]} rotation={[-Math.PI / 2, 0, 0]}>
             <ringGeometry args={[0.6, 0.8, 32]} />
-            <meshBasicMaterial color="#f59e0b" transparent opacity={0.7} />
+            <meshBasicMaterial ref={ringMatRef} color={ringColor} transparent opacity={0.7} />
           </mesh>
         )}
 
@@ -6714,9 +6982,12 @@ export default function LocationPage() {
       try {
         const res = await fetch('/api/monuments');
         if (!res.ok) return;
-        const data = await res.json() as { collected: { monumentId: string; skin: string }[] };
+        const data = await res.json() as { collected: { monumentId: string; skin: string }[]; activeSkins?: Record<string, string> };
         const ids = new Set(data.collected.filter((c: { skin: string }) => c.skin === 'default').map((c: { monumentId: string }) => c.monumentId));
         _setCollectedMonuments(ids);
+        if (data.activeSkins) {
+          _setActiveSkins(new Map(Object.entries(data.activeSkins)));
+        }
       } catch { /* silent */ }
     })();
 
@@ -6726,6 +6997,9 @@ export default function LocationPage() {
         if (!data) return;
         const ids = new Set<string>(data.collected.filter((c: { skin: string }) => c.skin === 'default').map((c: { monumentId: string }) => c.monumentId));
         _setCollectedMonuments(ids);
+        if (data.activeSkins) {
+          _setActiveSkins(new Map(Object.entries(data.activeSkins)));
+        }
       }).catch(() => {});
     };
     window.addEventListener('geknee:monuments-updated', handler);
