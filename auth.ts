@@ -6,13 +6,34 @@ import { PrismaAdapter } from '@auth/prisma-adapter';
 import { compare } from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
 
+const rawAdapter = PrismaAdapter(prisma);
+const adapter = new Proxy(rawAdapter, {
+  get(target, prop, receiver) {
+    const val = Reflect.get(target, prop, receiver);
+    if (typeof val === 'function') {
+      return async (...args: unknown[]) => {
+        try {
+          const result = await (val as (...a: unknown[]) => Promise<unknown>)(...args);
+          console.log(`[adapter] ${String(prop)} OK`);
+          return result;
+        } catch (e: unknown) {
+          const err = e as Error;
+          console.error(`[adapter] ${String(prop)} FAILED:`, err.message, err.stack?.slice(0, 500));
+          throw e;
+        }
+      };
+    }
+    return val;
+  },
+});
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
-  adapter: PrismaAdapter(prisma),
+  adapter,
   trustHost: true,
-  debug: process.env.NODE_ENV === 'production',
+  debug: true,
   logger: {
     error(code, ...message) {
-      console.error('[auth][error]', code, JSON.stringify(message, null, 2));
+      console.error('[auth][error-full]', code, JSON.stringify(message, null, 2));
     },
   },
 
