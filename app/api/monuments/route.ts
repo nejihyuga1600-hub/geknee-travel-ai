@@ -43,28 +43,33 @@ export async function GET() {
   const userId = (session?.user as { id?: string })?.id;
   if (!userId) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-  const [collected, missions, trips, isDev] = await Promise.all([
-    prisma.collectedMonument.findMany({ where: { userId } }),
-    prisma.completedMission.findMany({ where: { userId } }),
-    prisma.tripDraft.findMany({ where: { userId }, select: { location: true } }),
-    isDevAccount(userId),
-  ]);
+  try {
+    const [collected, missions, trips, isDev] = await Promise.all([
+      prisma.collectedMonument.findMany({ where: { userId } }),
+      prisma.completedMission.findMany({ where: { userId } }),
+      prisma.tripDraft.findMany({ where: { userId }, select: { location: true } }),
+      isDevAccount(userId),
+    ]);
 
-  // Build active skins map: monumentId → skin id
-  const activeSkins: Record<string, string> = {};
-  for (const c of collected) {
-    if (c.active && c.skin !== 'default') {
-      activeSkins[c.monumentId] = c.skin;
+    // Build active skins map: monumentId → skin id
+    const activeSkins: Record<string, string> = {};
+    for (const c of collected) {
+      if (c.active && c.skin !== 'default') {
+        activeSkins[c.monumentId] = c.skin;
+      }
     }
-  }
 
-  return Response.json({
-    collected,
-    missions,
-    tripLocations: trips.map(t => t.location.toLowerCase()),
-    isDev,
-    activeSkins,
-  });
+    return Response.json({
+      collected,
+      missions,
+      tripLocations: trips.map(t => t.location.toLowerCase()),
+      isDev,
+      activeSkins,
+    });
+  } catch (err) {
+    console.error('GET /api/monuments error:', err);
+    return Response.json({ error: 'Internal error', detail: String(err) }, { status: 500 });
+  }
 }
 
 // POST — unlock a monument, complete a mission, or set active skin
