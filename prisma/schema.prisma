@@ -144,7 +144,8 @@ model CollectedMonument {
   id          String   @id @default(cuid())
   userId      String
   monumentId  String   // e.g. "eiffelTower"
-  skin        String   @default("default") // "default" | "gold" | "night" | "crystal" | "legendary"
+  skin        String   @default("default") // "default" | "gold" | "night" | "crystal" | etc.
+  active      Boolean  @default(false) // true = this skin is displayed on the globe
   collectedAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
