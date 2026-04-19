@@ -9,6 +9,12 @@ import { prisma } from '@/lib/prisma';
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapter(prisma),
   trustHost: true,
+  debug: process.env.NODE_ENV === 'production',
+  logger: {
+    error(code, ...message) {
+      console.error('[auth][error]', code, JSON.stringify(message, null, 2));
+    },
+  },
 
   cookies: {
     state: {
