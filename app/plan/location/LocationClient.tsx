@@ -1281,10 +1281,11 @@ function Ball({ p, r, c, M = Mat }: { p:[number,number,number]; r:number; c:stri
 
 
 // ─── GLB model registry ────────────────────────────────────────────────────────
-// Add a .glb file to public/models/ and it will replace the primitive geometry.
-// scale is a starting point — adjust per model since every Sketchfab export differs.
+const BLOB_BASE = 'https://mrfgpxw07gmgmriv.public.blob.vercel-storage.com/models';
+
+// GLB models served from Vercel Blob (not gitignored public/models/)
 const MODELS: Record<string, { path: string; scale: number }> = {
-  eiffelTower:            { path: "/models/eiffel_tower.glb", scale: 1 },
+  eiffelTower: { path: `${BLOB_BASE}/eiffel_tower.glb`, scale: 1 },
 };
 
 // ─── GLB error boundary — falls back to primitive geometry if .glb missing ────
@@ -1497,7 +1498,7 @@ function Lm({ p, s = 0.4, info, mk, children }: { p: SurfPos; s?: number; info?:
   const [mobileActive, setMobileActive] = useState(false);
   const effectiveSkin = (isCollected && (!activeSkin || activeSkin === 'default')) ? 'stone' : activeSkin;
   const skinPath = (effectiveSkin && effectiveSkin !== 'default' && mk) ?
-    `/models/${MONUMENT_FILE_PREFIX[mk] ?? mk}_${effectiveSkin}.glb` : undefined;
+    `${BLOB_BASE}/${MONUMENT_FILE_PREFIX[mk] ?? mk}_${effectiveSkin}.glb` : undefined;
   const model   = mk ? MODELS[mk] : undefined;
   const density = LM_DENSITY.get(p) ?? 1;
   const effS    = s * density;
