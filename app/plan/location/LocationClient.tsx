@@ -1284,53 +1284,7 @@ function Ball({ p, r, c, M = Mat }: { p:[number,number,number]; r:number; c:stri
 // Add a .glb file to public/models/ and it will replace the primitive geometry.
 // scale is a starting point — adjust per model since every Sketchfab export differs.
 const MODELS: Record<string, { path: string; scale: number }> = {
-  greatWall:              { path: "/models/great_wall.glb", scale: 1 },
-  petra:                  { path: "/models/petra.glb", scale: 1 },
-  christRedeem:           { path: "/models/christ_redeemer.glb", scale: 1 },
-  machuPicchu:            { path: "/models/machu_picchu.glb", scale: 1 },
-  chichenItza:            { path: "/models/chichen_itza.glb", scale: 1 },
-  colosseum:              { path: "/models/Colosseum.glb", scale: 1 },
-  tajMahal:               { path: "/models/taj_mahal.glb", scale: 1 },
   eiffelTower:            { path: "/models/eiffel_tower.glb", scale: 1 },
-  acropolis:              { path: "/models/acropolis.glb", scale: 1 },
-  stonehenge:             { path: "/models/stonehenge.glb", scale: 1 },
-  sagradaFamilia:         { path: "/models/sagrada_familia.glb", scale: 1 },
-  angkorWat:              { path: "/models/angkor_wat.glb", scale: 1 },
-  borobudur:              { path: "/models/borobudur.glb", scale: 1 },
-  tokyoSkytree:           { path: "/models/tokyo_skytree.glb", scale: 1 },
-  tableMountain:          { path: "/models/table_mountain.glb", scale: 1 },
-  statueLiberty:          { path: "/models/statue_liberty.glb", scale: 1 },
-  mtRushmore:             { path: "/models/mt_rushmore.glb", scale: 1 },
-  goldenGate:             { path: "/models/golden_gate.glb", scale: 1 },
-  grandCanyon:            { path: "/models/grand_canyon.glb", scale: 1 },
-  iguazuFalls:            { path: "/models/iguazu_falls.glb", scale: 1 },
-  galapagos:              { path: "/models/galapagos.glb", scale: 1 },
-  victoriaFalls:          { path: "/models/victoria_falls.glb", scale: 1 },
-  versaillesF:            { path: "/models/versailles.glb", scale: 1 },
-  notreDameF:             { path: "/models/notre_dame.glb", scale: 1 },
-  bigBen:                 { path: "/models/big_ben.glb", scale: 1 },
-  towerBridge:            { path: "/models/tower_bridge.glb", scale: 1 },
-  neuschwanstein:         { path: "/models/neuschwanstein.glb", scale: 1 },
-  mountFuji:              { path: "/models/mount_fuji.glb", scale: 1 },
-  fushimiInari:           { path: "/models/fushimi_inari.glb", scale: 1 },
-  osakaCastle:            { path: "/models/osaka_castle.glb", scale: 1 },
-  forbiddenCity:          { path: "/models/forbidden_city.glb", scale: 1 },
-  terracottaArmy:         { path: "/models/terracotta_army.glb", scale: 1 },
-  potalaLhasa:            { path: "/models/potala_palace.glb", scale: 1 },
-  santoriniGreece:        { path: "/models/santorini.glb", scale: 1 },
-  meteora:                { path: "/models/meteora.glb", scale: 1 },
-  maasaiMara:             { path: "/models/maasai_mara.glb", scale: 1 },
-  kilimanjaro:            { path: "/models/kilimanjaro.glb", scale: 1 },
-  moroccoMar:             { path: "/models/morocco_mar.glb", scale: 1 },
-  edinCastle:             { path: "/models/edin_castle.glb", scale: 1 },
-  burjKhalifa:            { path: "/models/burj_khalifa.glb", scale: 1 },
-  cappadocia:             { path: "/models/cappadocia.glb", scale: 1 },
-  cliffsMoher:            { path: "/models/cliffs_moher.glb", scale: 1 },
-  hagiaSophia:            { path: "/models/hagia_sophia.glb", scale: 1 },
-  matterhorn:             { path: "/models/matterhorn.glb", scale: 1 },
-  petronas:               { path: "/models/petronas.glb", scale: 1 },
-  tigersNest:             { path: "/models/tigers_nest.glb", scale: 1 },
-  westernWall:            { path: "/models/western_wall.glb", scale: 1 },
 };
 
 // ─── GLB error boundary — falls back to primitive geometry if .glb missing ────
@@ -1477,11 +1431,31 @@ let _onGlobeReady: (() => void) | null = null;
 
 // ─── Collected monuments bridge (LocationPage → Lm)
 let _collectedMonuments = new Set<string>();
-function _setCollectedMonuments(ids: Set<string>) { _collectedMonuments = ids; }
-
-// ─── Active skin bridge (LocationPage → Lm) — maps monumentId → skin id
 let _activeSkins = new Map<string, string>();
-function _setActiveSkins(skins: Map<string, string>) { _activeSkins = skins; }
+let _monumentVersion = 0;
+const _monumentListeners = new Set<() => void>();
+function _setCollectedMonuments(ids: Set<string>) {
+  _collectedMonuments = ids;
+  _monumentVersion++;
+  _monumentListeners.forEach(fn => fn());
+}
+function _setActiveSkins(skins: Map<string, string>) {
+  _activeSkins = skins;
+  _monumentVersion++;
+  _monumentListeners.forEach(fn => fn());
+}
+function useMonumentBridge(mk?: string) {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const cb = () => setTick(t => t + 1);
+    _monumentListeners.add(cb);
+    return () => { _monumentListeners.delete(cb); };
+  }, []);
+  return {
+    isCollected: mk ? _collectedMonuments.has(mk) : false,
+    activeSkin: mk ? _activeSkins.get(mk) : undefined,
+  };
+}
 
 // Monument-to-filename mapping for skin GLBs (e.g. eiffelTower → eiffel_tower)
 const MONUMENT_FILE_PREFIX: Record<string, string> = {
@@ -1518,12 +1492,12 @@ const SKIN_RING_COLOR: Record<string, string> = {
 };
 
 function Lm({ p, s = 0.4, info, mk, children }: { p: SurfPos; s?: number; info?: LmInfo; mk?: string; children: ReactNode }) {
-  const isCollected = mk ? _collectedMonuments.has(mk) : false;
+  const { isCollected, activeSkin } = useMonumentBridge(mk);
   const [hovered, setHovered]         = useState(false);
   const [mobileActive, setMobileActive] = useState(false);
-  const activeSkin = mk ? _activeSkins.get(mk) : undefined;
-  const skinPath = (activeSkin && activeSkin !== 'default' && mk) ?
-    `/models/${MONUMENT_FILE_PREFIX[mk] ?? mk}_${activeSkin}.glb` : undefined;
+  const effectiveSkin = (isCollected && (!activeSkin || activeSkin === 'default')) ? 'stone' : activeSkin;
+  const skinPath = (effectiveSkin && effectiveSkin !== 'default' && mk) ?
+    `/models/${MONUMENT_FILE_PREFIX[mk] ?? mk}_${effectiveSkin}.glb` : undefined;
   const model   = mk ? MODELS[mk] : undefined;
   const density = LM_DENSITY.get(p) ?? 1;
   const effS    = s * density;
@@ -1590,7 +1564,7 @@ function Lm({ p, s = 0.4, info, mk, children }: { p: SurfPos; s?: number; info?:
   }, [activeSkin]);
 
   // Ring color based on current skin rarity
-  const ringColor = activeSkin ? (SKIN_RING_COLOR[activeSkin] ?? '#ffd700') : '#ffd700';
+  const ringColor = effectiveSkin ? (SKIN_RING_COLOR[effectiveSkin] ?? '#ffd700') : '#ffd700';
 
   // ─── Per-frame animation loop ───────────────────────────────────────────────
   useFrame((_, delta) => {
@@ -6983,7 +6957,7 @@ export default function LocationPage() {
         const res = await fetch('/api/monuments');
         if (!res.ok) return;
         const data = await res.json() as { collected: { monumentId: string; skin: string }[]; activeSkins?: Record<string, string> };
-        const ids = new Set(data.collected.filter((c: { skin: string }) => c.skin === 'default').map((c: { monumentId: string }) => c.monumentId));
+        const ids = new Set(data.collected.map((c: { monumentId: string }) => c.monumentId));
         _setCollectedMonuments(ids);
         if (data.activeSkins) {
           _setActiveSkins(new Map(Object.entries(data.activeSkins)));
@@ -6995,7 +6969,7 @@ export default function LocationPage() {
     const handler = () => {
       fetch('/api/monuments').then(r => r.ok ? r.json() : null).then(data => {
         if (!data) return;
-        const ids = new Set<string>(data.collected.filter((c: { skin: string }) => c.skin === 'default').map((c: { monumentId: string }) => c.monumentId));
+        const ids = new Set<string>(data.collected.map((c: { monumentId: string }) => c.monumentId));
         _setCollectedMonuments(ids);
         if (data.activeSkins) {
           _setActiveSkins(new Map(Object.entries(data.activeSkins)));

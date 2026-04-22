@@ -2,6 +2,7 @@
 import { Suspense, useState, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
+import { ScrollReveal } from '../../components/ScrollReveal';
 import { Canvas, useThree, useFrame } from '@react-three/fiber';
 import { Html } from '@react-three/drei';
 import * as THREE from 'three';
@@ -1343,9 +1344,9 @@ const INPUT: React.CSSProperties = {
   boxSizing: 'border-box',
 };
 
-function Card({ item, active, onClick, showSub }: {
+function Card({ item, active, onClick, showSub, index = 0 }: {
   item: { id: string; label: string; icon: string; sub?: string; color?: string };
-  active: boolean; onClick: () => void; showSub?: boolean;
+  active: boolean; onClick: () => void; showSub?: boolean; index?: number;
 }) {
   const c = item.color ?? '#22d3ee';
   return (
@@ -1354,9 +1355,12 @@ function Card({ item, active, onClick, showSub }: {
       justifyContent: 'center', gap: 6, padding: '14px 8px', borderRadius: 14,
       border: active ? `2px solid ${c}` : '2px solid rgba(255,255,255,0.12)',
       background: active ? `linear-gradient(135deg,${c}22,${c}44)` : 'rgba(255,255,255,0.05)',
-      color: '#fff', cursor: 'pointer', transition: 'all 0.18s ease',
+      color: '#fff', cursor: 'pointer',
+      transition: 'transform 160ms var(--ease-out), border-color 160ms ease, background 160ms ease, box-shadow 160ms ease',
       transform: active ? 'scale(1.04)' : 'scale(1)',
       boxShadow: active ? `0 0 18px ${c}55` : 'none',
+      animation: `cardFadeIn 250ms var(--ease-out) both`,
+      animationDelay: `${index * 50}ms`,
     }}>
       <span style={{ fontSize: 26, lineHeight: 1 }}>{item.icon}</span>
       <span style={{ fontSize: 12, fontWeight: 600, textAlign: 'center', lineHeight: 1.3 }}>{item.label}</span>
@@ -1373,7 +1377,7 @@ function SingleGrid({ items, selected, onSelect }: {
 }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(140px,1fr))', gap: 10, maxHeight: '52vh', overflowY: 'auto' }}>
-      {items.map(item => <Card key={item.id} item={item} active={selected === item.id} onClick={() => onSelect(item.id)} showSub />)}
+      {items.map((item, i) => <Card key={item.id} item={item} active={selected === item.id} onClick={() => onSelect(item.id)} showSub index={i} />)}
     </div>
   );
 }
@@ -1384,7 +1388,7 @@ function MultiGrid({ items, selected, onToggle }: {
 }) {
   return (
     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(130px,1fr))', gap: 10, maxHeight: '52vh', overflowY: 'auto' }}>
-      {items.map(item => <Card key={item.id} item={item} active={selected.includes(item.id)} onClick={() => onToggle(item.id)} />)}
+      {items.map((item, i) => <Card key={item.id} item={item} active={selected.includes(item.id)} onClick={() => onToggle(item.id)} index={i} />)}
     </div>
   );
 }
@@ -1956,7 +1960,7 @@ function StyleForm() {
           </div>
 
           {/* ── Style ────────────────────────────────────────────────────── */}
-          <div className="pref-section" style={{ marginBottom: 22 }}>
+          <ScrollReveal style={{ marginBottom: 22 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 13 }}>
               <p style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.7)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 Travel style
@@ -1966,10 +1970,10 @@ function StyleForm() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 8 }}>
               {STYLES.map(item => <Card key={item.id} item={item} active={prefs.style === item.id} onClick={() => setSingle('style', item.id)} />)}
             </div>
-          </div>
+          </ScrollReveal>
 
           {/* ── Interests ────────────────────────────────────────────────── */}
-          <div className="pref-section" style={{ marginBottom: 22 }}>
+          <ScrollReveal style={{ marginBottom: 22 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 13 }}>
               <p style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.7)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
                 Interests
@@ -1982,10 +1986,10 @@ function StyleForm() {
               )}
             </div>
             <ChipToggle items={INTERESTS} selected={prefs.interests} onToggle={v => toggleMulti('interests', v)} />
-          </div>
+          </ScrollReveal>
 
           {/* ── Special requirements (collapsed) ─────────────────────────── */}
-          <div className="pref-section" style={{ marginBottom: 26 }}>
+          <ScrollReveal style={{ marginBottom: 26 }}>
             <button
               onClick={() => setShowConstraints(s => !s)}
               style={{
@@ -2017,7 +2021,7 @@ function StyleForm() {
                 <ChipToggle items={CONSTRAINTS} selected={prefs.constraints} onToggle={v => toggleMulti('constraints', v)} />
               </div>
             )}
-          </div>
+          </ScrollReveal>
 
           {/* ── Actions ──────────────────────────────────────────────────── */}
           <div style={{ display: 'flex', gap: 10 }}>

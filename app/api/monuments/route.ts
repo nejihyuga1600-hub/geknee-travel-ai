@@ -87,6 +87,7 @@ export async function POST(req: Request) {
     skin?: string;
     lat?: number;
     lon?: number;
+    photoUrl?: string;
   };
 
   if (body.action === 'unlock') {
@@ -130,7 +131,7 @@ export async function POST(req: Request) {
 
     const [mission] = await Promise.all([
       prisma.completedMission.create({
-        data: { userId, monumentId: body.monumentId, missionId: body.missionId },
+        data: { userId, monumentId: body.monumentId, missionId: body.missionId, photoUrl: body.photoUrl },
       }),
       prisma.collectedMonument.upsert({
         where: { userId_monumentId_skin: { userId, monumentId: body.monumentId, skin: body.skin } },

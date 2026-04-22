@@ -5,6 +5,7 @@ import { Canvas, useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
 import * as THREE from "three";
 import dynamic from "next/dynamic";
+import { ScrollReveal } from "../../components/ScrollReveal";
 import { findAirport, airportLabel, extractIata } from "@/lib/airports";
 
 const FlightPriceChart = dynamic(() => import("../style/FlightPriceChart"), { ssr: false });
@@ -807,7 +808,7 @@ function FlightSection({ location, startDate, endDate, travelingFrom }: {
       )}
       {!flightsLoading && flights.length > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(270px,1fr))", gap: 16 }}>
-          {flights.map((f, i) => <FlightCard key={i} flight={f} origin={travelingFrom} destination={location} startDate={startDate} endDate={endDate} />)}
+          {flights.map((f, i) => <div key={i} style={{ animation: `cardFadeIn 250ms var(--ease-out) both`, animationDelay: `${i * 60}ms` }}><FlightCard flight={f} origin={travelingFrom} destination={location} startDate={startDate} endDate={endDate} /></div>)}
         </div>
       )}
     </section>
@@ -1812,7 +1813,7 @@ export default function BookTab({
         )}
 
         {/* Hotels */}
-        <section style={{ marginBottom: 28 }}>
+        <ScrollReveal style={{ marginBottom: 28 }}>
           <SectionHeader icon={String.fromCodePoint(0x1F3E8)} title="Hotels" loading={recsLoading} count={!recsLoading ? recommendations?.hotels.length : undefined} />
           {recsLoading ? (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 16 }}>
@@ -1821,14 +1822,16 @@ export default function BookTab({
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 16 }}>
               {(recommendations?.hotels ?? []).map((h, i) => (
-                <HotelCard key={i} hotel={h} location={location} checkIn={startDate} checkOut={endDate} />
+                <div key={i} style={{ animation: `cardFadeIn 250ms var(--ease-out) both`, animationDelay: `${i * 60}ms` }}>
+                  <HotelCard hotel={h} location={location} checkIn={startDate} checkOut={endDate} />
+                </div>
               ))}
             </div>
           )}
-        </section>
+        </ScrollReveal>
 
         {/* Restaurants */}
-        <section style={{ marginBottom: 28 }}>
+        <ScrollReveal style={{ marginBottom: 28 }}>
           <SectionHeader icon={String.fromCodePoint(0x1F37D, 0xFE0F)} title="Restaurants" loading={recsLoading} count={!recsLoading ? recommendations?.restaurants.length : undefined} />
           {recsLoading ? (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 16 }}>
@@ -1837,14 +1840,16 @@ export default function BookTab({
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 16 }}>
               {(recommendations?.restaurants ?? []).map((r, i) => (
-                <RestaurantCard key={i} restaurant={r} location={location} startDate={startDate} />
+                <div key={i} style={{ animation: `cardFadeIn 250ms var(--ease-out) both`, animationDelay: `${i * 60}ms` }}>
+                  <RestaurantCard restaurant={r} location={location} startDate={startDate} />
+                </div>
               ))}
             </div>
           )}
-        </section>
+        </ScrollReveal>
 
         {/* Activities */}
-        <section style={{ marginBottom: 28 }}>
+        <ScrollReveal style={{ marginBottom: 28 }}>
           <SectionHeader icon={String.fromCodePoint(0x1F3AF)} title="Activities &amp; Experiences" loading={recsLoading} count={!recsLoading ? recommendations?.activities.length : undefined} />
           {recsLoading ? (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 16 }}>
@@ -1853,11 +1858,13 @@ export default function BookTab({
           ) : (
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(260px,1fr))", gap: 16 }}>
               {(recommendations?.activities ?? []).map((a, i) => (
-                <ActivityCard key={i} activity={a} location={location} startDate={startDate} endDate={endDate} />
+                <div key={i} style={{ animation: `cardFadeIn 250ms var(--ease-out) both`, animationDelay: `${i * 60}ms` }}>
+                  <ActivityCard activity={a} location={location} startDate={startDate} endDate={endDate} />
+                </div>
               ))}
             </div>
           )}
-        </section>
+        </ScrollReveal>
 
         {/* Airport Transfer */}
         <AirportTransferSection location={location} />

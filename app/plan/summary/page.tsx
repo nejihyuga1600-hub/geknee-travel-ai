@@ -1128,6 +1128,8 @@ function SectionCard({
       background: isDayOrCity ? 'rgba(56,189,248,0.04)' : 'rgba(255,255,255,0.03)',
       border: `1px solid ${isDayOrCity ? 'rgba(56,189,248,0.18)' : 'rgba(255,255,255,0.08)'}`,
       borderRadius: 16, padding: '22px 28px 18px', marginBottom: 18,
+      animation: `cardFadeIn 250ms var(--ease-out) both`,
+      animationDelay: `${sectionIdx * 60}ms`,
     }}>
       {section.heading && (
         <div style={{

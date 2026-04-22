@@ -8,7 +8,7 @@ const DEV_EMAILS = new Set(['nghiaphan081301@gmail.com']);
 
 export type Rarity = 'common' | 'rare' | 'legendary';
 type Skin = { id: string; name: string; color: string; rarity?: string };
-type Mission = { id: string; label: string; skin: Skin };
+type Mission = { id: string; label: string; skin: Skin; verify?: 'photo' };
 
 type CollectibleBase = {
   id: string;
@@ -60,8 +60,8 @@ const MONUMENTS: CollectibleBase[] = [
     cityKeys: ['paris'], emoji: '🗼', rarity: 'rare',
     fact: 'Its iron expands in summer heat — the tower grows up to 15 cm taller on a hot day.',
     missions: [
-      { id: 'eiffel_picnic', label: 'Have a picnic on the Champ de Mars lawn below the tower',          skin: S.gold },
-      { id: 'eiffel_night',  label: 'Visit after dark when the tower sparkles for 5 minutes every hour', skin: S.diamond },
+      { id: 'eiffel_picnic', label: 'Have a picnic on the Champ de Mars lawn below the tower',          skin: S.gold, verify: 'photo' },
+      { id: 'eiffel_night',  label: 'Visit after dark when the tower sparkles for 5 minutes every hour', skin: S.diamond, verify: 'photo' },
       { id: 'eiffel_top',    label: 'Reach the summit observation deck at 276 m',                       skin: S.celestial },
     ],
   },
@@ -72,7 +72,7 @@ const MONUMENTS: CollectibleBase[] = [
     missions: [
       { id: 'colos_forum',     label: 'Walk through the adjacent Roman Forum & Palatine', skin: S.bronze },
       { id: 'colos_night',     label: 'See the Colosseum illuminated at night',           skin: S.obsidian },
-      { id: 'colos_gladiator', label: 'Try on a gladiator costume outside the gates',    skin: S.holographic },
+      { id: 'colos_gladiator', label: 'Try on a gladiator costume outside the gates',    skin: S.holographic, verify: 'photo' },
     ],
   },
   {
@@ -80,7 +80,7 @@ const MONUMENTS: CollectibleBase[] = [
     cityKeys: ['agra', 'india'], emoji: '🕌', rarity: 'legendary',
     fact: 'Shah Jahan hired 20,000 workers for 22 years to build this perfect marble mausoleum.',
     missions: [
-      { id: 'taj_sunrise',  label: 'Photograph the Taj at sunrise from the reflecting pool', skin: S.rose_gold },
+      { id: 'taj_sunrise',  label: 'Photograph the Taj at sunrise from the reflecting pool', skin: S.rose_gold, verify: 'photo' },
       { id: 'taj_barefoot', label: 'Remove your shoes and walk barefoot on the white marble plinth', skin: S.diamond },
       { id: 'taj_moon',     label: 'Attend a full moon night viewing tour',                 skin: S.celestial },
     ],
@@ -91,7 +91,7 @@ const MONUMENTS: CollectibleBase[] = [
     fact: 'At 13,170 miles long it could circle the Earth more than half a time.',
     missions: [
       { id: 'wall_tower',  label: 'Reach a watchtower and sign your name in the visitor book', skin: S.stone },
-      { id: 'wall_photo',  label: 'Capture the wall disappearing into misty mountains',      skin: S.damascus },
+      { id: 'wall_photo',  label: 'Capture the wall disappearing into misty mountains',      skin: S.damascus, verify: 'photo' },
       { id: 'wall_hike',   label: 'Hike an unrestored section of the wall at Jiankou',      skin: S.aurora },
     ],
   },
@@ -101,7 +101,7 @@ const MONUMENTS: CollectibleBase[] = [
     fact: "Lady Liberty's index finger is 2.4 m long — the height of an adult standing upright.",
     missions: [
       { id: 'liberty_ferry', label: 'Take the Staten Island Ferry for the free iconic view', skin: S.silver },
-      { id: 'liberty_night', label: 'Photograph her illuminated at dusk from the water',   skin: S.neon },
+      { id: 'liberty_night', label: 'Photograph her illuminated at dusk from the water',   skin: S.neon, verify: 'photo' },
       { id: 'liberty_crown', label: "Climb all the way up to Lady Liberty's crown",       skin: S.lava },
     ],
   },
@@ -111,8 +111,8 @@ const MONUMENTS: CollectibleBase[] = [
     fact: "Construction began in 1882 and still isn't done — the world's most ambitious unfinished building.",
     missions: [
       { id: 'sagrada_tower',  label: 'Climb one of the Nativity facade towers',              skin: S.sapphire },
-      { id: 'sagrada_light',  label: 'Stand inside during the magical morning light show',   skin: S.holographic },
-      { id: 'sagrada_sketch', label: 'Sketch or paint the facade from the park opposite',    skin: S.sakura },
+      { id: 'sagrada_light',  label: 'Stand inside during the magical morning light show',   skin: S.holographic, verify: 'photo' },
+      { id: 'sagrada_sketch', label: 'Sketch or paint the facade from the park opposite',    skin: S.sakura, verify: 'photo' },
     ],
   },
   {
@@ -120,7 +120,7 @@ const MONUMENTS: CollectibleBase[] = [
     cityKeys: ['cusco', 'peru', 'machu picchu'], emoji: '🏔️', rarity: 'legendary',
     fact: 'Perched at 2,430 m in the clouds, this Inca citadel was unknown to the outside world until 1911.',
     missions: [
-      { id: 'machu_llama',   label: 'Get photobombed by one of the resident llamas',          skin: S.jade },
+      { id: 'machu_llama',   label: 'Get photobombed by one of the resident llamas',          skin: S.jade, verify: 'photo' },
       { id: 'machu_sunrise', label: 'Watch sunrise illuminate the ruins from Waynapicchu',    skin: S.radiant },
       { id: 'machu_gate',    label: 'Hike to the Sun Gate (Inti Punku) via the Inca Trail',  skin: S.void },
     ],
@@ -131,7 +131,7 @@ const MONUMENTS: CollectibleBase[] = [
     fact: 'Its outstretched arms span 28 metres — wide enough to shadow a full-size swimming pool.',
     missions: [
       { id: 'christ_train', label: 'Ride the cogwheel train up Corcovado through the rainforest', skin: S.gold },
-      { id: 'christ_arms',  label: "Strike the famous arms-out pose with the statue behind you",  skin: S.carbon_fiber },
+      { id: 'christ_arms',  label: "Strike the famous arms-out pose with the statue behind you",  skin: S.carbon_fiber, verify: 'photo' },
       { id: 'christ_cloud', label: 'Visit when clouds roll in and the statue disappears into mist', skin: S.aurora },
     ],
   },
@@ -140,7 +140,7 @@ const MONUMENTS: CollectibleBase[] = [
     cityKeys: ['siem reap', 'cambodia', 'angkor'], emoji: '🛕', rarity: 'legendary',
     fact: "The largest religious monument on Earth — its moat alone could swallow 100 Olympic pools.",
     missions: [
-      { id: 'angkor_sunrise', label: 'Watch the sunrise reflect the towers in the still moat', skin: S.rose_gold },
+      { id: 'angkor_sunrise', label: 'Watch the sunrise reflect the towers in the still moat', skin: S.rose_gold, verify: 'photo' },
       { id: 'angkor_bike',    label: 'Explore the entire temple complex by bicycle',            skin: S.obsidian },
       { id: 'angkor_monk',    label: 'Receive a blessing from a resident monk',                skin: S.celestial },
     ],
@@ -150,8 +150,8 @@ const MONUMENTS: CollectibleBase[] = [
     cityKeys: ['cairo', 'egypt', 'giza'], emoji: '🔺', rarity: 'legendary',
     fact: "Built from 2.3 million stone blocks, it was the world's tallest structure for 3,800 years.",
     missions: [
-      { id: 'pyramid_camel',  label: 'Ride a camel around the Giza plateau',                skin: S.gold },
-      { id: 'pyramid_sphinx', label: 'Photograph the Sphinx with a pyramid aligned behind it', skin: S.damascus },
+      { id: 'pyramid_camel',  label: 'Ride a camel around the Giza plateau',                skin: S.gold, verify: 'photo' },
+      { id: 'pyramid_sphinx', label: 'Photograph the Sphinx with a pyramid aligned behind it', skin: S.damascus, verify: 'photo' },
       { id: 'pyramid_inside', label: 'Descend into the Grand Gallery inside the pyramid',    skin: S.rainbow },
     ],
   },
@@ -161,8 +161,8 @@ const MONUMENTS: CollectibleBase[] = [
     fact: 'Its suspension cables contain 80,000 miles of wire — enough to wrap the Earth three times.',
     missions: [
       { id: 'golden_walk',  label: 'Walk or cycle the full length of the bridge',           skin: S.bronze },
-      { id: 'golden_fog',   label: 'Photograph it shrouded in famous morning fog',           skin: S.silver },
-      { id: 'golden_kayak', label: 'Paddle a kayak directly under the bridge',              skin: S.neon },
+      { id: 'golden_fog',   label: 'Photograph it shrouded in famous morning fog',           skin: S.silver, verify: 'photo' },
+      { id: 'golden_kayak', label: 'Paddle a kayak directly under the bridge',              skin: S.neon, verify: 'photo' },
     ],
   },
   {
@@ -171,7 +171,7 @@ const MONUMENTS: CollectibleBase[] = [
     fact: 'Big Ben is the bell — the tower is officially the Elizabeth Tower since 2012.',
     missions: [
       { id: 'bigben_chime',  label: 'Stand outside when the famous chimes ring on the hour',   skin: S.stone },
-      { id: 'bigben_bridge', label: 'Photograph Big Ben from Westminster Bridge at blue hour',  skin: S.sapphire },
+      { id: 'bigben_bridge', label: 'Photograph Big Ben from Westminster Bridge at blue hour',  skin: S.sapphire, verify: 'photo' },
       { id: 'bigben_tour',   label: 'Join an official Houses of Parliament guided tour',        skin: S.carbon_fiber },
     ],
   },
@@ -190,7 +190,7 @@ const MONUMENTS: CollectibleBase[] = [
     cityKeys: ['sydney', 'australia'], emoji: '🎭', rarity: 'rare',
     fact: 'Its 1,056,000 roof tiles were made in Sweden — and they self-clean in the rain.',
     missions: [
-      { id: 'sydney_ferry',  label: 'Photograph it from the harbour ferry at golden hour',       skin: S.silver },
+      { id: 'sydney_ferry',  label: 'Photograph it from the harbour ferry at golden hour',       skin: S.silver, verify: 'photo' },
       { id: 'sydney_bridge', label: 'Climb the Harbour Bridge for an aerial view of the Opera House', skin: S.obsidian },
       { id: 'sydney_show',   label: 'Attend a live performance inside the Opera House',          skin: S.holographic },
     ],
@@ -230,8 +230,8 @@ const MONUMENTS: CollectibleBase[] = [
     cityKeys: ['tokyo', 'japan'], emoji: '📡', rarity: 'rare',
     fact: "At exactly 634 m it's the world's tallest tower — the height spells the region's old name in Japanese.",
     missions: [
-      { id: 'sky_hanami',  label: 'Visit during cherry blossom season with the tower in the shot', skin: S.sakura },
-      { id: 'sky_night',   label: 'Photograph the tower reflected in the Sumida River at night',  skin: S.neon },
+      { id: 'sky_hanami',  label: 'Visit during cherry blossom season with the tower in the shot', skin: S.sakura, verify: 'photo' },
+      { id: 'sky_night',   label: 'Photograph the tower reflected in the Sumida River at night',  skin: S.neon, verify: 'photo' },
       { id: 'sky_top',     label: 'Reach the Tembo Galleria at 451 m for panoramic views',       skin: S.celestial },
     ],
   },
@@ -251,7 +251,7 @@ const MONUMENTS: CollectibleBase[] = [
     fact: 'At 1.7 km wide and 108 m tall, its mist cloud is visible from over 40 km away.',
     missions: [
       { id: 'vic_soak',   label: 'Stand in the spray — get completely and utterly soaked',   skin: S.jade },
-      { id: 'vic_bungee', label: 'Bungee jump off the Victoria Falls Bridge over the gorge', skin: S.obsidian },
+      { id: 'vic_bungee', label: 'Bungee jump off the Victoria Falls Bridge over the gorge', skin: S.obsidian, verify: 'photo' },
       { id: 'vic_pool',   label: "Swim in Devil's Pool at the very edge (dry season only)", skin: S.void },
     ],
   },
@@ -290,7 +290,7 @@ const ANIMALS: CollectibleBase[] = [
     missions: [
       { id: 'orca_pod',    label: 'Watch a full pod of orcas hunting together in the wild', skin: S.obsidian },
       { id: 'orca_breach', label: 'See an orca completely clear the water in a breach',     skin: S.lava },
-      { id: 'orca_kayak',  label: 'Kayak within sight of a resident orca pod',              skin: S.void },
+      { id: 'orca_kayak',  label: 'Kayak within sight of a resident orca pod',              skin: S.void, verify: 'photo' },
     ],
   },
   {
@@ -300,7 +300,7 @@ const ANIMALS: CollectibleBase[] = [
     fact: 'Dolphins sleep with one eye open and one brain hemisphere at a time — always half awake.',
     missions: [
       { id: 'dolphin_bow',  label: 'Watch dolphins ride the bow wave of a boat at speed',  skin: S.stone },
-      { id: 'dolphin_swim', label: 'Swim with wild dolphins in open water',                skin: S.gold },
+      { id: 'dolphin_swim', label: 'Swim with wild dolphins in open water',                skin: S.gold, verify: 'photo' },
       { id: 'dolphin_spin', label: 'Spot a spinner dolphin doing aerial twirls',           skin: S.neon },
     ],
   },
@@ -323,7 +323,7 @@ const ANIMALS: CollectibleBase[] = [
     missions: [
       { id: 'eleph_mud',   label: 'Observe a family group bathing and mud-wallowing',        skin: S.bronze },
       { id: 'eleph_herd',  label: 'Watch a herd of 20+ elephants crossing a river',         skin: S.damascus },
-      { id: 'eleph_walk',  label: 'Walk alongside an elephant in an ethical sanctuary',      skin: S.holographic },
+      { id: 'eleph_walk',  label: 'Walk alongside an elephant in an ethical sanctuary',      skin: S.holographic, verify: 'photo' },
     ],
   },
   {
@@ -549,7 +549,7 @@ function DetailView({
                     color: '#000', fontSize: 11, fontWeight: 800,
                     cursor: loading ? 'wait' : 'pointer',
                   }}>
-                    {loading ? '...' : 'Claim'}
+                    {loading ? '...' : ms.verify === 'photo' ? '\u{1F4F7} Claim' : 'Claim'}
                   </button>
                 )}
               </div>
@@ -609,10 +609,46 @@ export default function MonumentShop({ open, onClose }: Props) {
     setLoading(false);
   }
 
-  async function completeMission(item: CollectibleBase, ms: Mission) {
+  const [pendingMission, setPendingMission] = useState<{ item: CollectibleBase; ms: Mission } | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+
+  function compressImage(file: File, maxWidth = 800, quality = 0.7): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          const scale = Math.min(1, maxWidth / Math.max(img.width, img.height));
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          const ctx = canvas.getContext('2d')!;
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/jpeg', quality));
+        };
+        img.onerror = reject;
+        img.src = reader.result as string;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function handlePhotoSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    compressImage(file).then(setPhotoPreview).catch(() => setMsg('Failed to load photo'));
+  }
+
+  async function completeMission(item: CollectibleBase, ms: Mission, photoData?: string) {
     setLoading(true); setMsg('');
     try {
-      // Get user's current location for verification
+      if (ms.verify === 'photo' && !photoData && !isDev) {
+        setPendingMission({ item, ms });
+        setLoading(false);
+        return;
+      }
+
       let lat: number | undefined;
       let lon: number | undefined;
       if (!isDev && navigator.geolocation) {
@@ -631,16 +667,18 @@ export default function MonumentShop({ open, onClose }: Props) {
 
       const res = await fetch('/api/monuments', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'mission', monumentId: item.id, missionId: ms.id, skin: ms.skin.id, lat, lon }),
+        body: JSON.stringify({ action: 'mission', monumentId: item.id, missionId: ms.id, skin: ms.skin.id, lat, lon, photoUrl: photoData }),
       });
       const data = await res.json();
       if (res.ok) {
         setMsg(`${ms.skin.name} skin unlocked!`);
+        setPendingMission(null);
+        setPhotoPreview(null);
         await load();
         window.dispatchEvent(new Event('geknee:monuments-updated'));
       } else {
         setMsg(data.error ?? 'Error');
-        await load(); // refresh state on error too (e.g. "Mission already completed" from another session)
+        await load();
       }
     } catch {
       setMsg('Failed to complete mission');
@@ -721,6 +759,58 @@ export default function MonumentShop({ open, onClose }: Props) {
 
         {/* ── Body ────────────────────────────────────────────────────────── */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '16px 24px 24px' }}>
+
+          {pendingMission && (
+            <div style={{
+              position: 'fixed', inset: 0, zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(4px)',
+            }} onClick={() => { setPendingMission(null); setPhotoPreview(null); }}>
+              <div onClick={e => e.stopPropagation()} style={{
+                background: '#1a1a2e', borderRadius: 16, padding: 24, maxWidth: 340, width: '90%',
+                border: '1px solid rgba(255,255,255,0.1)',
+              }}>
+                <div style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0', marginBottom: 4 }}>
+                  {'\u{1F4F7}'} Photo Verification
+                </div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginBottom: 16, lineHeight: 1.5 }}>
+                  {pendingMission.ms.label}
+                </div>
+                {photoPreview ? (
+                  <div style={{ marginBottom: 16 }}>
+                    <img src={photoPreview} alt="Mission photo" style={{
+                      width: '100%', borderRadius: 10, maxHeight: 220, objectFit: 'cover',
+                    }} />
+                  </div>
+                ) : (
+                  <label style={{
+                    display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                    height: 140, borderRadius: 12, border: '2px dashed rgba(255,255,255,0.15)',
+                    background: 'rgba(255,255,255,0.03)', cursor: 'pointer', marginBottom: 16,
+                    color: 'rgba(255,255,255,0.4)', fontSize: 13, gap: 8,
+                  }}>
+                    <span style={{ fontSize: 32 }}>{'\u{1F4F8}'}</span>
+                    Tap to take or choose a photo
+                    <input type="file" accept="image/*" capture="environment" onChange={handlePhotoSelect}
+                      style={{ display: 'none' }} />
+                  </label>
+                )}
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => { setPendingMission(null); setPhotoPreview(null); }} style={{
+                    flex: 1, padding: '10px 0', borderRadius: 10, border: '1px solid rgba(255,255,255,0.1)',
+                    background: 'transparent', color: 'rgba(255,255,255,0.5)', fontSize: 13, cursor: 'pointer',
+                  }}>Cancel</button>
+                  <button disabled={!photoPreview || loading} onClick={() => {
+                    if (pendingMission && photoPreview) completeMission(pendingMission.item, pendingMission.ms, photoPreview);
+                  }} style={{
+                    flex: 1, padding: '10px 0', borderRadius: 10, border: 'none',
+                    background: photoPreview ? pendingMission.ms.skin.color : 'rgba(255,255,255,0.08)',
+                    color: photoPreview ? '#000' : 'rgba(255,255,255,0.3)',
+                    fontSize: 13, fontWeight: 700, cursor: photoPreview ? 'pointer' : 'default',
+                  }}>{loading ? 'Uploading...' : 'Submit & Claim'}</button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {msg && (
             <div style={{

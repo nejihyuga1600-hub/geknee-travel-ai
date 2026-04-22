@@ -1,0 +1,46 @@
+# geknee.com — Claude Code
+
+Next.js 16 + React 19 travel AI app. Globe-first UI with Three.js, Prisma + PostgreSQL, Stripe, Mapbox.
+
+## Key directories
+- `app/` — Next.js App Router pages and API routes
+- `app/plan/location/` — main globe page (home)
+- `app/components/` — shared components
+- `lib/` — prisma client, i18n, globe animation helpers
+- `.agents/` — autonomous review agents (see below)
+
+## Two-agent review system
+
+Two Claude Code agents run in separate VS Code terminals to continuously audit the site:
+
+| Agent | Terminal | Role |
+|-------|----------|------|
+| UX Scout | `.agents/run-ux-agent.sh` | User experience, navigation, mobile, flows |
+| Dev Scout | `.agents/run-dev-agent.sh` | Performance, security, TypeScript, APIs |
+
+**Shared workspace:** `.agents/shared/`
+- `ux-findings.md` — UX Scout writes here
+- `dev-findings.md` — Dev Scout writes here
+- `PLAN.md` — both agents contribute; **user approves here**
+
+### To run a review cycle
+1. Open two VS Code terminals side by side
+2. Terminal 1: `bash .agents/run-ux-agent.sh`
+3. Terminal 2: `bash .agents/run-dev-agent.sh`
+4. Tell each agent: `Start your review`
+5. Both agents run their checklists and cross-read each other's findings
+6. Review `.agents/shared/PLAN.md` when they're done
+7. In this terminal: `implement the approved plan` to execute approved items
+
+### To implement an approved plan
+When you've reviewed `PLAN.md` and want changes implemented, tell this Claude session:
+> "implement the approved plan"
+
+Claude will read `PLAN.md`, implement all `[APPROVED]` items, and commit the changes.
+
+## Tech notes
+- Globe: `app/plan/location/` with OrbitControls, pointer-event drag, pinch-zoom
+- Auth: NextAuth v5 beta (`app/api/auth/`)
+- Payments: Stripe webhook at `app/api/stripe/webhook/`
+- AI: Anthropic SDK at `app/api/chat/`
+- Mobile: `touch-action: none` on canvas, `100svh` for Safari

@@ -157,6 +157,7 @@ model CompletedMission {
   userId      String
   monumentId  String
   missionId   String   // e.g. "eiffelTower_night"
+  photoUrl    String?  // compressed photo for photo-verified missions (base64 data URL)
   completedAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
