@@ -1283,10 +1283,12 @@ function Ball({ p, r, c, M = Mat }: { p:[number,number,number]; r:number; c:stri
 // ─── GLB model registry ────────────────────────────────────────────────────────
 const BLOB_BASE = 'https://mrfgpxw07gmgmriv.public.blob.vercel-storage.com/models';
 
-// GLB models served from Vercel Blob (not gitignored public/models/)
-const MODELS: Record<string, { path: string; scale: number }> = {
-  eiffelTower: { path: `${BLOB_BASE}/eiffel_tower.glb`, scale: 1 },
-};
+// GLB models served from Vercel Blob. Entries here render as the default (pre-skin)
+// model for ANY viewer — even non-collected users. The base eiffel_tower.glb ships
+// without materials/normals and renders invisibly, so it is intentionally NOT listed:
+// non-collected users fall through to the primitive children (visible iron tower),
+// collected users hit skinPath and load a skin GLB (stone/gold/etc, full PBR).
+const MODELS: Record<string, { path: string; scale: number }> = {};
 
 // ─── GLB error boundary — falls back to primitive geometry if .glb missing ────
 class ModelErrorBoundary extends Component<
