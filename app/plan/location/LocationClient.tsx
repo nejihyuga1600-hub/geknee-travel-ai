@@ -1320,26 +1320,6 @@ function GlbModel({ path, scale }: { path: string; scale: number }) {
       c.scale.setScalar(norm);
       c.position.y = -box.min.y * norm;    // lift base to y=0 (globe surface)
     }
-    // Meshy skins ship as fully-metallic roughness=1 materials that read as
-    // near-black under the scene's ambient light. Clone each material (the
-    // drei GLB cache is shared across Lms) and lift emissive + cut roughness
-    // so the monument is legible at planetary zoom.
-    c.traverse((child) => {
-      const mesh = child as THREE.Mesh;
-      if (!mesh.isMesh) return;
-      const src = mesh.material as THREE.MeshStandardMaterial | THREE.MeshStandardMaterial[];
-      const clone = (m: THREE.MeshStandardMaterial) => {
-        const mm = m.clone();
-        if (!mm.emissive || (mm.emissive.r + mm.emissive.g + mm.emissive.b) < 0.1) {
-          mm.emissive = (mm.color ?? new THREE.Color(0xffffff)).clone();
-        }
-        mm.emissiveIntensity = Math.max(mm.emissiveIntensity ?? 0, 0.55);
-        mm.roughness = Math.min(mm.roughness ?? 1, 0.55);
-        mm.metalness = Math.min(mm.metalness ?? 1, 0.7);
-        return mm;
-      };
-      mesh.material = Array.isArray(src) ? src.map(clone) : clone(src);
-    });
     return c;
   }, [scene, scale]);
   return <primitive object={obj} frustumCulled={false} />;
@@ -1777,6 +1757,12 @@ function Lm({ p, s = 0.4, info, mk, children }: { p: SurfPos; s?: number; info?:
 
         {/* Flash point light for skin switch transition */}
         <pointLight ref={flashLightRef} position={[0, 0.5, 0]} color="#fffbe6" intensity={0} distance={3} />
+
+        {/* Spotlights to illuminate the skin GLB — Meshy materials are very dark
+            under the scene's ambient light. These stay local (distance-capped)
+            so they don't leak into neighbouring landmarks. */}
+        <pointLight position={[1.2, 1.5, 1.2]}  color="#fff4d0" intensity={6} distance={3} decay={2} />
+        <pointLight position={[-1.2, 1.5, -1.2]} color="#dcefff" intensity={3} distance={3} decay={2} />
 
         {/* Unlock sparkle burst */}
         <group ref={sparkleGroupRef} visible={false}>
