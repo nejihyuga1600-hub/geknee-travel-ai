@@ -575,6 +575,9 @@ export default function MonumentShop({ open, onClose }: Props) {
   const [selected,  setSelected]  = useState<CollectibleBase | null>(null);
   const [loading,   setLoading]   = useState(false);
   const [msg,       setMsg]       = useState('');
+  // Remembers the most recent unlock so we can offer a share CTA. Cleared on
+  // tab switch / error / close.
+  const [lastUnlock, setLastUnlock] = useState<{ mk: string; name: string; skin: string } | null>(null);
   const [filter,    setFilter]    = useState<'all' | 'unlocked' | 'locked'>('all');
   const [isDevServer, setIsDevServer] = useState(false);
   const isDev = isDevClient || isDevServer;
@@ -588,10 +591,10 @@ export default function MonumentShop({ open, onClose }: Props) {
     } catch { /* silent */ }
   }, []);
 
-  useEffect(() => { if (open) { load(); setSelected(null); setMsg(''); } }, [open, load]);
+  useEffect(() => { if (open) { load(); setSelected(null); setMsg(''); setLastUnlock(null); } }, [open, load]);
 
   // Reset selected when switching tabs
-  const switchTab = (t: typeof tab) => { setTab(t); setSelected(null); setMsg(''); };
+  const switchTab = (t: typeof tab) => { setTab(t); setSelected(null); setMsg(''); setLastUnlock(null); };
 
   const isCollected = (id: string) => collected.some(c => c.monumentId === id && c.skin === 'default');
   const canUnlock   = (item: CollectibleBase) =>
@@ -604,8 +607,13 @@ export default function MonumentShop({ open, onClose }: Props) {
       body: JSON.stringify({ action: 'unlock', monumentId: item.id }),
     });
     const data = await res.json();
-    if (res.ok) { setMsg(`${item.name} added to your collection!`); await load(); window.dispatchEvent(new Event('geknee:monuments-updated')); }
-    else { setMsg(data.error ?? 'Error'); await load(); } // refresh state on error too (e.g. "Already collected" from another session)
+    if (res.ok) {
+      setMsg(`${item.name} added to your collection!`);
+      setLastUnlock({ mk: item.id, name: item.name, skin: 'default' });
+      await load();
+      window.dispatchEvent(new Event('geknee:monuments-updated'));
+    }
+    else { setMsg(data.error ?? 'Error'); setLastUnlock(null); await load(); } // refresh state on error too (e.g. "Already collected" from another session)
     setLoading(false);
   }
 
@@ -672,6 +680,7 @@ export default function MonumentShop({ open, onClose }: Props) {
       const data = await res.json();
       if (res.ok) {
         setMsg(`${ms.skin.name} skin unlocked!`);
+        setLastUnlock({ mk: item.id, name: item.name, skin: ms.skin.id });
         setPendingMission(null);
         setPhotoPreview(null);
         await load();
@@ -822,6 +831,48 @@ export default function MonumentShop({ open, onClose }: Props) {
               {msg}
             </div>
           )}
+
+          {lastUnlock && (() => {
+            const username = (session?.user?.name ?? session?.user?.email?.split('@')[0] ?? 'traveler')
+              .replace(/\s+/g, '').slice(0, 32);
+            // base64url-encode the slug client-side — stateless share URL
+            const slug = typeof btoa === 'function'
+              ? btoa(JSON.stringify({ u: username, mk: lastUnlock.mk, skin: lastUnlock.skin }))
+                  .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+              : '';
+            const origin = typeof window !== 'undefined' ? window.location.origin : 'https://geknee.com';
+            const shareUrl = `${origin}/share/${slug}`;
+            const shareText = `Just unlocked the ${lastUnlock.skin.toUpperCase()} ${lastUnlock.name} on @geknee ${String.fromCodePoint(0x1F30D)}`;
+            const twitter   = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
+            const copy = async () => {
+              try { await navigator.clipboard.writeText(shareUrl); setMsg('Link copied!'); } catch {}
+            };
+            return (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(245,158,11,0.15), rgba(99,102,241,0.15))',
+                border: '1px solid rgba(245,158,11,0.35)',
+                borderRadius: 12, padding: '12px 14px', marginBottom: 12,
+              }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: '#fde68a', marginBottom: 8, letterSpacing: 0.5 }}>
+                  {String.fromCodePoint(0x2728)} Share your unlock
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <a href={twitter} target="_blank" rel="noreferrer" style={{
+                    padding: '8px 14px', borderRadius: 8, background: '#1d9bf0',
+                    color: '#fff', fontSize: 12, fontWeight: 700, textDecoration: 'none',
+                  }}>Post to X</a>
+                  <button onClick={copy} style={{
+                    padding: '8px 14px', borderRadius: 8, background: '#8b5cf6',
+                    color: '#fff', fontSize: 12, fontWeight: 700, border: 'none', cursor: 'pointer',
+                  }}>Copy link</button>
+                  <a href={shareUrl} target="_blank" rel="noreferrer" style={{
+                    padding: '8px 14px', borderRadius: 8, background: '#06b6d4',
+                    color: '#fff', fontSize: 12, fontWeight: 700, textDecoration: 'none',
+                  }}>Preview</a>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Detail view */}
           {selected ? (
