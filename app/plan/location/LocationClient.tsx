@@ -6312,36 +6312,19 @@ function CityLabel({ n, lat, lon, pos, orientation, fontSize }: {
                 {fact || "Tap to explore!"}
               </div>
               {mobileActive && (
-                <>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      window.dispatchEvent(new CustomEvent('geknee:opencitymap', { detail: { name: n, lat, lon } }));
-                    }}
-                    style={{
-                      display: "block", width: "100%", marginTop: "3px",
-                      padding: "7px 0", borderRadius: "6px",
-                      background: "linear-gradient(135deg,#f59e0b,#ef4444)",
-                      color: "#fff", fontSize: "11px", fontWeight: 700,
-                      textAlign: "center", border: "none", cursor: "pointer",
-                    }}
-                  >
-                    Explore on map {String.fromCodePoint(0x1F5FA)}
-                  </button>
-                  <a
-                    href={`/plan/style?location=${encodeURIComponent(n)}`}
-                    style={{
-                      display: "block", marginTop: "4px",
-                      padding: "7px 0", borderRadius: "6px",
-                      background: "linear-gradient(135deg,#06b6d4,#6366f1)",
-                      color: "#fff", fontSize: "11px", fontWeight: 700,
-                      textAlign: "center", textDecoration: "none",
-                      cursor: "pointer",
-                    }}
-                  >
-                    Plan my trip {String.fromCodePoint(0x27A4)}
-                  </a>
-                </>
+                <a
+                  href={`/plan/style?location=${encodeURIComponent(n)}`}
+                  style={{
+                    display: "block", marginTop: "3px",
+                    padding: "7px 0", borderRadius: "6px",
+                    background: "linear-gradient(135deg,#06b6d4,#6366f1)",
+                    color: "#fff", fontSize: "11px", fontWeight: 700,
+                    textAlign: "center", textDecoration: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  Plan my trip {String.fromCodePoint(0x27A4)}
+                </a>
               )}
             </div>
             <div style={{
@@ -6663,6 +6646,9 @@ function GlobeScene() {
   const zoomLevelRef = useRef(0);
   const [camDist, setCamDist] = useState(30);
   const camDistRef = useRef(30);
+  // Arms once the camera zooms below OPEN_DIST; disarms after pulling back past
+  // CLOSE_DIST, so re-opening Mapbox requires an actual zoom-out then zoom-in.
+  const cityMapArmedRef = useRef(false);
 
   // Signal LocationPage when border data AND canvas texture are ready — prevents spinner
   // disappearing before borders are actually painted on the globe surface
@@ -6857,6 +6843,30 @@ function GlobeScene() {
     if (rounded !== camDistRef.current) {
       camDistRef.current = rounded;
       setCamDist(rounded);
+    }
+
+    // Auto-transition to Mapbox city view when zoomed close.
+    // Open below OPEN_DIST, stay silent between OPEN_DIST and CLOSE_DIST (hysteresis),
+    // arm to re-open once the camera pulls back past CLOSE_DIST.
+    const OPEN_DIST = 12.5;
+    const CLOSE_DIST = 14;
+    if (dist < OPEN_DIST && !cityMapArmedRef.current && globeRef.current) {
+      cityMapArmedRef.current = true;
+      // World-space point on globe surface at screen center is the radial projection of camera.position
+      const worldCenter = camera.position.clone().normalize().multiplyScalar(R);
+      const local = globeRef.current.worldToLocal(worldCenter.clone());
+      const lat = Math.asin(Math.max(-1, Math.min(1, local.y / R))) * (180 / Math.PI);
+      const lon = Math.atan2(-local.z, local.x) * (180 / Math.PI);
+      // Find nearest known city (nicer label than raw coords)
+      let best = { n: `${lat.toFixed(2)}°, ${lon.toFixed(2)}°`, lat, lon, d: Infinity };
+      for (const c of CITIES) {
+        const dLat = c.lat - lat, dLon = c.lon - lon;
+        const d = dLat * dLat + dLon * dLon;
+        if (d < best.d) best = { n: c.n, lat: c.lat, lon: c.lon, d };
+      }
+      window.dispatchEvent(new CustomEvent('geknee:opencitymap', { detail: { name: best.n, lat: best.lat, lon: best.lon } }));
+    } else if (dist > CLOSE_DIST && cityMapArmedRef.current) {
+      cityMapArmedRef.current = false;
     }
   });
 
@@ -7266,7 +7276,11 @@ export default function LocationPage() {
 
       {/* Monument collection shop */}
       <MonumentShop open={shopOpen} onClose={() => setShopOpen(false)} />
-      {cityMap && <CityMapView name={cityMap.name} lat={cityMap.lat} lon={cityMap.lon} onClose={() => setCityMap(null)} />}
+      {cityMap && <CityMapView name={cityMap.name} lat={cityMap.lat} lon={cityMap.lon} onClose={() => {
+        // Pull the globe camera out past CLOSE_DIST so the auto-open doesn't re-fire immediately
+        zoomCamera(20);
+        setCityMap(null);
+      }} />}
 
       {/* Upgrade modal */}
       <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
