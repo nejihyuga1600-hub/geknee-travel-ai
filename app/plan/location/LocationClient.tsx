@@ -1490,6 +1490,31 @@ const AVAILABLE_SKINS: Record<string, Set<string>> = {
   eiffelTower: new Set(['stone', 'bronze', 'silver', 'gold', 'diamond', 'aurora', 'celestial']),
 };
 
+// Raw lat/lon for each collectable monument. Kept alongside AVAILABLE_SKINS
+// because both are consumed by the Mapbox CityMapView: skins decide the GLB,
+// coords decide where to drop it via Threebox.
+const MONUMENT_LATLON: Record<string, { lat: number; lon: number }> = {
+  eiffelTower:    { lat: 48.86, lon: 2.29 },
+  colosseum:      { lat: 41.89, lon: 12.49 },
+  tajMahal:       { lat: 27.17, lon: 78.04 },
+  greatWall:      { lat: 40.43, lon: 116.57 },
+  statueLiberty:  { lat: 40.69, lon: -74.04 },
+  sagradaFamilia: { lat: 41.40, lon: 2.17 },
+  machuPicchu:    { lat: -13.16, lon: -72.54 },
+  christRedeem:   { lat: -22.95, lon: -43.21 },
+  angkorWat:      { lat: 13.41, lon: 103.87 },
+  pyramidGiza:    { lat: 29.98, lon: 31.13 },
+  goldenGate:     { lat: 37.82, lon: -122.48 },
+  bigBen:         { lat: 51.50, lon: -0.12 },
+  acropolis:      { lat: 37.97, lon: 23.73 },
+  sydneyOpera:    { lat: -33.86, lon: 151.21 },
+  neuschwanstein: { lat: 47.56, lon: 10.75 },
+  stonehenge:     { lat: 51.18, lon: -1.83 },
+  iguazuFalls:    { lat: -25.69, lon: -54.44 },
+  tokyoSkytree:   { lat: 35.71, lon: 139.81 },
+  victoriaFalls:  { lat: -17.92, lon: 25.86 },
+};
+
 // ─── Skin rarity ring colors ─────────────────────────────────────────────────
 const SKIN_RING_COLOR: Record<string, string> = {
   stone: '#808080',
@@ -6969,6 +6994,7 @@ export default function LocationPage() {
   const [upgradeOpen,   setUpgradeOpen]   = useState(false);
   const [shopOpen,      setShopOpen]      = useState(false);
   const [cityMap, setCityMap] = useState<{ name: string; lat: number; lon: number } | null>(null);
+  const [collectedMonuments, setCollectedMonumentsState] = useState<{ monumentId: string; skin: string; active: boolean }[]>([]);
   const [notifUnread,   setNotifUnread]   = useState(0);
   const [globeReady,    setGlobeReady]    = useState(false);
 
@@ -7021,9 +7047,10 @@ export default function LocationPage() {
       try {
         const res = await fetch('/api/monuments');
         if (!res.ok) return;
-        const data = await res.json() as { collected: { monumentId: string; skin: string }[]; activeSkins?: Record<string, string> };
+        const data = await res.json() as { collected: { monumentId: string; skin: string; active: boolean }[]; activeSkins?: Record<string, string> };
         const ids = new Set(data.collected.map((c: { monumentId: string }) => c.monumentId));
         _setCollectedMonuments(ids);
+        setCollectedMonumentsState(data.collected);
         if (data.activeSkins) {
           _setActiveSkins(new Map(Object.entries(data.activeSkins)));
         }
@@ -7036,6 +7063,7 @@ export default function LocationPage() {
         if (!data) return;
         const ids = new Set<string>(data.collected.map((c: { monumentId: string }) => c.monumentId));
         _setCollectedMonuments(ids);
+        setCollectedMonumentsState(data.collected);
         if (data.activeSkins) {
           _setActiveSkins(new Map(Object.entries(data.activeSkins)));
         }
@@ -7276,11 +7304,36 @@ export default function LocationPage() {
 
       {/* Monument collection shop */}
       <MonumentShop open={shopOpen} onClose={() => setShopOpen(false)} />
-      {cityMap && <CityMapView name={cityMap.name} lat={cityMap.lat} lon={cityMap.lon} onClose={() => {
-        // Pull the globe camera out past CLOSE_DIST so the auto-open doesn't re-fire immediately
-        zoomCamera(20);
-        setCityMap(null);
-      }} />}
+      {cityMap && <CityMapView
+        name={cityMap.name}
+        lat={cityMap.lat}
+        lon={cityMap.lon}
+        monuments={(() => {
+          // Pick the currently-active row per monumentId, resolve its GLB URL via the
+          // same AVAILABLE_SKINS whitelist the Lm uses. Skip monuments whose active
+          // skin isn't uploaded yet — primitives don't render in Mapbox.
+          const activeByMk = new Map<string, string>();
+          for (const c of collectedMonuments) {
+            if (c.active && c.skin !== 'default') activeByMk.set(c.monumentId, c.skin);
+          }
+          const BLOB_BASE = 'https://mrfgpxw07gmgmriv.public.blob.vercel-storage.com/models';
+          const out: { mk: string; name: string; lat: number; lon: number; glbUrl: string }[] = [];
+          activeByMk.forEach((skin, mk) => {
+            const coords = MONUMENT_LATLON[mk];
+            const skins  = AVAILABLE_SKINS[mk];
+            const info   = INFO[mk as keyof typeof INFO] as LmInfo | undefined;
+            if (!coords || !skins?.has(skin)) return;
+            const prefix = MONUMENT_FILE_PREFIX[mk] ?? mk;
+            out.push({ mk, name: info?.name ?? mk, lat: coords.lat, lon: coords.lon, glbUrl: `${BLOB_BASE}/${prefix}_${skin}.glb` });
+          });
+          return out;
+        })()}
+        onClose={() => {
+          // Pull the globe camera out past CLOSE_DIST so the auto-open doesn't re-fire immediately
+          zoomCamera(20);
+          setCityMap(null);
+        }}
+      />}
 
       {/* Upgrade modal */}
       <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
