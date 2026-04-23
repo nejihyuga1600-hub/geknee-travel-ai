@@ -1320,6 +1320,26 @@ function GlbModel({ path, scale }: { path: string; scale: number }) {
       c.scale.setScalar(norm);
       c.position.y = -box.min.y * norm;    // lift base to y=0 (globe surface)
     }
+    // Meshy skins ship as fully-metallic roughness=1 materials that read as
+    // near-black under the scene's ambient light. Clone each material (the
+    // drei GLB cache is shared across Lms) and lift emissive + cut roughness
+    // so the monument is legible at planetary zoom.
+    c.traverse((child) => {
+      const mesh = child as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const src = mesh.material as THREE.MeshStandardMaterial | THREE.MeshStandardMaterial[];
+      const clone = (m: THREE.MeshStandardMaterial) => {
+        const mm = m.clone();
+        if (!mm.emissive || (mm.emissive.r + mm.emissive.g + mm.emissive.b) < 0.1) {
+          mm.emissive = (mm.color ?? new THREE.Color(0xffffff)).clone();
+        }
+        mm.emissiveIntensity = Math.max(mm.emissiveIntensity ?? 0, 0.55);
+        mm.roughness = Math.min(mm.roughness ?? 1, 0.55);
+        mm.metalness = Math.min(mm.metalness ?? 1, 0.7);
+        return mm;
+      };
+      mesh.material = Array.isArray(src) ? src.map(clone) : clone(src);
+    });
     return c;
   }, [scene, scale]);
   return <primitive object={obj} frustumCulled={false} />;
@@ -2842,7 +2862,7 @@ function AllLandmarks() {
       </Lm>
 
       {/* ── Eiffel Tower ──────────────────────────────────────────────────────── */}
-      <Lm p={L.eiffelTower} info={INFO.eiffelTower} mk="eiffelTower">
+      <Lm p={L.eiffelTower} info={INFO.eiffelTower} mk="eiffelTower" s={0.9}>
         {/* 4 arching legs — puddled iron lattice */}
         {([[-1,-1],[1,-1],[-1,1],[1,1]] as [number,number][]).map(([sx,sz],i)=>(
           <group key={i}>
