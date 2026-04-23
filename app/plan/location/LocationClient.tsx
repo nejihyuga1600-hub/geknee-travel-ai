@@ -1498,6 +1498,8 @@ function Lm({ p, s = 0.4, info, mk, children }: { p: SurfPos; s?: number; info?:
   const { isCollected, activeSkin } = useMonumentBridge(mk);
   const [hovered, setHovered]         = useState(false);
   const [mobileActive, setMobileActive] = useState(false);
+  // Only show on globe once collected. Landmarks without an mk (mk-less decorative Lms) never show.
+  if (!mk || !isCollected) return null;
   const effectiveSkin = (isCollected && (!activeSkin || activeSkin === 'default')) ? 'stone' : activeSkin;
   const skinPath = (effectiveSkin && effectiveSkin !== 'default' && mk) ?
     `${BLOB_BASE}/${MONUMENT_FILE_PREFIX[mk] ?? mk}_${effectiveSkin}.glb` : undefined;
@@ -6885,6 +6887,9 @@ function GlobeScene() {
         )}
 
         {/* Animals removed — now unlockable via the Explorer Collection shop */}
+
+        {/* Landmarks — Lm self-gates on isCollected so only unlocked monuments appear */}
+        <AllLandmarks />
 
         {/* Dropped star pin + nearby city selection pins */}
         {starPos && <DroppedStar key={starPos.key} lat={starPos.lat} lon={starPos.lon} />}
