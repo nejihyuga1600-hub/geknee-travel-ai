@@ -7309,23 +7309,20 @@ export default function LocationPage() {
         lat={cityMap.lat}
         lon={cityMap.lon}
         monuments={(() => {
-          // Pick the currently-active row per monumentId, resolve its GLB URL via the
-          // same AVAILABLE_SKINS whitelist the Lm uses. Skip monuments whose active
-          // skin isn't uploaded yet — primitives don't render in Mapbox.
+          // Ring markers for each collected monument with a known skin + coords.
+          // Mapbox's own building extrusions render the actual landmark, so we
+          // no longer overlay our GLB — just the skin-coloured ring on the ground.
           const activeByMk = new Map<string, string>();
           for (const c of collectedMonuments) {
             if (c.active && c.skin !== 'default') activeByMk.set(c.monumentId, c.skin);
           }
-          const BLOB_BASE = 'https://mrfgpxw07gmgmriv.public.blob.vercel-storage.com/models';
-          const out: { mk: string; name: string; lat: number; lon: number; glbUrl: string; ringColor: string }[] = [];
+          const out: { mk: string; name: string; lat: number; lon: number; ringColor: string }[] = [];
           activeByMk.forEach((skin, mk) => {
             const coords = MONUMENT_LATLON[mk];
-            const skins  = AVAILABLE_SKINS[mk];
             const info   = INFO[mk as keyof typeof INFO] as LmInfo | undefined;
-            if (!coords || !skins?.has(skin)) return;
-            const prefix = MONUMENT_FILE_PREFIX[mk] ?? mk;
+            if (!coords) return;
             const ringColor = SKIN_RING_COLOR[skin] ?? '#ffd700';
-            out.push({ mk, name: info?.name ?? mk, lat: coords.lat, lon: coords.lon, glbUrl: `${BLOB_BASE}/${prefix}_${skin}.glb`, ringColor });
+            out.push({ mk, name: info?.name ?? mk, lat: coords.lat, lon: coords.lon, ringColor });
           });
           return out;
         })()}
