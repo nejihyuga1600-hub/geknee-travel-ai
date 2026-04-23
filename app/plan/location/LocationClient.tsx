@@ -1498,8 +1498,6 @@ function Lm({ p, s = 0.4, info, mk, children }: { p: SurfPos; s?: number; info?:
   const { isCollected, activeSkin } = useMonumentBridge(mk);
   const [hovered, setHovered]         = useState(false);
   const [mobileActive, setMobileActive] = useState(false);
-  // Only show on globe once collected. Landmarks without an mk (mk-less decorative Lms) never show.
-  if (!mk || !isCollected) return null;
   const effectiveSkin = (isCollected && (!activeSkin || activeSkin === 'default')) ? 'stone' : activeSkin;
   const skinPath = (effectiveSkin && effectiveSkin !== 'default' && mk) ?
     `${BLOB_BASE}/${MONUMENT_FILE_PREFIX[mk] ?? mk}_${effectiveSkin}.glb` : undefined;
@@ -1733,6 +1731,10 @@ function Lm({ p, s = 0.4, info, mk, children }: { p: SurfPos; s?: number; info?:
   };
 
   const showLabel = mobileActive;
+
+  // Only show landmark once collected. Uncollected / mk-less decorative Lms stay hidden.
+  // Placed AFTER all hooks to satisfy Rules of Hooks across isCollected transitions.
+  if (!mk || !isCollected) return null;
 
   return (
     <group position={p.pos} quaternion={p.q}>
