@@ -6187,8 +6187,10 @@ function pickBestFact(extract: string): string {
   return best.length > 200 ? best.slice(0, 197) + "…" : best;
 }
 
-function CityLabel({ n, pos, orientation, fontSize }: {
+function CityLabel({ n, lat, lon, pos, orientation, fontSize }: {
   n: string;
+  lat: number;
+  lon: number;
   pos: [number, number, number];
   orientation: THREE.Quaternion;
   fontSize: number;
@@ -6302,19 +6304,36 @@ function CityLabel({ n, pos, orientation, fontSize }: {
                 {fact || "Tap to explore!"}
               </div>
               {mobileActive && (
-                <a
-                  href={`/plan/style?location=${encodeURIComponent(n)}`}
-                  style={{
-                    display: "block", marginTop: "3px",
-                    padding: "7px 0", borderRadius: "6px",
-                    background: "linear-gradient(135deg,#06b6d4,#6366f1)",
-                    color: "#fff", fontSize: "11px", fontWeight: 700,
-                    textAlign: "center", textDecoration: "none",
-                    cursor: "pointer",
-                  }}
-                >
-                  Plan my trip {String.fromCodePoint(0x27A4)}
-                </a>
+                <>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      window.dispatchEvent(new CustomEvent('geknee:opencitymap', { detail: { name: n, lat, lon } }));
+                    }}
+                    style={{
+                      display: "block", width: "100%", marginTop: "3px",
+                      padding: "7px 0", borderRadius: "6px",
+                      background: "linear-gradient(135deg,#f59e0b,#ef4444)",
+                      color: "#fff", fontSize: "11px", fontWeight: 700,
+                      textAlign: "center", border: "none", cursor: "pointer",
+                    }}
+                  >
+                    Explore on map {String.fromCodePoint(0x1F5FA)}
+                  </button>
+                  <a
+                    href={`/plan/style?location=${encodeURIComponent(n)}`}
+                    style={{
+                      display: "block", marginTop: "4px",
+                      padding: "7px 0", borderRadius: "6px",
+                      background: "linear-gradient(135deg,#06b6d4,#6366f1)",
+                      color: "#fff", fontSize: "11px", fontWeight: 700,
+                      textAlign: "center", textDecoration: "none",
+                      cursor: "pointer",
+                    }}
+                  >
+                    Plan my trip {String.fromCodePoint(0x27A4)}
+                  </a>
+                </>
               )}
             </div>
             <div style={{
@@ -6354,7 +6373,7 @@ function CityLabels({ camDist }: { camDist: number }) {
   const items = useMemo(() => {
     return CITIES.map(({ n, lat, lon }) => {
       const pos = geoPos(lat, lon, R * 1.019);
-      return { n, pos, orientation: computeOrientation(pos), tier: CITY_TIER1.has(n) ? 1 : 2 };
+      return { n, lat, lon, pos, orientation: computeOrientation(pos), tier: CITY_TIER1.has(n) ? 1 : 2 };
     });
   }, []);
 
@@ -6395,8 +6414,8 @@ function CityLabels({ camDist }: { camDist: number }) {
 
   return (
     <>
-      {visible.map(({ n, pos, orientation, fontSize }) => (
-        <CityLabel key={n} n={n} pos={pos} orientation={orientation} fontSize={fontSize} />
+      {visible.map(({ n, lat, lon, pos, orientation, fontSize }) => (
+        <CityLabel key={n} n={n} lat={lat} lon={lon} pos={pos} orientation={orientation} fontSize={fontSize} />
       ))}
     </>
   );
@@ -6921,6 +6940,7 @@ const SettingsPanel   = dynamic(() => import("@/app/components/SettingsPanel"), 
 const LanguageBanner  = dynamic(() => import("@/app/components/LanguageBanner"),  { ssr: false });
 const UpgradeModal    = dynamic(() => import("@/app/components/UpgradeModal"),    { ssr: false });
 const MonumentShop    = dynamic(() => import("@/app/components/MonumentShop"),    { ssr: false });
+const CityMapView     = dynamic(() => import("@/app/components/CityMapView"),     { ssr: false });
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function LocationPage() {
@@ -6930,8 +6950,19 @@ export default function LocationPage() {
   const [settingsOpen,  setSettingsOpen]  = useState(false);
   const [upgradeOpen,   setUpgradeOpen]   = useState(false);
   const [shopOpen,      setShopOpen]      = useState(false);
+  const [cityMap, setCityMap] = useState<{ name: string; lat: number; lon: number } | null>(null);
   const [notifUnread,   setNotifUnread]   = useState(0);
   const [globeReady,    setGlobeReady]    = useState(false);
+
+  // Listen for "Explore on map" requests from city labels
+  useEffect(() => {
+    const h = (e: Event) => {
+      const d = (e as CustomEvent<{ name: string; lat: number; lon: number }>).detail;
+      if (d) setCityMap(d);
+    };
+    window.addEventListener('geknee:opencitymap', h);
+    return () => window.removeEventListener('geknee:opencitymap', h);
+  }, []);
   const router = useRouter();
   const { data: session } = useSession();
 
@@ -7227,6 +7258,7 @@ export default function LocationPage() {
 
       {/* Monument collection shop */}
       <MonumentShop open={shopOpen} onClose={() => setShopOpen(false)} />
+      {cityMap && <CityMapView name={cityMap.name} lat={cityMap.lat} lon={cityMap.lon} onClose={() => setCityMap(null)} />}
 
       {/* Upgrade modal */}
       <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
