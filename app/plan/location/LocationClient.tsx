@@ -7317,14 +7317,15 @@ export default function LocationPage() {
             if (c.active && c.skin !== 'default') activeByMk.set(c.monumentId, c.skin);
           }
           const BLOB_BASE = 'https://mrfgpxw07gmgmriv.public.blob.vercel-storage.com/models';
-          const out: { mk: string; name: string; lat: number; lon: number; glbUrl: string }[] = [];
+          const out: { mk: string; name: string; lat: number; lon: number; glbUrl: string; ringColor: string }[] = [];
           activeByMk.forEach((skin, mk) => {
             const coords = MONUMENT_LATLON[mk];
             const skins  = AVAILABLE_SKINS[mk];
             const info   = INFO[mk as keyof typeof INFO] as LmInfo | undefined;
             if (!coords || !skins?.has(skin)) return;
             const prefix = MONUMENT_FILE_PREFIX[mk] ?? mk;
-            out.push({ mk, name: info?.name ?? mk, lat: coords.lat, lon: coords.lon, glbUrl: `${BLOB_BASE}/${prefix}_${skin}.glb` });
+            const ringColor = SKIN_RING_COLOR[skin] ?? '#ffd700';
+            out.push({ mk, name: info?.name ?? mk, lat: coords.lat, lon: coords.lon, glbUrl: `${BLOB_BASE}/${prefix}_${skin}.glb`, ringColor });
           });
           return out;
         })()}

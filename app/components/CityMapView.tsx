@@ -1,11 +1,18 @@
 'use client';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-type MonumentMarker = { mk: string; name: string; lat: number; lon: number; glbUrl: string };
+type MonumentMarker = {
+  mk: string;
+  name: string;
+  lat: number;
+  lon: number;
+  glbUrl: string;
+  ringColor: string;
+};
 
 type Props = {
   name: string;
@@ -15,18 +22,22 @@ type Props = {
   onClose: () => void;
 };
 
-// Mapbox zoom 0 = whole earth, 10 = city, 14 = neighbourhood. Below this we
-// assume the user has zoomed out of the city and return to the 3D globe.
+// Mapbox zoom 0 = whole earth, 7 ≈ country, 10 ≈ city, 14 ≈ neighbourhood.
 const RETURN_TO_GLOBE_ZOOM = 7;
-// Render GLBs at roughly iconic scale — ~300m is taller than a real Eiffel (330m)
-// but reads clearly at city zoom. Tune per-monument later if needed.
-const MODEL_METERS = 300;
+// Fit each GLB to a ~120 m bounding cube — real Eiffel is 330 m but that
+// dominates the view at city zoom; iconic-but-not-overwhelming reads better.
+const MODEL_METERS = 120;
 
 export default function CityMapView({ name, lat, lon, monuments, onClose }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+
+  // Controls both the 3D layer and the ring visibility.
+  const [showMonuments, setShowMonuments] = useState(true);
+  const showMonumentsRef = useRef(showMonuments);
+  showMonumentsRef.current = showMonuments;
 
   useEffect(() => {
     const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
@@ -45,9 +56,7 @@ export default function CityMapView({ name, lat, lon, monuments, onClose }: Prop
     mapRef.current = map;
 
     map.addControl(new mapboxgl.NavigationControl({ visualizePitch: true }), 'top-right');
-    new mapboxgl.Marker({ color: '#f59e0b' }).setLngLat([lon, lat]).addTo(map);
 
-    // Auto-return to globe if user zooms out past the city-region threshold.
     const onZoom = () => {
       if (map.getZoom() < RETURN_TO_GLOBE_ZOOM) onCloseRef.current();
     };
@@ -60,6 +69,7 @@ export default function CityMapView({ name, lat, lon, monuments, onClose }: Prop
         'space-color': 'rgb(6, 8, 22)',
         'star-intensity': 0.3,
       });
+
       if (!map.getLayer('3d-buildings')) {
         map.addLayer({
           id: '3d-buildings',
@@ -77,8 +87,8 @@ export default function CityMapView({ name, lat, lon, monuments, onClose }: Prop
         });
       }
 
-      if (monuments.length === 0) return;
-      addMonumentLayer(map, monuments);
+      addMonumentRings(map, monuments);
+      if (monuments.length > 0) addMonumentModelLayer(map, monuments, showMonumentsRef);
     });
 
     return () => {
@@ -87,6 +97,15 @@ export default function CityMapView({ name, lat, lon, monuments, onClose }: Prop
       mapRef.current = null;
     };
   }, [lat, lon, monuments]);
+
+  // Sync toggle state into Mapbox layers imperatively so we don't rebuild the whole map.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !map.isStyleLoaded()) return;
+    const vis = showMonuments ? 'visible' : 'none';
+    if (map.getLayer('monument-rings'))  map.setLayoutProperty('monument-rings', 'visibility', vis);
+    if (map.getLayer('monument-models')) map.setLayoutProperty('monument-models', 'visibility', vis);
+  }, [showMonuments]);
 
   const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
@@ -114,6 +133,7 @@ export default function CityMapView({ name, lat, lon, monuments, onClose }: Prop
         </div>
       )}
 
+      {/* City name + exit hint */}
       <div style={{
         position: 'absolute', top: 18, left: '50%', transform: 'translateX(-50%)',
         background: 'rgba(6,8,22,0.85)', border: '1px solid rgba(100,210,255,0.4)',
@@ -125,48 +145,104 @@ export default function CityMapView({ name, lat, lon, monuments, onClose }: Prop
         <span>{name}</span>
         <span style={{ opacity: 0.5, fontSize: 11, fontWeight: 500 }}>zoom out to return to globe</span>
       </div>
+
+      {/* Monument visibility toggle */}
+      {monuments.length > 0 && (
+        <button
+          onClick={() => setShowMonuments((v) => !v)}
+          style={{
+            position: 'absolute', top: 18, left: 18,
+            background: 'rgba(6,8,22,0.85)',
+            border: `1px solid ${showMonuments ? 'rgba(245,158,11,0.6)' : 'rgba(100,210,255,0.4)'}`,
+            backdropFilter: 'blur(12px)', borderRadius: 10,
+            color: '#fff', fontSize: 12, fontWeight: 700,
+            padding: '10px 14px', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', gap: 6,
+          }}
+        >
+          {showMonuments ? 'Hide monuments' : 'Show monuments'}
+        </button>
+      )}
     </div>
   );
 }
 
-// ─── Mapbox custom layer: renders each collected monument's GLB at its lat/lon ──
-// Works by sharing the Mapbox canvas GL context with a Three.js WebGLRenderer.
-// Mapbox hands us a model-view-projection matrix per frame (in Mercator world
-// coords); we wrap each monument in a group positioned at its mercator coord
-// and scaled by meter-in-mercator-units so MODEL_METERS renders as N real metres.
-function addMonumentLayer(map: mapboxgl.Map, monuments: MonumentMarker[]) {
+// ─── Golden rings (native Mapbox layer) ───────────────────────────────────────
+// A GeoJSON circle layer per-feature — rendered as a 2D footprint on the ground.
+// Keeps the visual cue from the globe without fighting the 3D layer for ordering.
+function addMonumentRings(map: mapboxgl.Map, monuments: MonumentMarker[]) {
+  if (monuments.length === 0) return;
+  const features = monuments.map((mon) => ({
+    type: 'Feature' as const,
+    geometry: { type: 'Point' as const, coordinates: [mon.lon, mon.lat] },
+    properties: { mk: mon.mk, name: mon.name, ringColor: mon.ringColor },
+  }));
+  if (!map.getSource('monument-points')) {
+    map.addSource('monument-points', { type: 'geojson', data: { type: 'FeatureCollection', features } });
+  }
+  if (!map.getLayer('monument-rings')) {
+    map.addLayer({
+      id: 'monument-rings',
+      type: 'circle',
+      source: 'monument-points',
+      paint: {
+        'circle-radius': ['interpolate', ['exponential', 2], ['zoom'], 10, 10, 18, 80],
+        'circle-color': 'rgba(0,0,0,0)',
+        'circle-stroke-width': 3,
+        'circle-stroke-color': ['get', 'ringColor'],
+        'circle-stroke-opacity': 0.9,
+        'circle-pitch-alignment': 'map',
+      },
+    });
+  }
+}
+
+// ─── 3D monument GLBs (custom Three.js layer) ─────────────────────────────────
+function addMonumentModelLayer(
+  map: mapboxgl.Map,
+  monuments: MonumentMarker[],
+  showRef: { current: boolean },
+) {
+  type GroupEntry = {
+    mk: string;
+    group: THREE.Group;
+    transform: { x: number; y: number; z: number; scale: number };
+  };
+
   let camera: THREE.Camera;
   let scene: THREE.Scene;
   let renderer: THREE.WebGLRenderer;
-  const groups = new Map<string, { group: THREE.Group; transform: ReturnType<typeof modelTransformFor> }>();
+  const groups: GroupEntry[] = [];
 
-  function modelTransformFor(lat: number, lon: number) {
+  function transformFor(lat: number, lon: number) {
     const mc = mapboxgl.MercatorCoordinate.fromLngLat([lon, lat], 0);
-    const scale = mc.meterInMercatorCoordinateUnits() * MODEL_METERS;
     return {
-      translateX: mc.x,
-      translateY: mc.y,
-      translateZ: mc.z,
-      rotateX: Math.PI / 2,
-      rotateY: 0,
-      rotateZ: 0,
-      scale,
+      x: mc.x,
+      y: mc.y,
+      z: mc.z,
+      scale: mc.meterInMercatorCoordinateUnits() * MODEL_METERS,
     };
   }
 
-  const customLayer: mapboxgl.CustomLayerInterface = {
-    id: 'collected-monuments',
+  const layer: mapboxgl.CustomLayerInterface = {
+    id: 'monument-models',
     type: 'custom',
     renderingMode: '3d',
 
     onAdd(_map, gl) {
       camera = new THREE.Camera();
       scene = new THREE.Scene();
-      // Soft fill so materials aren't pitch black from their PBR side
-      scene.add(new THREE.AmbientLight(0xffffff, 0.6));
-      const dir = new THREE.DirectionalLight(0xffffff, 1.2);
-      dir.position.set(0.6, -0.7, 0.8);
-      scene.add(dir);
+
+      // Lights: generous ambient so PBR materials don't read black, plus a warm
+      // key + cool fill for dimensionality. These live on the SCENE so every
+      // renderer.render(scene, ...) call actually lights the monuments.
+      scene.add(new THREE.AmbientLight(0xffffff, 0.9));
+      const key = new THREE.DirectionalLight(0xfff4d0, 1.2);
+      key.position.set(1, 1, 1).normalize();
+      scene.add(key);
+      const fill = new THREE.DirectionalLight(0xdcefff, 0.5);
+      fill.position.set(-1, 0.5, -0.5).normalize();
+      scene.add(fill);
 
       renderer = new THREE.WebGLRenderer({
         canvas: _map.getCanvas(),
@@ -180,15 +256,21 @@ function addMonumentLayer(map: mapboxgl.Map, monuments: MonumentMarker[]) {
         loader.load(
           mon.glbUrl,
           (gltf) => {
-            const group = new THREE.Group();
-            // Re-seat the model's bounding box so the base sits at y=0 (ground plane)
+            // Normalize to ~1 unit bounding cube so MODEL_METERS controls the final size
             const obj = gltf.scene;
             const box = new THREE.Box3().setFromObject(obj);
-            obj.position.y = -box.min.y;
+            const size = new THREE.Vector3();
+            box.getSize(size);
+            const maxDim = Math.max(size.x, size.y, size.z);
+            const norm = maxDim > 0 ? 1 / maxDim : 1;
+            obj.scale.setScalar(norm);
+            // Base at y=0 in group space
+            obj.position.y = -box.min.y * norm;
+
+            const group = new THREE.Group();
             group.add(obj);
-            const transform = modelTransformFor(mon.lat, mon.lon);
-            groups.set(mon.mk, { group, transform });
             scene.add(group);
+            groups.push({ mk: mon.mk, group, transform: transformFor(mon.lat, mon.lon) });
           },
           undefined,
           (err) => console.warn('[CityMapView] GLB load failed', mon.mk, err),
@@ -197,27 +279,34 @@ function addMonumentLayer(map: mapboxgl.Map, monuments: MonumentMarker[]) {
     },
 
     render(_gl, matrix) {
-      if (!renderer || !scene) return;
+      if (!renderer || !scene || !showRef.current) return;
 
-      const m = new THREE.Matrix4().fromArray(matrix as unknown as number[]);
+      const base = new THREE.Matrix4().fromArray(matrix as unknown as number[]);
+      const rotX = new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(1, 0, 0), Math.PI / 2);
 
-      // Reset then render each monument at its own transform.
       renderer.resetState();
-      groups.forEach(({ group, transform }) => {
-        const rotX = new THREE.Matrix4().makeRotationAxis(new THREE.Vector3(1, 0, 0), transform.rotateX);
-        const l = new THREE.Matrix4()
-          .makeTranslation(transform.translateX, transform.translateY, transform.translateZ)
+
+      // Render scene once per monument: hide all other groups, set projection
+      // to that group's local transform, render scene (lights apply).
+      for (let i = 0; i < groups.length; i++) {
+        const { group, transform } = groups[i];
+        for (let j = 0; j < groups.length; j++) groups[j].group.visible = i === j;
+
+        const local = new THREE.Matrix4()
+          .makeTranslation(transform.x, transform.y, transform.z)
           .scale(new THREE.Vector3(transform.scale, -transform.scale, transform.scale))
           .multiply(rotX);
-        group.matrix.identity();
-        group.matrixAutoUpdate = false;
-        camera.projectionMatrix = m.clone().multiply(l);
-        renderer.render(group, camera);
-      });
+
+        camera.projectionMatrix = base.clone().multiply(local);
+        renderer.render(scene, camera);
+      }
+
+      // Restore visibility so subsequent frames don't lose a group.
+      for (let j = 0; j < groups.length; j++) groups[j].group.visible = true;
 
       map.triggerRepaint();
     },
   };
 
-  map.addLayer(customLayer);
+  map.addLayer(layer);
 }
