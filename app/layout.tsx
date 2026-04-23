@@ -5,6 +5,7 @@ import "./globals.css";
 import { SessionProvider } from "next-auth/react";
 import GlobalChat from "./components/GlobalChat";
 import { ToastProvider } from "./components/Toast";
+import PostHogProvider from "./components/PostHogProvider";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Analytics } from "@vercel/analytics/next";
 
@@ -33,9 +34,11 @@ export default function RootLayout({
       </head>
       <body suppressHydrationWarning>
         <SessionProvider>
-          <ToastProvider>
-            <div style={{ animation: 'pageFadeIn 0.35s ease-out' }}>{children}</div>
-          </ToastProvider>
+          <PostHogProvider>
+            <ToastProvider>
+              <div style={{ animation: 'pageFadeIn 0.35s ease-out' }}>{children}</div>
+            </ToastProvider>
+          </PostHogProvider>
         </SessionProvider>
         <GlobalChat />
         <SpeedInsights />

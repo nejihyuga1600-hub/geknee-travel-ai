@@ -11,6 +11,7 @@ import { useSession } from 'next-auth/react';
 const BookTabDynamic = dynamic(() => import('./BookTab'), { ssr: false });
 const FileVault      = dynamic(() => import('@/app/components/FileVault'), { ssr: false });
 const UpgradeModal   = dynamic(() => import('@/app/components/UpgradeModal'), { ssr: false });
+import { track } from '@/lib/analytics';
 
 const DayMap = dynamic(() => import('./DayMap'), {
   ssr: false,
@@ -1418,7 +1419,7 @@ function SummaryContent() {
           if (res.status === 403) {
             const data = await res.json().catch(() => ({}));
             if (data.code === 'GENERATION_LIMIT') {
-              setUpgradeModal({ open: true, feature: 'Unlimited AI generations', reason: data.error });
+              track('upgrade_click', { surface: 'ai_limit', feature: 'generations' }); setUpgradeModal({ open: true, feature: 'Unlimited AI generations', reason: data.error });
               setStreaming(false);
               return;
             }

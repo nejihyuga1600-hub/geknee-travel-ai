@@ -1,6 +1,7 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
+import { track } from '@/lib/analytics';
 
 const DEV_EMAILS = new Set(['nghiaphan081301@gmail.com']);
 
@@ -610,6 +611,8 @@ export default function MonumentShop({ open, onClose }: Props) {
     if (res.ok) {
       setMsg(`${item.name} added to your collection!`);
       setLastUnlock({ mk: item.id, name: item.name, skin: 'default' });
+      // Only fire first_unlock when this was genuinely their first monument.
+      if (collected.length === 0) track('first_unlock', { mk: item.id, via: 'unlock' });
       await load();
       window.dispatchEvent(new Event('geknee:monuments-updated'));
     }
@@ -857,18 +860,31 @@ export default function MonumentShop({ open, onClose }: Props) {
                   {String.fromCodePoint(0x2728)} Share your unlock
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <a href={twitter} target="_blank" rel="noreferrer" style={{
-                    padding: '8px 14px', borderRadius: 8, background: '#1d9bf0',
-                    color: '#fff', fontSize: 12, fontWeight: 700, textDecoration: 'none',
-                  }}>Post to X</a>
-                  <button onClick={copy} style={{
-                    padding: '8px 14px', borderRadius: 8, background: '#8b5cf6',
-                    color: '#fff', fontSize: 12, fontWeight: 700, border: 'none', cursor: 'pointer',
-                  }}>Copy link</button>
-                  <a href={shareUrl} target="_blank" rel="noreferrer" style={{
-                    padding: '8px 14px', borderRadius: 8, background: '#06b6d4',
-                    color: '#fff', fontSize: 12, fontWeight: 700, textDecoration: 'none',
-                  }}>Preview</a>
+                  <a
+                    href={twitter}
+                    target="_blank" rel="noreferrer"
+                    onClick={() => track('share_click', { channel: 'twitter', mk: lastUnlock.mk, skin: lastUnlock.skin })}
+                    style={{
+                      padding: '8px 14px', borderRadius: 8, background: '#1d9bf0',
+                      color: '#fff', fontSize: 12, fontWeight: 700, textDecoration: 'none',
+                    }}
+                  >Post to X</a>
+                  <button
+                    onClick={() => { track('share_click', { channel: 'copy', mk: lastUnlock.mk, skin: lastUnlock.skin }); copy(); }}
+                    style={{
+                      padding: '8px 14px', borderRadius: 8, background: '#8b5cf6',
+                      color: '#fff', fontSize: 12, fontWeight: 700, border: 'none', cursor: 'pointer',
+                    }}
+                  >Copy link</button>
+                  <a
+                    href={shareUrl}
+                    target="_blank" rel="noreferrer"
+                    onClick={() => track('share_click', { channel: 'preview', mk: lastUnlock.mk, skin: lastUnlock.skin })}
+                    style={{
+                      padding: '8px 14px', borderRadius: 8, background: '#06b6d4',
+                      color: '#fff', fontSize: 12, fontWeight: 700, textDecoration: 'none',
+                    }}
+                  >Preview</a>
                 </div>
               </div>
             );

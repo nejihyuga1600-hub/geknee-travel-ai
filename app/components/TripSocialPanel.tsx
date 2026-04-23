@@ -2,6 +2,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { track } from '@/lib/analytics';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -263,7 +264,7 @@ export default function TripSocialPanel({
         body: JSON.stringify({ title: saveTitle.trim(), location: location || 'Unknown', startDate, endDate, nights }),
       });
       const d = await res.json();
-      if (d.trip) { setTrips(p => [d.trip, ...p]); setSaveTitle(''); setShowSaveForm(false); }
+      if (d.trip) { setTrips(p => [d.trip, ...p]); setSaveTitle(''); setShowSaveForm(false); } if (d.trip) { track('plan_saved', { tripId: d.trip.id, location: d.trip.location }); }
     } catch { /**/ } finally { setSaving(false); }
   }
 

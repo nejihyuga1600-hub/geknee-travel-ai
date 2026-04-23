@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { signIn, useSession } from 'next-auth/react';
+import { track } from '@/lib/analytics';
 
 interface AuthModalProps {
   open: boolean;
@@ -90,6 +91,7 @@ export default function AuthModal({ open, onClose }: AuthModalProps) {
         return;
       }
       setSuccess('Account created! Signing in\u2026');
+      track('signup', { method: 'credentials' });
     }
 
     // Sign in with credentials

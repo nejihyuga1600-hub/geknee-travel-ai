@@ -12,6 +12,7 @@ const isMobile = typeof window !== "undefined" && (
 import * as THREE from "three";
 import { useRouter } from "next/navigation";
 import { consumeGlobeTarget, consumeCameraZoom, flyToGlobe, zoomCamera, resetGlobeTilt, consumeResetTilt } from "@/lib/globeAnim";
+import { track } from "@/lib/analytics";
 
 const R = 10;
 
@@ -7194,7 +7195,7 @@ export default function LocationPage() {
 
             {/* Go Pro button */}
             <button
-              onClick={() => setUpgradeOpen(true)}
+              onClick={() => { track('upgrade_click', { surface: 'header' }); setUpgradeOpen(true); }}
               style={{
                 background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
                 border: "none", borderRadius: 10,
