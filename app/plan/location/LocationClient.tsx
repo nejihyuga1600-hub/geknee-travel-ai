@@ -1483,6 +1483,13 @@ const MONUMENT_FILE_PREFIX: Record<string, string> = {
   victoriaFalls: 'victoria_falls',
 };
 
+// Skins actually uploaded to Vercel Blob. Requesting a skin not in this map
+// 404s and the dev overlay surfaces it even though ModelErrorBoundary catches
+// it at runtime — so we gate skinPath on this whitelist to avoid the fetch.
+const AVAILABLE_SKINS: Record<string, Set<string>> = {
+  eiffelTower: new Set(['stone', 'bronze', 'silver', 'gold', 'diamond', 'aurora', 'celestial']),
+};
+
 // ─── Skin rarity ring colors ─────────────────────────────────────────────────
 const SKIN_RING_COLOR: Record<string, string> = {
   stone: '#808080',
@@ -1499,8 +1506,9 @@ function Lm({ p, s = 0.4, info, mk, children }: { p: SurfPos; s?: number; info?:
   const [hovered, setHovered]         = useState(false);
   const [mobileActive, setMobileActive] = useState(false);
   const effectiveSkin = (isCollected && (!activeSkin || activeSkin === 'default')) ? 'stone' : activeSkin;
-  const skinPath = (effectiveSkin && effectiveSkin !== 'default' && mk) ?
-    `${BLOB_BASE}/${MONUMENT_FILE_PREFIX[mk] ?? mk}_${effectiveSkin}.glb` : undefined;
+  const hasSkinGlb = !!(mk && effectiveSkin && AVAILABLE_SKINS[mk]?.has(effectiveSkin));
+  const skinPath = hasSkinGlb ?
+    `${BLOB_BASE}/${MONUMENT_FILE_PREFIX[mk!] ?? mk}_${effectiveSkin}.glb` : undefined;
   const model   = mk ? MODELS[mk] : undefined;
   const density = LM_DENSITY.get(p) ?? 1;
   const effS    = s * density;
