@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import HeroGlobeClient from './components/HeroGlobeClient';
 
 export const metadata: Metadata = {
   title: 'geknee — plan trips, collect the world',
@@ -268,37 +269,16 @@ function HeroVisual() {
         border: '2px solid rgba(245,158,11,0.4)',
         animation: 'pulseRing 6s ease-in-out infinite 1s',
       }} />
-      {/* the "globe" — gradient ball, slow continuous rotation */}
+      {/* Live cartoon globe — replaces the CSS gradient fake. The Canvas
+          is pointer-events:none so it doesn't intercept the hero CTAs. */}
       <div style={{
-        width: '72%', height: '72%',
-        borderRadius: '50%',
-        background:
-          'radial-gradient(circle at 35% 30%, #5478c8 0%, #24407a 40%, #0a1840 80%), ' +
-          'repeating-linear-gradient(45deg, rgba(120,180,255,0.08) 0 2px, transparent 2px 14px)',
-        boxShadow: 'inset -30px -40px 80px rgba(0,0,0,0.6), 0 30px 100px rgba(99,102,241,0.35)',
-        animation: 'spinGlobe 60s linear infinite',
+        width: '88%', height: '88%',
         position: 'relative',
+        borderRadius: '50%',
         overflow: 'hidden',
+        boxShadow: '0 30px 100px rgba(99,102,241,0.35)',
       }}>
-        {/* subtle "land mass" blobs to hint at continents */}
-        <div style={{
-          position: 'absolute', top: '20%', left: '30%',
-          width: '28%', height: '22%',
-          background: 'radial-gradient(ellipse, rgba(100,180,120,0.6) 0%, transparent 70%)',
-          borderRadius: '50%', filter: 'blur(6px)',
-        }} />
-        <div style={{
-          position: 'absolute', top: '50%', left: '55%',
-          width: '20%', height: '18%',
-          background: 'radial-gradient(ellipse, rgba(180,140,90,0.5) 0%, transparent 70%)',
-          borderRadius: '50%', filter: 'blur(5px)',
-        }} />
-        <div style={{
-          position: 'absolute', top: '35%', left: '10%',
-          width: '15%', height: '25%',
-          background: 'radial-gradient(ellipse, rgba(100,160,120,0.5) 0%, transparent 70%)',
-          borderRadius: '50%', filter: 'blur(5px)',
-        }} />
+        <HeroGlobeClient />
       </div>
 
       {/* a few rarity-coloured pins floating over the globe */}
