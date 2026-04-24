@@ -48,9 +48,14 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable} ${fraunces.variable} ${interTight.variable}`}>
       <head>
-        {/* Travelpayouts affiliate tracking */}
-        {/* eslint-disable-next-line @next/next/no-sync-scripts */}
-        <script src="https://tp-em.com/NTE1NTYz.js?t=515563" async />
+        {/* Travelpayouts affiliate tracking — production only.
+            In dev it's CORS-blocked from localhost AND its DOM-mutation
+            races React hydration enough to trigger sporadic mismatch
+            warnings. Caught via headless audit 2026-04-24. */}
+        {process.env.NODE_ENV === 'production' && (
+          // eslint-disable-next-line @next/next/no-sync-scripts
+          <script src="https://tp-em.com/NTE1NTYz.js?t=515563" async />
+        )}
       </head>
       <body suppressHydrationWarning>
         <SessionProvider>

@@ -1269,17 +1269,20 @@ function SummaryContent() {
 
   // ── Weather state ─────────────────────────────────────────────────────────────
   const [weatherByCity,  setWeatherByCity]  = useState<Map<string, DayWeather[]>>(new Map());
-  const [weatherUnit,    setWeatherUnit]    = useState<'C'|'F'>(() => {
-    if (typeof window === 'undefined') return 'C';
+  // Always start at 'C' on both server AND client so hydration matches.
+  // Effect below upgrades to 'F' on US-timezone clients post-mount. The brief
+  // flash of 'C' before 'F' is acceptable; previously this lazy initializer
+  // ran on every render and caused a confirmed hydration mismatch warning
+  // (caught via headless audit 2026-04-24).
+  const [weatherUnit, setWeatherUnit] = useState<'C'|'F'>('C');
+  useEffect(() => {
     try {
       const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
-      // Match US-specific IANA timezones (excludes Canada/LatAm which also use America/)
       if (/^(America\/(New_York|Chicago|Denver|Los_Angeles|Phoenix|Anchorage|Adak|Detroit|Boise|Juneau|Nome|Sitka|Yakutat|Metlakatla|Unalaska|Indiana|Kentucky|North_Dakota)|Pacific\/Honolulu)/.test(tz)) {
-        return 'F';
+        setWeatherUnit('F');
       }
     } catch { /* ignore */ }
-    return 'C';
-  });
+  }, []);
   const weatherFetchedRef = useRef(false);
 
   // ── Replan state ──────────────────────────────────────────────────────────────
@@ -1588,6 +1591,9 @@ function SummaryContent() {
     if (streaming || weatherFetchedRef.current || allStops.length === 0) return;
     weatherFetchedRef.current = true;
     for (const stop of allStops) {
+      // Guard against stops with no city — was hitting /api/weather?city= and
+      // burning a 400 per missing-city stop. Found via headless audit.
+      if (!stop.city || !stop.city.trim()) continue;
       fetch(`/api/weather?city=${encodeURIComponent(stop.city)}`)
         .then(r => r.json())
         .then(d => {
