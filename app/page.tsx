@@ -90,10 +90,14 @@ export default function Home() {
               Collection game · Trip planner inside
             </div>
             <h1 style={{
-              fontSize: 'clamp(40px, 6vw, 72px)', lineHeight: 1.02, margin: 0,
-              fontWeight: 900, letterSpacing: -1,
+              fontSize: 'clamp(44px, 7vw, 84px)', lineHeight: 1.02, margin: 0,
+              fontFamily: 'var(--font-display), Georgia, serif',
+              fontWeight: 500, letterSpacing: -2,
+              color: 'var(--brand-ink)',
             }}>
-              Collect the world.
+              Collect the{' '}
+              <em style={{ fontStyle: 'italic', color: 'var(--brand-accent)' }}>world</em>
+              .
             </h1>
             <p style={{ fontSize: 18, color: '#cbd5e1', marginTop: 20, maxWidth: 520, lineHeight: 1.55 }}>
               A 3D globe where every monument is a collectable. Visit places in person,
@@ -160,7 +164,11 @@ export default function Home() {
 
         {/* ── Rarity gallery ──────────────────────────────────────────────── */}
         <section style={{ maxWidth: 1180, margin: '0 auto', padding: '64px 28px 48px' }}>
-          <h2 style={{ fontSize: 26, fontWeight: 900, letterSpacing: -0.3, marginBottom: 6 }}>
+          <h2 style={{
+            fontSize: 32, fontWeight: 500, letterSpacing: -0.6, marginBottom: 8,
+            fontFamily: 'var(--font-display), Georgia, serif',
+            color: 'var(--brand-ink)',
+          }}>
             Seven rarity tiers per monument.
           </h2>
           <p style={{ color: '#94a3b8', marginBottom: 28, fontSize: 14 }}>
@@ -206,7 +214,11 @@ export default function Home() {
             + skin combos picked for visual variety. The route falls back
             to Wikipedia thumbs until per-skin Nano Banana heroes land. */}
         <section style={{ maxWidth: 1180, margin: '0 auto', padding: '32px 28px 64px' }}>
-          <h2 style={{ fontSize: 26, fontWeight: 900, letterSpacing: -0.3, marginBottom: 6 }}>
+          <h2 style={{
+            fontSize: 32, fontWeight: 500, letterSpacing: -0.6, marginBottom: 8,
+            fontFamily: 'var(--font-display), Georgia, serif',
+            color: 'var(--brand-ink)',
+          }}>
             Every unlock is a share.
           </h2>
           <p style={{ color: '#94a3b8', marginBottom: 28, fontSize: 14, maxWidth: 580 }}>
@@ -254,7 +266,12 @@ export default function Home() {
             border: '1px solid rgba(139,92,246,0.4)',
             borderRadius: 20, padding: '48px 24px',
           }}>
-            <h2 style={{ fontSize: 32, fontWeight: 900, margin: 0 }}>
+            <h2 style={{
+              fontSize: 38, fontWeight: 500, margin: 0,
+              fontFamily: 'var(--font-display), Georgia, serif',
+              letterSpacing: -0.8,
+              color: 'var(--brand-ink)',
+            }}>
               Start your collection.
             </h2>
             <p style={{ color: '#cbd5e1', marginTop: 12, fontSize: 15 }}>

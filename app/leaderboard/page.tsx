@@ -119,8 +119,12 @@ export default async function LeaderboardPage() {
 
         {/* Title */}
         <header style={{ marginBottom: 36 }}>
-          <h1 style={{ margin: 0, fontSize: 38, fontWeight: 900, letterSpacing: -0.5 }}>
-            Leaderboard
+          <h1 style={{
+            margin: 0, fontSize: 48, fontWeight: 500, letterSpacing: -1.2,
+            fontFamily: 'var(--font-display), Georgia, serif',
+            color: 'var(--brand-ink)',
+          }}>
+            Leader<em style={{ fontStyle: 'italic', color: 'var(--brand-accent)' }}>board</em>
           </h1>
           <p style={{ color: '#94a3b8', fontSize: 14, marginTop: 8 }}>
             Most rare-tier monuments collected. Gold, Diamond, Aurora, Celestial.

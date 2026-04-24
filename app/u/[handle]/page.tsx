@@ -158,6 +158,17 @@ export default async function ProfilePage(
   const totalMonuments = collected.length;
   // Count monuments that have at least one skin above Silver (rank 4+ = Gold or rarer)
   const rareCount = collected.filter((c) => (SKIN_RANK[c.displaySkin] ?? 0) >= 4).length;
+
+  // Avatar border: design says gold is reserved for magic moments only, not
+  // a default chrome. So instead of always-gold, pick the user's RAREST
+  // owned skin and use that as the border. Common collectors get the
+  // lavender brand accent. Gold-tier collectors get the gold halo. The
+  // glow is the user's own status reading at a glance.
+  const topRank = collected.reduce((max, c) => Math.max(max, SKIN_RANK[c.displaySkin] ?? 0), 0);
+  const topSkin = collected.find(c => (SKIN_RANK[c.displaySkin] ?? 0) === topRank)?.displaySkin;
+  const avatarAccent = (topRank >= 4 && topSkin)
+    ? (SKIN_COLOR[topSkin] ?? '#a78bfa')
+    : '#a78bfa'; // lavender — var(--brand-accent)
   const memberSince = user.createdAt.toLocaleDateString(undefined, { year: 'numeric', month: 'long' });
 
   return (
@@ -189,13 +200,17 @@ export default async function ProfilePage(
             width: 88, height: 88, borderRadius: '50%',
             background: user.image
               ? `url(${user.image}) center/cover`
-              : 'linear-gradient(135deg,#6366f1,#8b5cf6)',
-            border: '3px solid rgba(255,215,0,0.7)',
-            boxShadow: '0 0 30px rgba(255,215,0,0.2)',
+              : 'linear-gradient(135deg,#a78bfa,#7dd3fc)',
+            border: `3px solid ${avatarAccent}b3`,         // b3 = ~70% alpha
+            boxShadow: `0 0 30px ${avatarAccent}33`,       // 33 = ~20% alpha
             flexShrink: 0,
           }} />
           <div style={{ minWidth: 0 }}>
-            <h1 style={{ margin: 0, fontSize: 32, fontWeight: 900, letterSpacing: -0.3 }}>
+            <h1 style={{
+              margin: 0, fontSize: 40, fontWeight: 500, letterSpacing: -1,
+              fontFamily: 'var(--font-display), Georgia, serif',
+              color: 'var(--brand-ink)',
+            }}>
               {displayName}
             </h1>
             <div style={{ color: '#94a3b8', fontSize: 13, marginTop: 4 }}>
@@ -320,7 +335,14 @@ export default async function ProfilePage(
             border: '1px solid rgba(139,92,246,0.4)',
             borderRadius: 16, padding: '36px 20px', maxWidth: 640, margin: '0 auto',
           }}>
-            <h2 style={{ fontSize: 22, fontWeight: 900, margin: 0 }}>Start your own collection</h2>
+            <h2 style={{
+              fontSize: 28, fontWeight: 500, margin: 0,
+              fontFamily: 'var(--font-display), Georgia, serif',
+              letterSpacing: -0.6,
+              color: 'var(--brand-ink)',
+            }}>
+              Start your own collection
+            </h2>
             <p style={{ color: '#cbd5e1', fontSize: 14, marginTop: 10 }}>
               Every trip you plan unlocks a new monument. Free forever.
             </p>
