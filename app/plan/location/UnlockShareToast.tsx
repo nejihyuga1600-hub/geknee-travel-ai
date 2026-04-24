@@ -29,8 +29,12 @@ export default function UnlockShareToast() {
   const monumentName = INFO[pending.mk as keyof typeof INFO]?.name ?? pending.mk;
   const displayName = (session?.user as { name?: string | null } | undefined)?.name ?? "I";
 
+  // Append &q=<photoUrl> when MonumentShop pushed a proof photo for this
+  // unlock. The OG share route renders it as a polaroid inset on the card.
   const shareUrl = handle
-    ? `${typeof window !== "undefined" ? window.location.origin : ""}/u/${handle}?unlocked=${pending.mk}&skin=${pending.skin}&from=share`
+    ? `${typeof window !== "undefined" ? window.location.origin : ""}/u/${handle}?unlocked=${pending.mk}&skin=${pending.skin}&from=share${
+        pending.photoUrl ? `&q=${encodeURIComponent(pending.photoUrl)}` : ""
+      }`
     : "";
   const shareText = `${displayName} just collected ${monumentName} on geknee 🌍`;
 

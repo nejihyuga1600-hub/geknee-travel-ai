@@ -260,15 +260,28 @@ export function useMonumentBridge(mk?: string) {
   };
 }
 
-// ─── Pending unlock bridge (Lm → page chrome share-toast) ────────────────────
+// ─── Pending unlock bridge (Lm + MonumentShop → page chrome share-toast) ─────
 // Fires when a monument transitions from uncollected → collected so the page
 // can surface a share prompt. Keeps the toast UI out of the 3D scene.
-type PendingUnlock = { mk: string; skin: string; ts: number };
+//
+// Two firing paths:
+//   1. Lm's collection-transition useEffect (existing) — fires for any unlock
+//      that flips the bridge, with no photo context.
+//   2. MonumentShop, immediately after the API completes a photo-verified
+//      mission — fires with the persisted Blob photoUrl so the share card
+//      can show the user's actual proof shot. This wins the race and Lm's
+//      effect skips when a richer pending unlock for the same mk exists.
+type PendingUnlock = { mk: string; skin: string; photoUrl?: string; ts: number };
 let _pendingUnlock: PendingUnlock | null = null;
 const _pendingUnlockListeners = new Set<() => void>();
-export function _setPendingUnlock(u: { mk: string; skin: string } | null) {
+export function _setPendingUnlock(u: { mk: string; skin: string; photoUrl?: string } | null) {
   _pendingUnlock = u ? { ...u, ts: Date.now() } : null;
   _pendingUnlockListeners.forEach(fn => fn());
+}
+// Lm uses this to avoid clobbering a richer (photoUrl-bearing) pending unlock
+// the MonumentShop already set for the same monument.
+export function _hasPendingUnlockFor(mk: string): boolean {
+  return _pendingUnlock?.mk === mk;
 }
 export function usePendingUnlock(): PendingUnlock | null {
   const [, setTick] = useState(0);
@@ -335,9 +348,12 @@ export function Lm({ p, s = 0.4, info, mk, children }: { p: SurfPos; s?: number;
         sparkleActive: true,
       };
       // Surface the unlock to the page chrome so it can show a share prompt.
-      // Effective skin = whatever the user actually sees (active selection or
-      // the default 'stone' fallback for newly-collected monuments).
-      if (mk) _setPendingUnlock({ mk, skin: effectiveSkin ?? 'stone' });
+      // Skip when MonumentShop already pushed a richer unlock for this mk
+      // (with photoUrl) — its API-completion path wins the race and we
+      // don't want to clobber the proof photo with a no-photo replay.
+      if (mk && !_hasPendingUnlockFor(mk)) {
+        _setPendingUnlock({ mk, skin: effectiveSkin ?? 'stone' });
+      }
     }
     prevCollectedRef.current = isCollected;
   }, [isCollected, mk, effectiveSkin]);

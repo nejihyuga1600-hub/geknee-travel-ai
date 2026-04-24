@@ -1,6 +1,44 @@
 import { auth } from '@/auth';
 import { prisma } from '@/lib/prisma';
 import { isDevAccount } from '@/lib/plan';
+import { put } from '@vercel/blob';
+
+// Quest-photo upload. Mission completions arrive with photoUrl as a base64
+// data URL (small previews captured client-side). We persist them to Blob so:
+//   1. The DB row stays small (URL string instead of multi-MB base64)
+//   2. The share-card OG route can render the proof photo via a Blob URL
+//      without exploding the share URL past Twitter/Discord caps
+// Returns null on any failure — the mission still completes, just without
+// a hosted photo. The DB column keeps the original base64 in that case so
+// no proof is lost.
+async function persistQuestPhoto(
+  userId: string,
+  missionId: string,
+  base64DataUrl: string,
+): Promise<string | null> {
+  if (!process.env.BLOB_READ_WRITE_TOKEN) return null;
+  const m = base64DataUrl.match(/^data:(image\/[a-z+]+);base64,(.+)$/i);
+  if (!m) return null;
+  const [, contentType, b64] = m;
+  const ext = contentType.split('/')[1].replace('+xml', '').slice(0, 4);
+  const bytes = Buffer.from(b64, 'base64');
+  try {
+    const uploaded = await put(
+      `quests/${userId}/${missionId}_${Date.now()}.${ext}`,
+      bytes,
+      {
+        access: 'public',
+        contentType,
+        addRandomSuffix: false,
+        allowOverwrite: true,
+        token: process.env.BLOB_READ_WRITE_TOKEN,
+      },
+    );
+    return uploaded.url;
+  } catch {
+    return null;
+  }
+}
 
 // Haversine distance in km between two lat/lon points
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -129,9 +167,16 @@ export async function POST(req: Request) {
       }
     }
 
+    // Upload base64 photo to Blob → store the URL on the row instead of a
+    // multi-MB inline payload. Falls back to base64 if Blob is unavailable
+    // so the column is never empty when a photo was provided.
+    const persistedPhotoUrl = body.photoUrl?.startsWith('data:image/')
+      ? (await persistQuestPhoto(userId, body.missionId, body.photoUrl)) ?? body.photoUrl
+      : body.photoUrl;
+
     const [mission] = await Promise.all([
       prisma.completedMission.create({
-        data: { userId, monumentId: body.monumentId, missionId: body.missionId, photoUrl: body.photoUrl },
+        data: { userId, monumentId: body.monumentId, missionId: body.missionId, photoUrl: persistedPhotoUrl },
       }),
       prisma.collectedMonument.upsert({
         where: { userId_monumentId_skin: { userId, monumentId: body.monumentId, skin: body.skin } },

@@ -61,7 +61,7 @@ async function lookupUser(handle: string) {
 }
 
 type Params = Promise<{ handle: string }>;
-type SearchParams = Promise<{ unlocked?: string; skin?: string }>;
+type SearchParams = Promise<{ unlocked?: string; skin?: string; q?: string }>;
 
 export async function generateMetadata(
   { params, searchParams }: { params: Params; searchParams: SearchParams },
@@ -91,7 +91,11 @@ export async function generateMetadata(
     const monumentName = MONUMENT_NAMES[mk];
     const title = `${displayName} just collected ${monumentName} · geknee`;
     const desc = `${displayName} unlocked ${monumentName} on geknee. Visit their globe and start your own collection.`;
-    const ogUrl = `/api/og/share?mk=${encodeURIComponent(mk)}&skin=${encodeURIComponent(skin)}&u=${encodeURIComponent(displayName)}&h=${encodeURIComponent(handleForUrl)}`;
+    // Forward the proof-photo Blob URL (from the unlock toast) so the OG
+    // card includes the polaroid inset. Validated as an http(s) URL to
+    // avoid letting the share param point at javascript:/data: schemes.
+    const safeQ = sp.q && /^https?:\/\//.test(sp.q) ? sp.q : '';
+    const ogUrl = `/api/og/share?mk=${encodeURIComponent(mk)}&skin=${encodeURIComponent(skin)}&u=${encodeURIComponent(displayName)}&h=${encodeURIComponent(handleForUrl)}${safeQ ? `&q=${encodeURIComponent(safeQ)}` : ''}`;
     return {
       title,
       description: desc,

@@ -84,12 +84,16 @@ async function resolveHero(mk: string, skin: string, explicit: string | null): P
   if (perSkin) return perSkin;
   const perMonument = await tryBlob(`${BLOB_BASE}/share/${prefix}_hero.png`);
   if (perMonument) return perMonument;
-  // Wikipedia thumbnail — generic but always available.
+  // Wikipedia thumbnail — generic but always available. Wikipedia API
+  // requires a descriptive User-Agent per their etiquette; default Edge
+  // runtime UAs sometimes get rate-limited or 403'd.
   const title = MONUMENT_NAMES[mk] ?? mk;
   const t = encodeURIComponent(title.replace(/ /g, '_'));
   const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${t}&redirects&prop=pageimages&pithumbsize=1200&format=json&origin=*`;
   try {
-    const r = await fetch(url);
+    const r = await fetch(url, {
+      headers: { 'User-Agent': 'geknee-og-share/1.0 (https://www.geknee.com)' },
+    });
     if (!r.ok) return null;
     const d = await r.json();
     const page: { thumbnail?: { source?: string } } = Object.values(d.query.pages)[0] as { thumbnail?: { source?: string } };
@@ -104,6 +108,9 @@ export async function GET(req: Request) {
   const username = (url.searchParams.get('u')    ?? 'someone').slice(0, 32);
   const handle   = (url.searchParams.get('h')    ?? '').slice(0, 32);
   const heroParam = url.searchParams.get('hero');
+  // Quest proof photo (Blob URL written by /api/monuments mission completion).
+  // Optional — when present, rendered as a polaroid inset on the card.
+  const questPhoto = url.searchParams.get('q');
 
   const monumentName = MONUMENT_NAMES[mk] ?? mk;
   const skinColor    = SKIN_COLOR[skin]   ?? '#ffd700';
@@ -128,9 +135,15 @@ export async function GET(req: Request) {
         }}
       >
         {/* Hero image — Nano Banana PNG / Wikipedia thumb. Sits behind text
-            with a dark gradient overlay so the typography stays legible. */}
+            with a dark gradient overlay so the typography stays legible.
+            Wrapped in a div (not a fragment) because Satori requires every
+            child of a flex parent to be its own measurable element. */}
         {heroUrl && (
-          <>
+          <div style={{
+            position: 'absolute', top: 0, left: 0,
+            width: '100%', height: '100%',
+            display: 'flex',
+          }}>
             <img
               src={heroUrl}
               alt=""
@@ -148,7 +161,7 @@ export async function GET(req: Request) {
               background: 'linear-gradient(180deg, rgba(6,8,22,0.55) 0%, rgba(6,8,22,0.85) 60%, rgba(3,5,16,0.97) 100%)',
               display: 'flex',
             }} />
-          </>
+          </div>
         )}
         {/* Decorative ring — same visual as the globe ring */}
         <div
@@ -213,6 +226,46 @@ export async function GET(req: Request) {
         >
           {monumentName}
         </div>
+
+        {/* Quest proof photo — small polaroid inset, top-right above the
+            CTA. Only renders when ?q= was passed by the share toast. */}
+        {questPhoto && (
+          <div style={{
+            position: 'absolute',
+            right: 80,
+            top: 90,
+            width: 220,
+            height: 260,
+            background: '#fff',
+            padding: '14px 14px 38px 14px',
+            borderRadius: 6,
+            transform: 'rotate(4deg)',
+            boxShadow: '0 18px 40px rgba(0,0,0,0.55), 0 4px 8px rgba(0,0,0,0.3)',
+            display: 'flex',
+            flexDirection: 'column',
+          }}>
+            <img
+              src={questPhoto}
+              alt=""
+              width={192}
+              height={192}
+              style={{ width: '100%', height: '192px', objectFit: 'cover' }}
+            />
+            <div style={{
+              fontSize: 12,
+              color: '#1a1a2e',
+              textAlign: 'center',
+              marginTop: 8,
+              fontFamily: 'system-ui, -apple-system, sans-serif',
+              fontWeight: 600,
+              letterSpacing: 0.4,
+              display: 'flex',
+              justifyContent: 'center',
+            }}>
+              proof of presence
+            </div>
+          </div>
+        )}
 
         {/* Bottom — visit-globe CTA when we have a handle, else wordmark. */}
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>

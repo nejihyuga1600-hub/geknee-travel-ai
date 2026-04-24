@@ -2,6 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { track } from '@/lib/analytics';
+import { _setPendingUnlock } from '@/app/plan/location/globe/landmark';
 
 const DEV_EMAILS = new Set(['nghiaphan081301@gmail.com']);
 
@@ -684,6 +685,15 @@ export default function MonumentShop({ open, onClose }: Props) {
       if (res.ok) {
         setMsg(`${ms.skin.name} skin unlocked!`);
         setLastUnlock({ mk: item.id, name: item.name, skin: ms.skin.id });
+        // Push the unlock to the global share-toast bridge with the proof
+        // photo URL the API just persisted to Blob (data.mission.photoUrl).
+        // The toast wins the race against Lm's later bridge-flip detection
+        // because _hasPendingUnlockFor(mk) makes Lm bail.
+        _setPendingUnlock({
+          mk: item.id,
+          skin: ms.skin.id,
+          photoUrl: data?.mission?.photoUrl ?? undefined,
+        });
         setPendingMission(null);
         setPhotoPreview(null);
         await load();
