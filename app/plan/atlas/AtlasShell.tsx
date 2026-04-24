@@ -17,16 +17,38 @@ import {
 } from "./destinations";
 
 type SheetState = "peek" | "open" | "full";
+type TripStyle = "luxury" | "adventure" | "slow" | "mix";
 type Trip = {
   destination: string;
   lat: number | null;
   lon: number | null;
   mk: string | null;        // monument key when matched, null for free text
+  startDate: string;        // YYYY-MM-DD
+  nights: number;           // 1-30
+  style: TripStyle | null;
 };
 
 const STEPS = ["Destination", "Dates", "Style", "Review"] as const;
 
-const EMPTY_TRIP: Trip = { destination: "", lat: null, lon: null, mk: null };
+const EMPTY_TRIP: Trip = {
+  destination: "",
+  lat: null, lon: null, mk: null,
+  startDate: "", nights: 7, style: null,
+};
+
+const STYLE_OPTIONS: { id: TripStyle; label: string; tag: string }[] = [
+  { id: "luxury",    label: "Luxury",    tag: "Hotels, fine meals, paced." },
+  { id: "adventure", label: "Adventure", tag: "Hike, climb, sleep rough." },
+  { id: "slow",      label: "Slow",      tag: "One city, deep time." },
+  { id: "mix",       label: "Mix",       tag: "A bit of everything." },
+];
+
+function addDays(yyyymmdd: string, n: number): string {
+  if (!yyyymmdd) return "";
+  const d = new Date(yyyymmdd + "T00:00:00");
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
 
 export default function AtlasShell() {
   const [sheet, setSheet] = useState<SheetState>("peek");
@@ -47,17 +69,17 @@ export default function AtlasShell() {
     if (!value) return;
     const match = resolveDestination(value);
     if (match) {
-      setTrip({ destination: match.name, lat: match.lat, lon: match.lon, mk: match.mk });
+      setTrip({ ...trip, destination: match.name, lat: match.lat, lon: match.lon, mk: match.mk });
       setDest(match.name);
     } else {
-      setTrip({ destination: value, lat: null, lon: null, mk: null });
+      setTrip({ ...trip, destination: value, lat: null, lon: null, mk: null });
     }
     setSheet("open");
     setStep(1);
   };
 
   const pickSuggestion = (s: Suggestion) => {
-    setTrip({ destination: s.name, lat: s.lat, lon: s.lon, mk: s.mk });
+    setTrip({ ...trip, destination: s.name, lat: s.lat, lon: s.lon, mk: s.mk });
     setDest(s.name);
     setSheet("open");
     setStep(1);
@@ -315,9 +337,28 @@ export default function AtlasShell() {
                 onNext={() => setStep(1)}
               />
             )}
-            {step === 1 && <StepPlaceholder title="Dates" line="When's the trip?" />}
-            {step === 2 && <StepPlaceholder title="Style" line="Luxury, adventure, slow, or something in between." />}
-            {step === 3 && <StepPlaceholder title="Review" line="Last look before we save the plan." />}
+            {step === 1 && (
+              <StepDates
+                trip={trip}
+                setTrip={setTrip}
+                onBack={() => setStep(0)}
+                onNext={() => setStep(2)}
+              />
+            )}
+            {step === 2 && (
+              <StepStyle
+                trip={trip}
+                setTrip={setTrip}
+                onBack={() => setStep(1)}
+                onNext={() => setStep(3)}
+              />
+            )}
+            {step === 3 && (
+              <StepReview
+                trip={trip}
+                onBack={() => setStep(2)}
+              />
+            )}
           </div>
         )}
       </section>
@@ -686,4 +727,408 @@ function StepDestination({
       </div>
     </div>
   );
+}
+
+// ─── Steps 1-3 (minimum viable Atlas v0) ────────────────────────────────────
+// Lean implementations so the whole flow works end-to-end. Heavier date
+// pickers / style sliders / itinerary preview can land in v1 if Atlas
+// wins the A/B against the existing /plan/* routes.
+
+function StepHeader({ title, hint }: { title: string; hint?: string }) {
+  return (
+    <>
+      <h2
+        style={{
+          margin: 0,
+          fontFamily: "var(--font-display), Georgia, serif",
+          fontSize: 28,
+          fontWeight: 500,
+          letterSpacing: "-0.01em",
+          color: "var(--brand-ink)",
+        }}
+      >
+        {title}
+      </h2>
+      {hint && (
+        <p style={{ marginTop: 8, color: "var(--brand-ink-dim)", fontSize: 13, lineHeight: 1.5 }}>
+          {hint}
+        </p>
+      )}
+    </>
+  );
+}
+
+function StepNav({
+  onBack,
+  onNext,
+  nextLabel = "Next",
+  nextDisabled,
+  busy,
+  rightSlot,
+}: {
+  onBack: () => void;
+  onNext?: () => void;
+  nextLabel?: string;
+  nextDisabled?: boolean;
+  busy?: boolean;
+  rightSlot?: React.ReactNode;
+}) {
+  return (
+    <div
+      style={{
+        marginTop: 28,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: 12,
+      }}
+    >
+      <button
+        onClick={onBack}
+        style={{
+          padding: "8px 14px",
+          borderRadius: 10,
+          border: "1px solid var(--brand-border)",
+          background: "transparent",
+          color: "var(--brand-ink-dim)",
+          fontFamily: "var(--font-ui), system-ui, sans-serif",
+          fontSize: 13,
+          fontWeight: 500,
+          cursor: "pointer",
+        }}
+      >
+        {String.fromCodePoint(0x2190)} Back
+      </button>
+      <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+        {rightSlot}
+        {onNext && (
+          <button
+            onClick={onNext}
+            disabled={nextDisabled || busy}
+            style={{
+              padding: "10px 18px",
+              borderRadius: 10,
+              border: "none",
+              background: nextDisabled
+                ? "rgba(255,255,255,0.04)"
+                : "linear-gradient(135deg, var(--brand-accent), var(--brand-accent-2))",
+              color: nextDisabled ? "var(--brand-ink-mute)" : "#0a0a1f",
+              fontFamily: "var(--font-ui), system-ui, sans-serif",
+              fontSize: 13,
+              fontWeight: 700,
+              letterSpacing: "0.02em",
+              cursor: nextDisabled || busy ? "not-allowed" : "pointer",
+              opacity: busy ? 0.6 : 1,
+            }}
+          >
+            {busy ? "Saving…" : `${nextLabel} ${String.fromCodePoint(0x2192)}`}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function StepDates({
+  trip, setTrip, onBack, onNext,
+}: {
+  trip: Trip;
+  setTrip: (t: Trip) => void;
+  onBack: () => void;
+  onNext: () => void;
+}) {
+  const today = new Date().toISOString().slice(0, 10);
+  const endDate = trip.startDate ? addDays(trip.startDate, trip.nights) : "";
+  const valid = !!trip.startDate && trip.nights >= 1 && trip.nights <= 90;
+
+  return (
+    <div>
+      <StepHeader title="When's the trip?" hint="Start date and nights — that's all we need to scaffold the plan." />
+
+      <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "1fr 140px", gap: 12 }}>
+        <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <span style={{ fontSize: 11, color: "var(--brand-ink-mute)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            Start date
+          </span>
+          <input
+            type="date"
+            min={today}
+            value={trip.startDate}
+            onChange={(e) => setTrip({ ...trip, startDate: e.target.value })}
+            style={{
+              padding: "12px 14px",
+              borderRadius: 10,
+              border: "1px solid var(--brand-border)",
+              background: "rgba(255,255,255,0.04)",
+              color: "var(--brand-ink)",
+              fontSize: 14,
+              fontFamily: "var(--font-ui), system-ui, sans-serif",
+              outline: "none",
+              colorScheme: "dark",
+            }}
+          />
+        </label>
+        <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <span style={{ fontSize: 11, color: "var(--brand-ink-mute)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
+            Nights
+          </span>
+          <input
+            type="number"
+            min={1} max={90}
+            value={trip.nights}
+            onChange={(e) => {
+              const n = parseInt(e.target.value, 10);
+              if (Number.isFinite(n)) setTrip({ ...trip, nights: Math.min(90, Math.max(1, n)) });
+            }}
+            style={{
+              padding: "12px 14px",
+              borderRadius: 10,
+              border: "1px solid var(--brand-border)",
+              background: "rgba(255,255,255,0.04)",
+              color: "var(--brand-ink)",
+              fontSize: 14,
+              fontFamily: "var(--font-ui), system-ui, sans-serif",
+              outline: "none",
+            }}
+          />
+        </label>
+      </div>
+
+      {endDate && (
+        <div
+          style={{
+            marginTop: 14,
+            padding: "10px 14px",
+            background: "rgba(167, 139, 250, 0.08)",
+            border: "1px solid var(--brand-border-hi)",
+            borderRadius: 10,
+            color: "var(--brand-ink-dim)",
+            fontSize: 12,
+            fontFamily: "var(--font-ui), system-ui, sans-serif",
+          }}
+        >
+          Returns <strong style={{ color: "var(--brand-ink)" }}>{endDate}</strong>
+          {" · "}
+          {trip.nights} night{trip.nights === 1 ? "" : "s"}
+          {trip.destination && (
+            <>
+              {" "}in <strong style={{ color: "var(--brand-ink)" }}>{trip.destination}</strong>
+            </>
+          )}
+        </div>
+      )}
+
+      <StepNav onBack={onBack} onNext={onNext} nextDisabled={!valid} />
+    </div>
+  );
+}
+
+function StepStyle({
+  trip, setTrip, onBack, onNext,
+}: {
+  trip: Trip;
+  setTrip: (t: Trip) => void;
+  onBack: () => void;
+  onNext: () => void;
+}) {
+  return (
+    <div>
+      <StepHeader title="What's the vibe?" hint="Pick one — it shapes the kind of itinerary we'll draft." />
+
+      <div
+        style={{
+          marginTop: 16,
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gap: 10,
+        }}
+      >
+        {STYLE_OPTIONS.map((s) => {
+          const active = trip.style === s.id;
+          return (
+            <button
+              key={s.id}
+              onClick={() => setTrip({ ...trip, style: s.id })}
+              style={{
+                padding: "16px 16px",
+                borderRadius: 12,
+                border: `1px solid ${active ? "var(--brand-border-hi)" : "var(--brand-border)"}`,
+                background: active ? "rgba(167, 139, 250, 0.12)" : "rgba(255,255,255,0.03)",
+                color: "var(--brand-ink)",
+                fontFamily: "var(--font-ui), system-ui, sans-serif",
+                textAlign: "left",
+                cursor: "pointer",
+              }}
+            >
+              <div
+                style={{
+                  fontFamily: "var(--font-display), Georgia, serif",
+                  fontSize: 22,
+                  fontWeight: 500,
+                  color: active ? "var(--brand-accent)" : "var(--brand-ink)",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                {s.label}
+              </div>
+              <div style={{ fontSize: 12, color: "var(--brand-ink-dim)", marginTop: 4 }}>
+                {s.tag}
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <StepNav onBack={onBack} onNext={onNext} nextDisabled={!trip.style} />
+    </div>
+  );
+}
+
+function StepReview({ trip, onBack }: { trip: Trip; onBack: () => void }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [savedTripId, setSavedTripId] = useState<string | null>(null);
+  const endDate = trip.startDate ? addDays(trip.startDate, trip.nights) : "";
+
+  const save = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/trips", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: `Trip to ${trip.destination}`,
+          location: trip.destination,
+          startDate: trip.startDate || null,
+          endDate: endDate || null,
+          nights: trip.nights,
+          style: trip.style ?? null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data?.error ?? "Couldn't save the trip — try again.");
+      } else {
+        setSavedTripId(data?.trip?.id ?? data?.id ?? "");
+      }
+    } catch {
+      setError("Network error — try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div>
+      <StepHeader title="Review" hint="Last look before we save the plan." />
+
+      <dl
+        style={{
+          marginTop: 18,
+          display: "grid",
+          gridTemplateColumns: "120px 1fr",
+          rowGap: 10,
+          columnGap: 14,
+          fontFamily: "var(--font-ui), system-ui, sans-serif",
+          fontSize: 14,
+        }}
+      >
+        <DT>Destination</DT><DD>{trip.destination || "—"}</DD>
+        <DT>Dates</DT>
+        <DD>
+          {trip.startDate
+            ? `${trip.startDate} → ${endDate} (${trip.nights} night${trip.nights === 1 ? "" : "s"})`
+            : "—"}
+        </DD>
+        <DT>Style</DT><DD>{trip.style ? capitalize(trip.style) : "—"}</DD>
+        {trip.mk && <><DT>Pin</DT><DD>{trip.mk}</DD></>}
+      </dl>
+
+      {error && (
+        <div
+          style={{
+            marginTop: 14,
+            padding: "10px 14px",
+            background: "rgba(248, 113, 113, 0.08)",
+            border: "1px solid rgba(248, 113, 113, 0.35)",
+            borderRadius: 10,
+            color: "var(--brand-danger)",
+            fontSize: 12,
+            fontFamily: "var(--font-ui), system-ui, sans-serif",
+          }}
+        >
+          {error}
+          {error.toLowerCase().includes("unauth") && (
+            <>
+              {" "}
+              <Link href="/api/auth/signin" style={{ color: "var(--brand-accent-2)", textDecoration: "underline" }}>
+                Sign in
+              </Link>{" "}
+              to save trips.
+            </>
+          )}
+        </div>
+      )}
+
+      {savedTripId && (
+        <div
+          style={{
+            marginTop: 14,
+            padding: "12px 14px",
+            background: "rgba(167, 139, 250, 0.10)",
+            border: "1px solid var(--brand-border-hi)",
+            borderRadius: 10,
+            color: "var(--brand-ink)",
+            fontSize: 13,
+            fontFamily: "var(--font-ui), system-ui, sans-serif",
+          }}
+        >
+          {String.fromCodePoint(0x2728)} Saved.{" "}
+          <Link
+            href={`/plan/summary?tripId=${encodeURIComponent(savedTripId)}`}
+            style={{ color: "var(--brand-accent-2)", textDecoration: "underline" }}
+          >
+            Open in summary →
+          </Link>
+        </div>
+      )}
+
+      {savedTripId ? (
+        <StepNav onBack={onBack} />
+      ) : (
+        <StepNav
+          onBack={onBack}
+          onNext={save}
+          nextLabel="Save plan"
+          busy={busy}
+          nextDisabled={!trip.destination || !trip.startDate || !trip.style}
+        />
+      )}
+    </div>
+  );
+}
+
+function DT({ children }: { children: React.ReactNode }) {
+  return (
+    <dt
+      style={{
+        color: "var(--brand-ink-mute)",
+        fontSize: 11,
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
+        alignSelf: "center",
+      }}
+    >
+      {children}
+    </dt>
+  );
+}
+function DD({ children }: { children: React.ReactNode }) {
+  return (
+    <dd style={{ margin: 0, color: "var(--brand-ink)", fontSize: 14 }}>{children}</dd>
+  );
+}
+function capitalize(s: string) {
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
