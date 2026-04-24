@@ -1,0 +1,65 @@
+"use client";
+// Read-only spectator globe for public profile pages. Composes the split
+// globe modules (AllLandmarks + Lm + skins bridge) but strips everything
+// that belongs to the planner: no Mapbox swap, no animals, no city labels,
+// no trip flow, no unlock celebration triggering. Visitors can pan/zoom
+// to inspect what the owner has collected, period.
+
+import { Canvas } from "@react-three/fiber";
+import { OrbitControls, Stars, Sphere } from "@react-three/drei";
+import { useEffect } from "react";
+import {
+  _setCollectedMonuments,
+  _setActiveSkins,
+} from "@/app/plan/location/globe/landmark";
+import AllLandmarks from "@/app/plan/location/globe/AllLandmarks";
+
+type CollectedEntry = { mk: string; displaySkin: string };
+
+export default function PublicGlobe({ collected }: { collected: CollectedEntry[] }) {
+  // Push the owner's collection into the bridge so every <Lm /> in
+  // AllLandmarks renders the right skin GLB (when available) or the
+  // primitive fallback. The bridge is module-singleton; that's fine on a
+  // public profile page since only one user's globe is loaded at a time.
+  useEffect(() => {
+    const ids = new Set(collected.map((c) => c.mk));
+    const skins = new Map(collected.map((c) => [c.mk, c.displaySkin]));
+    _setCollectedMonuments(ids);
+    _setActiveSkins(skins);
+  }, [collected]);
+
+  return (
+    <Canvas
+      style={{ width: "100%", height: "100%", touchAction: "none", borderRadius: "inherit" }}
+      camera={{ position: [0, 0, 28], fov: 50 }}
+      dpr={[1, 2]}
+      gl={{ antialias: true, powerPreference: "high-performance" }}
+    >
+      <ambientLight intensity={0.55} />
+      <directionalLight position={[10, 8, 12]} intensity={0.9} />
+      <Stars radius={140} depth={60} count={4000} factor={4} saturation={0} fade speed={0.3} />
+
+      {/* Cartoon-globe planet — no Mapbox/terrain, this is a spectator view. */}
+      <Sphere args={[10, 96, 96]}>
+        <meshStandardMaterial color="#3a7bd5" roughness={0.7} metalness={0.05} />
+      </Sphere>
+
+      <AllLandmarks />
+
+      <OrbitControls
+        makeDefault
+        enableZoom
+        enablePan={false}
+        enableRotate
+        minDistance={13}
+        maxDistance={45}
+        zoomSpeed={0.9}
+        rotateSpeed={0.6}
+        enableDamping
+        dampingFactor={0.12}
+        autoRotate
+        autoRotateSpeed={0.45}
+      />
+    </Canvas>
+  );
+}

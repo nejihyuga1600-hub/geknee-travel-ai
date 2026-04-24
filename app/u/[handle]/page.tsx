@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { prisma } from '@/lib/prisma';
+import PublicGlobeClient from './PublicGlobeClient';
 
 // Monument display metadata — mirrors LocationClient's INFO. Kept inline so
 // this route doesn't drag the 7k-line client bundle into its build graph.
@@ -172,6 +173,34 @@ export default async function ProfilePage({ params }: { params: Params }) {
             </div>
           </div>
         </header>
+
+        {/* Globe hero — visit-my-base spectator view. Empty collections still
+            get a globe so visitors see the product, just with no monuments. */}
+        <section style={{
+          position: 'relative',
+          width: '100%',
+          aspectRatio: '16 / 10',
+          maxHeight: 560,
+          marginBottom: 40,
+          borderRadius: 20,
+          overflow: 'hidden',
+          background: 'radial-gradient(ellipse at 30% 20%, rgba(99,102,241,0.15) 0%, rgba(6,8,22,0.9) 70%)',
+          border: '1px solid rgba(148,163,184,0.18)',
+          boxShadow: '0 24px 80px rgba(0,0,0,0.45)',
+        }}>
+          <PublicGlobeClient collected={collected.map(c => ({ mk: c.mk, displaySkin: c.displaySkin }))} />
+          {collected.length === 0 && (
+            <div style={{
+              position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
+              justifyContent: 'center', pointerEvents: 'none',
+              background: 'linear-gradient(180deg, transparent 60%, rgba(6,8,22,0.6))',
+            }}>
+              <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: 13, padding: 20 }}>
+                {displayName} hasn{String.fromCodePoint(0x2019)}t collected any monuments yet
+              </div>
+            </div>
+          )}
+        </section>
 
         {/* Collection grid */}
         {collected.length === 0 ? (
