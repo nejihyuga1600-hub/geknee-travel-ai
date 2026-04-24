@@ -1,85 +1,72 @@
 #!/usr/bin/env node
 // bin/meshy-new-skin.mjs
-// Generates a new monument skin via Meshy text-to-3D, uploads the refined
-// GLB to Vercel Blob under the preview/ prefix, and prints the dev preview URL.
+// Generates a new monument skin via Meshy and uploads the refined GLB to
+// Vercel Blob under the preview/ prefix. Never touches AVAILABLE_SKINS and
+// never visible to regular users — that happens in bin/meshy-promote.mjs.
 //
-// It does NOT touch AVAILABLE_SKINS in LocationClient and does NOT make the
-// skin visible to regular users. Run bin/meshy-promote.mjs after reviewing.
+// Three modes:
+//   image      — Meshy image-to-3D from a reference image. Use for the FIRST
+//                skin of a monument so geometry is anchored to reality.
+//   retexture  — Meshy retexture on an existing base GLB. Use for every
+//                subsequent skin so silhouette stays consistent across tiers.
+//   text       — Meshy text-to-3D (preview → refine). Fallback when no base
+//                GLB and no reference image.
 //
 // Usage:
-//   node bin/meshy-new-skin.mjs --mk eiffelTower --style obsidian --prompt "..."
+//   node bin/meshy-new-skin.mjs --mk eiffelTower --style stone   --mode image     --image https://.../ref.jpg
+//   node bin/meshy-new-skin.mjs --mk eiffelTower --style gold    --mode retexture --base-url https://.../eiffel_tower_stone.glb
+//   node bin/meshy-new-skin.mjs --mk eiffelTower --style obsidian                                        # auto-detects best mode
 //
 // Env:
 //   MESHY_API_KEY            (required)
-//   BLOB_READ_WRITE_TOKEN    (required — from Vercel)
-//   BLOB_BASE                (optional, defaults to the Vercel Blob store base)
+//   BLOB_READ_WRITE_TOKEN    (required)
 
-import { put } from '@vercel/blob';
-import { readFileSync, writeFileSync, mkdirSync } from 'fs';
-import path from 'path';
+import { put, head } from '@vercel/blob';
+import { writeFileSync, mkdirSync } from 'fs';
 import process from 'process';
 
 // ─── config ────────────────────────────────────────────────────────────────────
 
-const MESHY_API = 'https://api.meshy.ai/openapi/v2/text-to-3d';
-const POLL_MS   = 10_000;
-const MAX_POLLS = 120; // ≤20 minutes total
+const MESHY_BASE     = 'https://api.meshy.ai/openapi';
+const TEXT_TO_3D     = `${MESHY_BASE}/v2/text-to-3d`;
+const IMAGE_TO_3D    = `${MESHY_BASE}/v2/image-to-3d`;
+const RETEXTURE      = `${MESHY_BASE}/v1/text-to-texture`;
+const POLL_MS        = 10_000;
+const MAX_POLLS      = 120; // ≤20 minutes total
+const BLOB_BASE_PUB  = 'https://mrfgpxw07gmgmriv.public.blob.vercel-storage.com';
 
-// Maps monument key → filename prefix (same as MONUMENT_FILE_PREFIX in the client)
+// Maps monument key → filename prefix (same as MONUMENT_FILE_PREFIX in client)
 const PREFIX = {
-  eiffelTower:    'eiffel_tower',
-  colosseum:      'Colosseum',
-  tajMahal:       'taj_mahal',
-  greatWall:      'great_wall',
-  statueLiberty:  'statue_liberty',
-  sagradaFamilia: 'sagrada_familia',
-  machuPicchu:    'machu_picchu',
-  christRedeem:   'christ_redeemer',
-  angkorWat:      'angkor_wat',
-  pyramidGiza:    'pyramid_giza',
-  goldenGate:     'golden_gate',
-  bigBen:         'big_ben',
-  acropolis:      'acropolis',
-  sydneyOpera:    'sydney_opera',
-  neuschwanstein: 'neuschwanstein',
-  stonehenge:     'stonehenge',
-  iguazuFalls:    'iguazu_falls',
-  tokyoSkytree:   'tokyo_skytree',
-  victoriaFalls:  'victoria_falls',
+  eiffelTower: 'eiffel_tower', colosseum: 'Colosseum', tajMahal: 'taj_mahal',
+  greatWall: 'great_wall', statueLiberty: 'statue_liberty', sagradaFamilia: 'sagrada_familia',
+  machuPicchu: 'machu_picchu', christRedeem: 'christ_redeemer', angkorWat: 'angkor_wat',
+  pyramidGiza: 'pyramid_giza', goldenGate: 'golden_gate', bigBen: 'big_ben',
+  acropolis: 'acropolis', sydneyOpera: 'sydney_opera', neuschwanstein: 'neuschwanstein',
+  stonehenge: 'stonehenge', iguazuFalls: 'iguazu_falls', tokyoSkytree: 'tokyo_skytree',
+  victoriaFalls: 'victoria_falls',
 };
 
-// Lowercased display names for prompt templating
 const DISPLAY = {
-  eiffelTower:    'Eiffel Tower',
-  colosseum:      'Colosseum',
-  tajMahal:       'Taj Mahal',
-  greatWall:      'Great Wall of China',
-  statueLiberty:  'Statue of Liberty',
-  sagradaFamilia: 'Sagrada Família',
-  machuPicchu:    'Machu Picchu',
-  christRedeem:   'Christ the Redeemer',
-  angkorWat:      'Angkor Wat',
-  pyramidGiza:    'Pyramids of Giza',
-  goldenGate:     'Golden Gate Bridge',
-  bigBen:         'Big Ben',
-  acropolis:      'Acropolis Parthenon',
-  sydneyOpera:    'Sydney Opera House',
-  neuschwanstein: 'Neuschwanstein Castle',
-  stonehenge:     'Stonehenge',
-  iguazuFalls:    'Iguazu Falls',
-  tokyoSkytree:   'Tokyo Skytree',
-  victoriaFalls:  'Victoria Falls',
+  eiffelTower: 'Eiffel Tower', colosseum: 'Colosseum', tajMahal: 'Taj Mahal',
+  greatWall: 'Great Wall of China', statueLiberty: 'Statue of Liberty',
+  sagradaFamilia: 'Sagrada Família', machuPicchu: 'Machu Picchu',
+  christRedeem: 'Christ the Redeemer', angkorWat: 'Angkor Wat',
+  pyramidGiza: 'Pyramids of Giza', goldenGate: 'Golden Gate Bridge',
+  bigBen: 'Big Ben', acropolis: 'Acropolis Parthenon',
+  sydneyOpera: 'Sydney Opera House', neuschwanstein: 'Neuschwanstein Castle',
+  stonehenge: 'Stonehenge', iguazuFalls: 'Iguazu Falls',
+  tokyoSkytree: 'Tokyo Skytree', victoriaFalls: 'Victoria Falls',
 };
 
-// Default material / aesthetic per skin rarity
+// Default material/aesthetic per skin rarity (used by all three modes)
 const SKIN_PROMPT = {
-  stone:     'carved from weathered grey granite, detailed chisel marks',
-  bronze:    'cast in aged bronze with green patina accents, metallic sheen',
+  stone:     'weathered grey granite with detailed chisel marks',
+  bronze:    'aged bronze with green patina accents and metallic sheen',
   silver:    'polished silver with reflective chrome highlights',
-  gold:      'solid gold with glowing lustrous surface and intricate engraving',
-  diamond:   'made of clear diamond with prismatic refraction, crystalline facets',
+  gold:      'lustrous solid gold with intricate engraving',
+  diamond:   'clear diamond with prismatic refraction and crystalline facets',
   aurora:    'iridescent aurora-green holographic surface with northern-lights glow',
-  celestial: 'cosmic purple nebula material with star particles, deep space aesthetic',
+  celestial: 'cosmic purple nebula material with star particles',
   obsidian:  'polished black obsidian with subtle red volcanic veins',
 };
 
@@ -99,19 +86,25 @@ function parseArgs() {
   return out;
 }
 
-const args  = parseArgs();
-const mk    = args.mk;
-const style = args.style;
-const promptOverride = args.prompt;
+const args        = parseArgs();
+const mk          = args.mk;
+const style       = args.style;
+const userMode    = args.mode;                                  // 'image' | 'retexture' | 'text'
+const imageArg    = args.image     || args['image-url'];        // for image mode
+const baseUrlArg  = args['base-url'] || args.baseUrl;           // for retexture mode
+const promptOver  = args.prompt;
 
 if (!mk || !style) {
-  console.error('Usage: node bin/meshy-new-skin.mjs --mk <monument> --style <skin> [--prompt "..."]');
-  console.error('monuments:', Object.keys(PREFIX).join(', '));
+  console.error('Usage: node bin/meshy-new-skin.mjs --mk <monument> --style <skin> [--mode image|retexture|text] [...]');
+  console.error('  image     : --image <url>         reference image, first-of-kind geometry');
+  console.error('  retexture : --base-url <glb-url>  re-skin an existing GLB (same geometry)');
+  console.error('  text      :                       pure text-to-3D fallback');
+  console.error('\nmonuments:', Object.keys(PREFIX).join(', '));
   console.error('skins:    ', Object.keys(SKIN_PROMPT).join(', '));
   process.exit(1);
 }
 if (!PREFIX[mk]) { console.error(`Unknown monument: ${mk}`); process.exit(1); }
-if (!SKIN_PROMPT[style] && !promptOverride) {
+if (!SKIN_PROMPT[style] && !promptOver) {
   console.error(`Unknown skin: ${style} — pass --prompt to override`);
   process.exit(1);
 }
@@ -123,8 +116,8 @@ if (!BLOB_TOKEN)    { console.error('BLOB_READ_WRITE_TOKEN missing'); process.ex
 
 // ─── Meshy client ──────────────────────────────────────────────────────────────
 
-async function meshy(pathName, method = 'GET', body) {
-  const res = await fetch(MESHY_API + pathName, {
+async function meshyFetch(url, method = 'GET', body) {
+  const res = await fetch(url, {
     method,
     headers: {
       'Authorization': `Bearer ${MESHY_API_KEY}`,
@@ -134,14 +127,14 @@ async function meshy(pathName, method = 'GET', body) {
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Meshy ${method} ${pathName} → ${res.status}: ${text}`);
+    throw new Error(`Meshy ${method} ${url} → ${res.status}: ${text}`);
   }
   return res.json();
 }
 
-async function waitForTask(id, label) {
+async function waitForTask(endpoint, id, label) {
   for (let i = 0; i < MAX_POLLS; i++) {
-    const task = await meshy(`/${id}`);
+    const task = await meshyFetch(`${endpoint}/${id}`);
     const { status, progress } = task;
     process.stdout.write(`\r[${label}] ${status} ${progress ?? 0}%          `);
     if (status === 'SUCCEEDED') { process.stdout.write('\n'); return task; }
@@ -154,47 +147,111 @@ async function waitForTask(id, label) {
   throw new Error(`Meshy task ${id} did not complete within ${MAX_POLLS * POLL_MS / 1000}s`);
 }
 
-// ─── main ──────────────────────────────────────────────────────────────────────
+// ─── mode helpers ──────────────────────────────────────────────────────────────
 
-const monumentName = DISPLAY[mk];
-const materialPhrase = promptOverride || `${monumentName}, ${SKIN_PROMPT[style]}, photorealistic, high detail, single centered object on transparent background`;
-const prefix = PREFIX[mk];
-const blobKey = `models/preview/${prefix}_${style}.glb`;
+const prefix      = PREFIX[mk];
+const monName     = DISPLAY[mk];
+const material    = promptOver || `${SKIN_PROMPT[style]}`;
+const livePath    = `models/${prefix}_${style}.glb`;
+const previewKey  = `models/preview/${prefix}_${style}.glb`;
+
+// Auto-detect mode: if a base-GLB exists on blob for this monument, prefer retexture.
+// Otherwise if --image was provided use image-to-3D, else text.
+async function detectMode() {
+  if (userMode) return userMode;
+  if (baseUrlArg) return 'retexture';
+  if (imageArg)   return 'image';
+  // Probe blob: does any existing skin GLB for this monument exist?
+  const candidates = Object.keys(SKIN_PROMPT).map(s => `${BLOB_BASE_PUB}/models/${prefix}_${s}.glb`);
+  for (const u of candidates) {
+    try { const r = await fetch(u, { method: 'HEAD' }); if (r.ok) return 'retexture-auto'; } catch {}
+  }
+  return 'text';
+}
+
+const mode = await detectMode();
+
+// For retexture-auto, fill in base-url with the first existing skin we find
+let baseUrl = baseUrlArg;
+if (mode === 'retexture-auto' && !baseUrl) {
+  for (const s of Object.keys(SKIN_PROMPT)) {
+    const u = `${BLOB_BASE_PUB}/models/${prefix}_${s}.glb`;
+    try { const r = await fetch(u, { method: 'HEAD' }); if (r.ok) { baseUrl = u; break; } } catch {}
+  }
+}
 
 console.log(`\n→ Generating ${mk}/${style}`);
-console.log(`  Prompt: ${materialPhrase}\n`);
+console.log(`  Mode:      ${mode === 'retexture-auto' ? 'retexture (auto-detected base)' : mode}`);
+if (mode === 'retexture' || mode === 'retexture-auto') console.log(`  Base GLB:  ${baseUrl}`);
+if (mode === 'image')    console.log(`  Reference: ${imageArg}`);
+console.log(`  Material:  ${material}\n`);
 
-// 1) Preview task
-console.log('1/3 · Meshy preview task…');
-const previewCreate = await meshy('', 'POST', {
-  mode: 'preview',
-  prompt: materialPhrase,
-  art_style: 'realistic',
-  should_remesh: true,
-});
-const previewTaskId = previewCreate.result;
-await waitForTask(previewTaskId, 'preview');
+// ─── dispatch ──────────────────────────────────────────────────────────────────
 
-// 2) Refine task
-console.log('2/3 · Meshy refine task…');
-const refineCreate = await meshy('', 'POST', {
-  mode: 'refine',
-  preview_task_id: previewTaskId,
-  enable_pbr: true,
-});
-const refineTaskId = refineCreate.result;
-const refined = await waitForTask(refineTaskId, 'refine');
+let refinedGlbUrl;
 
-const glbUrl = refined.model_urls?.glb;
-if (!glbUrl) throw new Error('No glb URL on refined task result: ' + JSON.stringify(refined.model_urls));
+if (mode === 'image') {
+  if (!imageArg) throw new Error('--image <url> required for image mode');
 
-// 3) Download + upload to Vercel Blob under preview/ prefix
-console.log('3/3 · Downloading + uploading to blob…');
-const glbRes = await fetch(glbUrl);
+  // Image-to-3D: single stage, returns a refined model
+  console.log('1/1 · Meshy image-to-3d…');
+  const created = await meshyFetch(IMAGE_TO_3D, 'POST', {
+    image_url: imageArg,
+    enable_pbr: true,
+    should_remesh: true,
+    // image-to-3d accepts an optional texture_prompt to tint the result
+    texture_prompt: `${monName}, ${material}`,
+  });
+  const task = await waitForTask(IMAGE_TO_3D, created.result, 'image-to-3d');
+  refinedGlbUrl = task.model_urls?.glb;
+
+} else if (mode === 'retexture' || mode === 'retexture-auto') {
+  if (!baseUrl) throw new Error('Retexture requires a base-url; none found. Pass --base-url explicitly.');
+
+  // Retexture: applies a new texture to the base GLB, keeping the geometry.
+  console.log('1/1 · Meshy retexture…');
+  const created = await meshyFetch(RETEXTURE, 'POST', {
+    model_url:       baseUrl,
+    object_prompt:   monName,
+    style_prompt:    material,
+    enable_pbr:      true,
+    art_style:       'realistic',
+  });
+  const task = await waitForTask(RETEXTURE, created.result, 'retexture');
+  refinedGlbUrl = task.model_urls?.glb;
+
+} else {
+  // text mode: preview → refine
+  const textPrompt = `${monName}, ${material}, photorealistic, high detail, single centered object on transparent background`;
+  console.log('1/2 · Meshy text-to-3d preview…');
+  const previewCreate = await meshyFetch(TEXT_TO_3D, 'POST', {
+    mode: 'preview',
+    prompt: textPrompt,
+    art_style: 'realistic',
+    should_remesh: true,
+  });
+  await waitForTask(TEXT_TO_3D, previewCreate.result, 'preview');
+
+  console.log('2/2 · Meshy refine…');
+  const refineCreate = await meshyFetch(TEXT_TO_3D, 'POST', {
+    mode: 'refine',
+    preview_task_id: previewCreate.result,
+    enable_pbr: true,
+  });
+  const refined = await waitForTask(TEXT_TO_3D, refineCreate.result, 'refine');
+  refinedGlbUrl = refined.model_urls?.glb;
+}
+
+if (!refinedGlbUrl) throw new Error('No GLB URL from Meshy — check the task response');
+
+// ─── download + upload to preview ──────────────────────────────────────────────
+
+console.log('\n→ Downloading + uploading preview…');
+const glbRes = await fetch(refinedGlbUrl);
 if (!glbRes.ok) throw new Error(`Failed to download GLB: ${glbRes.status}`);
 const glbBytes = Buffer.from(await glbRes.arrayBuffer());
 
-const uploaded = await put(blobKey, glbBytes, {
+const uploaded = await put(previewKey, glbBytes, {
   access: 'public',
   contentType: 'model/gltf-binary',
   addRandomSuffix: false,
@@ -202,16 +259,24 @@ const uploaded = await put(blobKey, glbBytes, {
   token: BLOB_TOKEN,
 });
 
-// Log so the promote script knows the source URL
 mkdirSync('/tmp/meshy-preview', { recursive: true });
 writeFileSync(
   `/tmp/meshy-preview/${prefix}_${style}.json`,
-  JSON.stringify({ mk, style, prefix, blobUrl: uploaded.url, generatedAt: new Date().toISOString() }, null, 2),
+  JSON.stringify({
+    mk, style, prefix, mode,
+    baseUrl: baseUrl ?? null,
+    imageRef: imageArg ?? null,
+    material,
+    previewUrl: uploaded.url,
+    livePath,
+    generatedAt: new Date().toISOString(),
+  }, null, 2),
 );
 
 console.log(`\n✓ Uploaded to ${uploaded.url}`);
-console.log(`\nPreview on prod:`);
-console.log(`  https://www.geknee.com/dev/preview/skin?url=${encodeURIComponent(uploaded.url)}&mk=${mk}&style=${style}&name=${encodeURIComponent(monumentName)}`);
+console.log(`\nPreview on prod (dev account only):`);
+console.log(`  https://www.geknee.com/dev/preview/skin?url=${encodeURIComponent(uploaded.url)}&mk=${mk}&style=${style}&name=${encodeURIComponent(monName)}`);
 console.log(`\nPreview locally:`);
-console.log(`  http://localhost:3000/dev/preview/skin?url=${encodeURIComponent(uploaded.url)}&mk=${mk}&style=${style}&name=${encodeURIComponent(monumentName)}`);
-console.log(`\nNext: node bin/meshy-promote.mjs --mk ${mk} --style ${style}   (when you approve it)\n`);
+console.log(`  http://localhost:3000/dev/preview/skin?url=${encodeURIComponent(uploaded.url)}&mk=${mk}&style=${style}&name=${encodeURIComponent(monName)}`);
+console.log(`\nApprove:  node bin/meshy-promote.mjs --mk ${mk} --style ${style}`);
+console.log(`Reject:   delete ${previewKey} from the Vercel Blob dashboard\n`);
