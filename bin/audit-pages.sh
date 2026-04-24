@@ -1,22 +1,39 @@
 #!/usr/bin/env bash
-# Per-page health check — visits every shipping route in headless Chromium,
-# inspects console + network for real errors, prints a pass/fail per page.
+# Per-page health check — visits every shipping route, inspects console +
+# network for real errors, prints a pass/fail per page.
 #
 # Usage:
-#   bin/audit-pages.sh                       # default: localhost:3000
-#   bin/audit-pages.sh https://geknee.com    # against prod
+#   bin/audit-pages.sh                       # localhost, headed Chrome (default)
+#   bin/audit-pages.sh --headless            # localhost, sandboxed Chromium
+#   bin/audit-pages.sh https://geknee.com    # prod, headed Chrome
 #
-# Filters out known noise:
+# Defaults to HEADED (real Chrome with GPU) because:
+#   - Headless Chromium can't initialise WebGL on this Mac (Vulkan
+#     /SwiftShader fails), so the globe never mounts and runtime errors
+#     in r3f / postprocessing / shaders go uncaught.
+#   - The earlier "EffectComposer crashes the Canvas" bug shipped past
+#     the audit because headless never hit the renderer.getContext() call.
+#
+# Filters known noise:
 #   - Travelpayouts widget (CORS-blocked from localhost; works in prod)
-#   - Headless WebGL failures (only happen in this sandboxed Chromium)
 #   - Google Maps deprecation advisories
 #   - 401s on /api/chat + /api/recommendations (expected when not signed in)
 #
-# Exits non-zero on any real failure so it can gate CI/pre-commit later.
+# Exits non-zero on any real failure so it can gate pre-commit / CI later.
 
 set -euo pipefail
 
-BASE="${1:-http://localhost:3000}"
+MODE="headed"
+ARGS=()
+for arg in "$@"; do
+  case "$arg" in
+    --headless) MODE="headless" ;;
+    --headed)   MODE="headed" ;;
+    *)          ARGS+=("$arg") ;;
+  esac
+done
+
+BASE="${ARGS[0]:-http://localhost:3000}"
 B="${HOME}/.claude/skills/gstack/browse/dist/browse"
 
 if [ ! -x "$B" ]; then
@@ -27,7 +44,26 @@ fi
 # What's noise vs what's signal. Add to NOISE_PATTERN as new known-safe
 # warnings appear; the goal is to keep the audit useful, not to suppress
 # everything.
-NOISE_PATTERN='tp-em\.com|webglcontextlost|WebGL|VENDOR|deprecated|^---|UNTRUSTED|config is not valid|net::ERR_FAILED|google\.maps\.places|/api/chat|/api/recommendations|401 \(Unauthorized'
+#
+# In HEADED mode we keep WebGL errors in scope — real Chrome should
+# initialise WebGL successfully, so any remaining error there is a
+# real bug. In headless we still suppress the SwiftShader noise.
+if [ "$MODE" = "headless" ]; then
+  NOISE_PATTERN='tp-em\.com|webglcontextlost|WebGL|VENDOR|deprecated|^---|UNTRUSTED|config is not valid|net::ERR_FAILED|google\.maps\.places|/api/chat|/api/recommendations|401 \(Unauthorized'
+else
+  NOISE_PATTERN='tp-em\.com|^---|UNTRUSTED|config is not valid|net::ERR_FAILED|google\.maps\.places|/api/chat|/api/recommendations|401 \(Unauthorized'
+fi
+
+# Switch to headed Chrome if requested. The browse binary keeps a
+# persistent server, so connect/disconnect flips its mode in-place.
+if [ "$MODE" = "headed" ]; then
+  echo "→ launching headed Chrome (real GPU, real WebGL)…"
+  "$B" connect > /dev/null 2>&1 || {
+    echo "could not launch headed Chrome — fall back with --headless" >&2
+    exit 2
+  }
+  trap '"$B" disconnect > /dev/null 2>&1 || true' EXIT
+fi
 
 # Pages to audit. Add new shipping routes here.
 PAGES=(
