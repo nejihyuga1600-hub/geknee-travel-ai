@@ -4,17 +4,17 @@ import HeroGlobeClient from './components/HeroGlobeClient';
 
 export const metadata: Metadata = {
   title: 'geknee — plan trips, collect the world',
-  description: 'Plan trips with AI, explore a stylized 3D globe, collect rare monument skins as you travel. Free to start.',
+  description: 'A collection game on a 3D globe — every monument is a collectable, every trip unlocks a rare skin. Trip planner inside. Free to start.',
   openGraph: {
     title: 'geknee — plan trips, collect the world',
-    description: 'Plan trips with AI, explore a stylized 3D globe, collect rare monument skins as you travel.',
+    description: 'A collection game on a 3D globe — every monument is a collectable, every trip unlocks a rare skin. Trip planner inside.',
     type: 'website',
     siteName: 'geknee',
   },
   twitter: {
     card: 'summary_large_image',
     title: 'geknee — plan trips, collect the world',
-    description: 'Plan trips with AI, explore a stylized 3D globe, collect rare monument skins as you travel.',
+    description: 'A collection game on a 3D globe — every monument is a collectable, every trip unlocks a rare skin. Trip planner inside.',
   },
 };
 
@@ -86,17 +86,18 @@ export default function Home() {
               padding: '5px 12px', borderRadius: 999,
               marginBottom: 22, textTransform: 'uppercase',
             }}>
-              Travel planner · Collection game
+              Collection game · Trip planner inside
             </div>
             <h1 style={{
               fontSize: 'clamp(40px, 6vw, 72px)', lineHeight: 1.02, margin: 0,
               fontWeight: 900, letterSpacing: -1,
             }}>
-              Plan trips.<br/>Collect the world.
+              Collect the world.
             </h1>
             <p style={{ fontSize: 18, color: '#cbd5e1', marginTop: 20, maxWidth: 520, lineHeight: 1.55 }}>
-              A 3D globe where every trip you plan unlocks a rare skin for the monument
-              you visit. Explore Earth, collect the Seven Wonders, share your world.
+              A 3D globe where every monument is a collectable. Visit places in person,
+              complete the quest, unlock the rare skin. No way to buy them. The trip
+              planner is just so you can get there.
             </p>
 
             <div style={{ display: 'flex', gap: 12, marginTop: 32, flexWrap: 'wrap' }}>
@@ -134,19 +135,24 @@ export default function Home() {
             gap: 18,
           }}>
             <Feature
-              emoji={String.fromCodePoint(0x1F5FA)}
-              title="Plan with AI"
-              body="Describe your vibe, geknee drafts the itinerary. Route, stops, estimated days, city-level detail."
-            />
-            <Feature
               emoji={String.fromCodePoint(0x1F3DB)}
-              title="Collect rare skins"
-              body="Every monument has seven rarity tiers. Visit in person to unlock Gold, Aurora, Celestial."
+              title="Collect monuments"
+              body="60+ landmarks, seven rarity tiers each. The base tier drops the moment you complete the quest."
             />
             <Feature
               emoji={String.fromCodePoint(0x2728)}
-              title="Share your world"
-              body="Each unlock turns into a shareable card with your collection. Your Earth, posted in one click."
+              title="Earn rare skins"
+              body="Gold, Aurora, Celestial — only by visiting in person and completing harder quests. No way to buy them."
+            />
+            <Feature
+              emoji={String.fromCodePoint(0x1F30D)}
+              title="Share your globe"
+              body="Every unlock becomes a shareable card. Friends visit your spectator globe and start their own collection."
+            />
+            <Feature
+              emoji={String.fromCodePoint(0x1F5FA)}
+              title="Trip planner inside"
+              body="When you do want help routing the trip, geknee drafts itineraries with city-level detail. Optional, not the point."
             />
           </div>
         </section>
@@ -188,6 +194,50 @@ export default function Home() {
                 <div style={{ fontSize: 13, fontWeight: 800, color: s.color, letterSpacing: 1.2, textTransform: 'uppercase' }}>
                   {s.label}
                 </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* ── Share-card preview gallery ──────────────────────────────────── */}
+        {/* Live <img>s pointing at /api/og/share — the actual route that
+            renders to OG meta when a user shares an unlock. Three monument
+            + skin combos picked for visual variety. The route falls back
+            to Wikipedia thumbs until per-skin Nano Banana heroes land. */}
+        <section style={{ maxWidth: 1180, margin: '0 auto', padding: '32px 28px 64px' }}>
+          <h2 style={{ fontSize: 26, fontWeight: 900, letterSpacing: -0.3, marginBottom: 6 }}>
+            Every unlock is a share.
+          </h2>
+          <p style={{ color: '#94a3b8', marginBottom: 28, fontSize: 14, maxWidth: 580 }}>
+            One tap turns your unlock into a card. Friends visit your spectator globe and
+            see exactly what you collected.
+          </p>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gap: 18,
+          }}>
+            {[
+              { mk: 'eiffelTower',   skin: 'gold',      label: 'Gold tier' },
+              { mk: 'statueLiberty', skin: 'aurora',    label: 'Aurora tier' },
+              { mk: 'pyramidGiza',   skin: 'celestial', label: 'Celestial tier' },
+            ].map((c) => (
+              <div
+                key={c.mk + c.skin}
+                style={{
+                  background: 'rgba(15,23,42,0.6)',
+                  border: '1px solid rgba(148,163,184,0.18)',
+                  borderRadius: 14, overflow: 'hidden',
+                }}
+              >
+                <img
+                  src={`/api/og/share?mk=${c.mk}&skin=${c.skin}&u=Nghia&h=nghia`}
+                  alt={`${c.label} share card preview`}
+                  width={1200}
+                  height={630}
+                  style={{ width: '100%', height: 'auto', display: 'block' }}
+                  loading="lazy"
+                />
               </div>
             ))}
           </div>
