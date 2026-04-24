@@ -13,31 +13,7 @@ import * as THREE from "three";
 import { useRouter } from "next/navigation";
 import { consumeGlobeTarget, consumeCameraZoom, flyToGlobe, zoomCamera, resetGlobeTilt, consumeResetTilt } from "@/lib/globeAnim";
 import { track } from "@/lib/analytics";
-
-const R = 10;
-
-
-// ─── Surface positioning helpers ──────────────────────────────────────────────
-// Converts geographic coordinates to a 3-D position on the globe surface plus
-// a quaternion that aligns the local Y-axis with the outward radial direction,
-// so any child geometry "stands up" perpendicular to the sphere.
-type SurfPos = { pos: [number, number, number]; q: THREE.Quaternion };
-function geo(lat: number, lon: number): SurfPos {
-  const φ = (lat * Math.PI) / 180;
-  const λ = (lon * Math.PI) / 180;
-  // Three.js SphereGeometry UV seam is at phi=0 → -X axis, with U increasing
-  // counter-clockwise (viewed from above).  Its equirectangular mapping puts
-  // lon=0° (Greenwich) at +X, lon=90°E at -Z, lon=90°W at +Z.
-  // Matching that convention: x = cos(λ), z = -sin(λ) (at the equator).
-  const x =  R * Math.cos(φ) * Math.cos(λ);
-  const y =  R * Math.sin(φ);
-  const z = -R * Math.cos(φ) * Math.sin(λ);
-  const q = new THREE.Quaternion().setFromUnitVectors(
-    new THREE.Vector3(0, 1, 0),
-    new THREE.Vector3(x, y, z).normalize(),
-  );
-  return { pos: [x, y, z], q };
-}
+import { R, geo, geoPos, DENSITY_THR, DENSITY_MIN, type SurfPos } from "./globe/geo";
 
 // Pre-computed positions for every landmark (runs once at module load)
 const L = {
@@ -525,8 +501,7 @@ const L = {
 // For each landmark, find its nearest angular neighbour. If landmarks are
 // packed closer than DENSITY_THR degrees, shrink them proportionally so they
 // don't overlap. Uses the SurfPos object reference as the map key.
-const DENSITY_THR = 6;   // degrees — below this, models start shrinking
-const DENSITY_MIN = 0.3; // floor — never smaller than 30 % of base size
+// DENSITY_THR / DENSITY_MIN imported from ./globe/geo
 const LM_DENSITY: Map<SurfPos, number> = (() => {
   const entries = Object.values(L) as SurfPos[];
   const units   = entries.map(p => new THREE.Vector3(...p.pos).normalize());
@@ -4958,16 +4933,7 @@ function featureCentroid(f: GeoFeature): [number, number] | null {
   return [lon / best.length, lat / best.length];
 }
 
-function geoPos(lat: number, lon: number, r: number): [number, number, number] {
-  const phi = (lat * Math.PI) / 180;
-  const lam = (lon * Math.PI) / 180;
-  return [
-     r * Math.cos(phi) * Math.cos(lam),
-     r * Math.sin(phi),
-    -r * Math.cos(phi) * Math.sin(lam),
-  ];
-}
-
+// geoPos imported from ./globe/geo
 const STATE_COUNTRIES = new Set([
   "United States of America", "Canada", "Australia", "Brazil", "Russia",
   "China", "India", "Mexico", "Argentina", "Germany", "France", "Italy",
