@@ -97,6 +97,34 @@ try {
   console.warn(`   ! preview delete failed (non-fatal): ${e.message}`);
 }
 
+// ─── 1b) Persist per-skin hero PNG for share cards ─────────────────────────────
+// When the skin was generated via image-mode (Nano Banana → Meshy), the source
+// 2D image already exists at previewState.imageRef. Mirror it into Blob at a
+// predictable path so /api/og/share can render it without an extra MCP call.
+// Modes without a source image (text, retexture) skip this — the share card
+// falls back to the Wikipedia thumbnail for those skins.
+if (previewState.imageRef) {
+  console.log('3b/5 · Persisting share hero PNG…');
+  try {
+    const heroRes = await fetch(previewState.imageRef);
+    if (!heroRes.ok) throw new Error(`hero fetch ${heroRes.status}`);
+    const heroBytes = Buffer.from(await heroRes.arrayBuffer());
+    const heroKey = `share/${prefix}_${style}_hero.png`;
+    const heroUploaded = await put(heroKey, heroBytes, {
+      access: 'public',
+      contentType: 'image/png',
+      addRandomSuffix: false,
+      allowOverwrite: true,
+      token: BLOB_TOKEN,
+    });
+    console.log(`   ✓ ${heroUploaded.url}`);
+  } catch (e) {
+    console.warn(`   ! hero PNG persist failed (non-fatal, OG falls back to Wikipedia): ${e.message}`);
+  }
+} else {
+  console.log('3b/5 · No imageRef in preview state — skipping hero PNG (OG falls back to Wikipedia)');
+}
+
 // ─── 2) Codemod AVAILABLE_SKINS ───────────────────────────────────────────────
 
 console.log('4/5 · Wiring AVAILABLE_SKINS in LocationClient.tsx…');

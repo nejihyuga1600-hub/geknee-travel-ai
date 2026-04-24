@@ -49,23 +49,42 @@ const SKIN_LABEL: Record<string, string> = {
   obsidian: 'OBSIDIAN',
 };
 
-// Hero-image lookup. Priority: explicit ?hero= param → Blob asset (Nano Banana
-// PNG persisted by the Meshy promote pipeline, when available) → Wikipedia
-// thumbnail → null (typographic fallback in render).
+// Hero-image lookup. Priority:
+//   1. explicit ?hero= param (escape hatch for special promos)
+//   2. Per-skin Blob: share/{prefix}_{skin}_hero.png   ← shows the actual unlocked variant
+//   3. Per-monument Blob: share/{prefix}_hero.png       ← legacy / pre-skin-aware uploads
+//   4. Wikipedia thumbnail                              ← generic, but always works
+//   5. null (typographic fallback in render)
+//
+// The {prefix} mirrors MONUMENT_FILE_PREFIX in globe/skins.ts. We re-implement
+// it inline here so the edge bundle doesn't drag in three.js via that module.
 const BLOB_BASE = 'https://mrfgpxw07gmgmriv.public.blob.vercel-storage.com';
 
-async function resolveHero(mk: string, explicit: string | null): Promise<string | null> {
-  if (explicit) return explicit;
-  // Blob path matches what bin/meshy-promote.mjs will write to once Phase B
-  // hero-persistence ships. HEAD-check so missing assets fall through fast.
-  const blobUrl = `${BLOB_BASE}/share/${mk}_hero.png`;
+const MONUMENT_FILE_PREFIX: Record<string, string> = {
+  eiffelTower: 'eiffel_tower', colosseum: 'Colosseum', tajMahal: 'taj_mahal',
+  greatWall: 'great_wall', statueLiberty: 'statue_liberty', sagradaFamilia: 'sagrada_familia',
+  machuPicchu: 'machu_picchu', christRedeem: 'christ_redeemer', angkorWat: 'angkor_wat',
+  pyramidGiza: 'pyramid_giza', goldenGate: 'golden_gate', bigBen: 'big_ben',
+  acropolis: 'acropolis', sydneyOpera: 'sydney_opera', neuschwanstein: 'neuschwanstein',
+  stonehenge: 'stonehenge', iguazuFalls: 'iguazu_falls', tokyoSkytree: 'tokyo_skytree',
+  victoriaFalls: 'victoria_falls',
+};
+
+async function tryBlob(url: string): Promise<string | null> {
   try {
-    const head = await fetch(blobUrl, { method: 'HEAD' });
-    if (head.ok) return blobUrl;
-  } catch { /* fall through */ }
-  // Wikipedia thumbnail. Same fetch shape as the in-app wikiSummary helper
-  // in app/plan/location/globe/landmark.tsx but re-implemented inline so the
-  // edge bundle stays small.
+    const head = await fetch(url, { method: 'HEAD' });
+    return head.ok ? url : null;
+  } catch { return null; }
+}
+
+async function resolveHero(mk: string, skin: string, explicit: string | null): Promise<string | null> {
+  if (explicit) return explicit;
+  const prefix = MONUMENT_FILE_PREFIX[mk] ?? mk;
+  const perSkin = await tryBlob(`${BLOB_BASE}/share/${prefix}_${skin}_hero.png`);
+  if (perSkin) return perSkin;
+  const perMonument = await tryBlob(`${BLOB_BASE}/share/${prefix}_hero.png`);
+  if (perMonument) return perMonument;
+  // Wikipedia thumbnail — generic but always available.
   const title = MONUMENT_NAMES[mk] ?? mk;
   const t = encodeURIComponent(title.replace(/ /g, '_'));
   const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${t}&redirects&prop=pageimages&pithumbsize=1200&format=json&origin=*`;
@@ -89,7 +108,7 @@ export async function GET(req: Request) {
   const monumentName = MONUMENT_NAMES[mk] ?? mk;
   const skinColor    = SKIN_COLOR[skin]   ?? '#ffd700';
   const skinLabel    = SKIN_LABEL[skin]   ?? skin.toUpperCase();
-  const heroUrl      = await resolveHero(mk, heroParam);
+  const heroUrl      = await resolveHero(mk, skin, heroParam);
 
   return new ImageResponse(
     (
