@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { cookies } from 'next/headers';
 import HeroGlobeClient from './components/HeroGlobeClient';
+import VariantTracker from './components/VariantTracker';
 
 export const metadata: Metadata = {
   title: 'geknee — plan trips, collect the world',
@@ -31,9 +33,18 @@ const SKINS: { id: string; label: string; color: string }[] = [
   { id: 'celestial', label: 'Celestial', color: '#c4a7ff' },
 ];
 
-export default function Home() {
+export default async function Home() {
+  // A/B variant assignment lives in middleware.ts — by the time this
+  // server component renders the cookie is set. Default to 'location'
+  // if for any reason it's missing (matcher mismatch, first-paint race).
+  const variant = (await cookies()).get('geknee_planner_variant')?.value;
+  const plannerHref = variant === 'atlas' ? '/plan/atlas' : '/plan/location';
   return (
     <>
+      {/* Sticky PostHog property so every event from this session carries
+          the A/B bucket. Defaults to 'location' if the cookie went missing. */}
+      <VariantTracker variant={variant === 'atlas' ? 'atlas' : 'location'} />
+
       <style>{`
         @keyframes spinGlobe { to { transform: rotate(360deg) } }
         @keyframes float     { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-8px) } }
@@ -59,7 +70,7 @@ export default function Home() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
             <Link href="/leaderboard" style={navLinkStyle}>Leaderboard</Link>
             <Link href="/pricing" style={navLinkStyle}>Pricing</Link>
-            <Link href="/plan/location" style={{
+            <Link href={plannerHref} style={{
               background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
               padding: '9px 16px', borderRadius: 10, color: '#fff',
               fontSize: 13, fontWeight: 800, textDecoration: 'none',
@@ -106,7 +117,7 @@ export default function Home() {
             </p>
 
             <div style={{ display: 'flex', gap: 12, marginTop: 32, flexWrap: 'wrap' }}>
-              <Link href="/plan/location" style={{
+              <Link href={plannerHref} style={{
                 background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
                 padding: '14px 22px', borderRadius: 12, color: '#fff',
                 fontSize: 14, fontWeight: 800, textDecoration: 'none',
@@ -278,7 +289,7 @@ export default function Home() {
               The globe is one click away. No signup needed to look around.
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 24, flexWrap: 'wrap' }}>
-              <Link href="/plan/location" style={{
+              <Link href={plannerHref} style={{
                 background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
                 padding: '14px 26px', borderRadius: 12, color: '#fff',
                 fontSize: 14, fontWeight: 800, textDecoration: 'none',
