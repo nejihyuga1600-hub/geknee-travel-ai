@@ -11,10 +11,7 @@ const isMobile = typeof window !== "undefined" && (
   /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768
 );
 import * as THREE from "three";
-import { useRouter, useSearchParams } from "next/navigation";
-import TopNavPills from "./shell/TopNavPills";
-import BottomSheet, { type SheetState } from "./shell/BottomSheet";
-import DestinationSearch from "./shell/DestinationSearch";
+import { useRouter } from "next/navigation";
 import { consumeGlobeTarget, consumeCameraZoom, flyToGlobe, zoomCamera, resetGlobeTilt, consumeResetTilt } from "@/lib/globeAnim";
 import { track } from "@/lib/analytics";
 import { R, geo, geoPos, type SurfPos } from "./globe/geo";
@@ -2302,20 +2299,6 @@ export default function LocationPage() {
   // Bumped to force a Canvas remount when WebGL context is lost (Safari tab
   // switch, GPU pressure, dev HMR). Without this, the canvas stays blank.
   const [glKey, setGlKey] = useState(0);
-  const searchParams = useSearchParams();
-  const atlasShell = searchParams?.get("atlas") === "1";
-  const [sheetState, setSheetState] = useState<SheetState>("peek");
-  // Atlas mode: when a landmark fires geknee:opencitymap, auto-promote the
-  // sheet to full so CityMapView is visible immediately. When the user drags
-  // it back below full, clear cityMap so the auto-open doesn't re-fire.
-  useEffect(() => {
-    if (!atlasShell) return;
-    if (cityMap) setSheetState("full");
-  }, [atlasShell, cityMap]);
-  useEffect(() => {
-    if (!atlasShell) return;
-    if (sheetState !== "full" && cityMap) setCityMap(null);
-  }, [atlasShell, sheetState, cityMap]);
 
   // Listen for "Explore on map" requests from city labels
   useEffect(() => {
@@ -2478,7 +2461,7 @@ export default function LocationPage() {
       {/* Fraunces hero overlay — Atlas voice on the planner. Floats over
           the globe near the top-center, fades out once the user has picked
           a destination so it doesn't crowd the planning chrome. */}
-      {globeReady && !location && (!atlasShell || sheetState === "peek") && (
+      {globeReady && !location && (
         <div style={{
           position: "fixed", top: 80, left: 0, right: 0, zIndex: 15,
           textAlign: "center", pointerEvents: "none",
@@ -2510,9 +2493,8 @@ export default function LocationPage() {
         </div>
       )}
 
-      {/* Initialize / home button — top-center. Hidden in Atlas shell mode;
-          reset is moved into the menu (settings panel). */}
-      <div style={{ position: "fixed", top: 18, left: "50%", transform: "translateX(-50%)", zIndex: 20, display: atlasShell ? "none" : undefined }}>
+      {/* Initialize / home button — top-center */}
+      <div style={{ position: "fixed", top: 18, left: "50%", transform: "translateX(-50%)", zIndex: 20 }}>
         <button
           onClick={handleInitialize}
           title="Reset globe orientation"
@@ -2532,9 +2514,8 @@ export default function LocationPage() {
         </button>
       </div>
 
-      {/* Auth / user area — top-right corner, above canvas (zIndex 20).
-          Hidden in Atlas shell mode (replaced by TopNavPills below). */}
-      <div style={{ position: "fixed", top: 18, right: 14, zIndex: 20, display: atlasShell ? "none" : "flex", alignItems: "center", gap: isMobile ? 5 : 8 }}>
+      {/* Auth / user area — top-right corner, above canvas (zIndex 20) */}
+      <div style={{ position: "fixed", top: 18, right: 14, zIndex: 20, display: "flex", alignItems: "center", gap: isMobile ? 5 : 8 }}>
         {session?.user ? (
           <>
             {/* Monument Shop button */}
@@ -2658,119 +2639,6 @@ export default function LocationPage() {
         </button>
       </div>
 
-      {/* Atlas shell — pill nav + bottom sheet (gated by ?atlas=1). */}
-      {atlasShell && (
-        <>
-          <TopNavPills
-            session={session}
-            isMobile={isMobile}
-            notifUnread={notifUnread}
-            onSignIn={() => setAuthOpen(true)}
-            onShop={() => setShopOpen(true)}
-            onUpgrade={() => { track('upgrade_click', { surface: 'atlas-pill' }); setUpgradeOpen(true); }}
-            onTrips={() => { setPanelOpen(true); setNotifUnread(0); }}
-            onSettings={() => setSettingsOpen(true)}
-          />
-          <BottomSheet
-            state={sheetState}
-            onStateChange={setSheetState}
-            peek={
-              <DestinationSearch
-                compact
-                onSubmit={(v) => {
-                  setSheetState("open");
-                  router.push(`/plan/style?location=${encodeURIComponent(v)}`);
-                }}
-              />
-            }
-            open={
-              <div style={{ paddingTop: 8, color: "#c7d2fe" }}>
-                <div style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 22, marginBottom: 12 }}>
-                  Where to?
-                </div>
-                <DestinationSearch
-                  onSubmit={(v) => router.push(`/plan/style?location=${encodeURIComponent(v)}`)}
-                />
-                <div style={{ marginTop: 16, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(199,210,254,0.55)" }}>
-                  Popular
-                </div>
-                <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 8 }}>
-                  {["Paris", "Tokyo", "New York", "Rome", "Bali", "London", "Barcelona", "Reykjavik"].map((c) => (
-                    <button
-                      key={c}
-                      onClick={() => router.push(`/plan/style?location=${encodeURIComponent(c)}`)}
-                      style={{
-                        background: "rgba(167,139,250,0.12)",
-                        border: "1px solid rgba(167,139,250,0.3)",
-                        color: "#c7d2fe",
-                        fontSize: 12,
-                        padding: "6px 12px",
-                        borderRadius: 999,
-                        cursor: "pointer",
-                      }}
-                    >
-                      {c}
-                    </button>
-                  ))}
-                </div>
-                {cityMap && (
-                  <div style={{ marginTop: 16, padding: 12, borderRadius: 10, background: "rgba(167,139,250,0.08)", border: "1px solid rgba(167,139,250,0.25)" }}>
-                    <div style={{ fontSize: 13, color: "#c7d2fe" }}>Exploring <strong>{cityMap.name}</strong></div>
-                    <button
-                      onClick={() => setSheetState("full")}
-                      style={{ marginTop: 8, background: "linear-gradient(135deg,#a78bfa,#7dd3fc)", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, padding: "6px 12px", borderRadius: 8, cursor: "pointer" }}
-                    >
-                      Open map
-                    </button>
-                  </div>
-                )}
-              </div>
-            }
-            full={
-              cityMap ? (
-                <div style={{ position: "absolute", inset: 0 }}>
-                  <CityMapView
-                    embedded
-                    name={cityMap.name}
-                    lat={cityMap.lat}
-                    lon={cityMap.lon}
-                    monuments={(() => {
-                      const activeByMk = new Map<string, string>();
-                      for (const c of collectedMonuments) {
-                        if (c.active && c.skin !== 'default') activeByMk.set(c.monumentId, c.skin);
-                      }
-                      const out: { mk: string; name: string; lat: number; lon: number; ringColor: string }[] = [];
-                      activeByMk.forEach((skin, mk) => {
-                        const coords = MONUMENT_LATLON[mk];
-                        const info   = INFO[mk as keyof typeof INFO] as LmInfo | undefined;
-                        if (!coords) return;
-                        const ringColor = SKIN_RING_COLOR[skin] ?? '#ffd700';
-                        out.push({ mk, name: info?.name ?? mk, lat: coords.lat, lon: coords.lon, ringColor });
-                      });
-                      return out;
-                    })()}
-                    onClose={() => {
-                      zoomCamera(20);
-                      setCityMap(null);
-                      setSheetState("peek");
-                    }}
-                  />
-                </div>
-              ) : (
-                <div style={{ paddingTop: 8, color: "#c7d2fe" }}>
-                  <div style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 22, marginBottom: 8 }}>
-                    Tap a landmark
-                  </div>
-                  <div style={{ fontSize: 13, color: "rgba(199,210,254,0.75)" }}>
-                    Spin the globe and tap a landmark to open its city map here.
-                  </div>
-                </div>
-              )
-            }
-          />
-        </>
-      )}
-
       {/* Auth modal */}
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
 
@@ -2779,9 +2647,7 @@ export default function LocationPage() {
 
       {/* Monument collection shop */}
       <MonumentShop open={shopOpen} onClose={() => setShopOpen(false)} />
-      {/* Legacy fullscreen CityMapView. Hidden in shell mode — the sheet's
-          full state renders CityMapView in the same component below. */}
-      {!atlasShell && cityMap && <CityMapView
+      {cityMap && <CityMapView
         name={cityMap.name}
         lat={cityMap.lat}
         lon={cityMap.lon}
