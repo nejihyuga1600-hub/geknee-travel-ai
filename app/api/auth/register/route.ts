@@ -1,5 +1,6 @@
 import { hash } from 'bcryptjs';
 import { prisma } from '@/lib/prisma';
+import { generateUniqueUsername } from '@/lib/username';
 
 export async function POST(req: Request) {
   try {
@@ -25,8 +26,16 @@ export async function POST(req: Request) {
     }
 
     const hashed = await hash(password, 12);
+    const username = await generateUniqueUsername(
+      name?.trim() || email.split('@')[0],
+    );
     await prisma.user.create({
-      data: { name: name?.trim() || null, email, password: hashed },
+      data: {
+        name: name?.trim() || null,
+        email,
+        password: hashed,
+        username,
+      },
     });
 
     return Response.json({ ok: true });

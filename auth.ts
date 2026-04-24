@@ -103,6 +103,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (user) {
         token.id = user.id;
         token.email = user.email;
+        // Backfill: users who signed up before auto-username shipped get a
+        // handle on their next sign-in. `user` is only defined on initial
+        // JWT creation, so this runs at most once per session.
+        if (user.id) {
+          try {
+            const { ensureUsername } = await import('@/lib/username');
+            await ensureUsername(user.id);
+          } catch { /* swallow — /u/<id> still works without a handle */ }
+        }
       }
       return token;
     },
@@ -112,6 +121,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         (session.user as { id?: string; email?: string }).email = token.email as string;
       }
       return session;
+    },
+  },
+
+  events: {
+    // Fires once when the PrismaAdapter creates a row for a new OAuth user.
+    // Credentials signups flow through /api/auth/register which sets the
+    // username up front; this event handles Google/Apple/etc. newcomers.
+    async createUser({ user }) {
+      if (!user.id) return;
+      try {
+        const { ensureUsername } = await import('@/lib/username');
+        await ensureUsername(user.id);
+      } catch (e) {
+        console.error('[auth/events/createUser] ensureUsername failed:', e);
+      }
     },
   },
 
