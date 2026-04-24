@@ -40,7 +40,30 @@ Claude will read `PLAN.md`, implement all `[APPROVED]` items, and commit the cha
 
 ## Tech notes
 - Globe: `app/plan/location/` with OrbitControls, pointer-event drag, pinch-zoom
+- Globe scene is split: `app/plan/location/globe/` holds `skins.ts`, `geo.ts`, `info.ts`, `locations.ts`, `landmark.tsx`, `AllLandmarks.tsx`. Edit those first — `LocationClient.tsx` is the glue.
 - Auth: NextAuth v5 beta (`app/api/auth/`)
 - Payments: Stripe webhook at `app/api/stripe/webhook/`
 - AI: Anthropic SDK at `app/api/chat/`
 - Mobile: `touch-action: none` on canvas, `100svh` for Safari
+
+## Observability MCPs — use these before guessing at production bugs
+
+Both are installed in Claude Code's MCP config. They cover different halves of the triage story:
+
+| MCP | What it's good for |
+|-----|---|
+| **Sentry** (`mcp.sentry.dev`) | Stack traces, release tagging, Seer AI fix suggestions. Start here for any reported exception. Tools: `search_issues`, `search_events`, issue retrieval. |
+| **PostHog** (`mcp.posthog.com`) | Session replay, funnel/conversion impact, user-behavior context. Start here for "users say X feels broken" with no stack trace. Tools: `error-tracking-issues-*`, `query-session-recordings-list`, `query-run` (HogQL/SQL). |
+
+**When to reach for them proactively (without being asked):**
+- User reports a production bug → query Sentry first for the stack trace, then PostHog for a replay of the affected session.
+- You see "intermittent" or "can't reproduce" → PostHog replay is almost always faster than local repro attempts.
+- Before shipping a fix for a reported issue → check Sentry for how widespread it is; a one-off may not need a hotfix.
+
+**Don't use them for:**
+- Local development bugs (no prod data for these).
+- Anything pre-deploy — both only see what's shipped.
+
+Session recording is enabled in `lib/analytics.ts` with `maskAllInputs: true`. Tag any DOM node holding PII with `data-private` to extend masking. Before sharing a replay externally, skim it for anything the mask missed.
+
+Two error sources (Sentry + PostHog error tracking) overlap. **Treat Sentry as the source of truth for exceptions**; PostHog's error view is useful for correlating with behavior but shouldn't drive independent triage.

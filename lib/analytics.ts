@@ -28,6 +28,11 @@ export function initAnalytics() {
     capture_pageview: true,
     capture_pageleave: true,
     autocapture: false, // opt into explicit events only — cheaper + easier to read
+    disable_session_recording: false,
+    session_recording: {
+      maskAllInputs: true,
+      maskTextSelector: '[data-private]',
+    },
     loaded: () => { initialized = true; },
   });
   initialized = true;
