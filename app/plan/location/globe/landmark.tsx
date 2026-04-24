@@ -260,6 +260,26 @@ export function useMonumentBridge(mk?: string) {
   };
 }
 
+// ─── Pending unlock bridge (Lm → page chrome share-toast) ────────────────────
+// Fires when a monument transitions from uncollected → collected so the page
+// can surface a share prompt. Keeps the toast UI out of the 3D scene.
+type PendingUnlock = { mk: string; skin: string; ts: number };
+let _pendingUnlock: PendingUnlock | null = null;
+const _pendingUnlockListeners = new Set<() => void>();
+export function _setPendingUnlock(u: { mk: string; skin: string } | null) {
+  _pendingUnlock = u ? { ...u, ts: Date.now() } : null;
+  _pendingUnlockListeners.forEach(fn => fn());
+}
+export function usePendingUnlock(): PendingUnlock | null {
+  const [, setTick] = useState(0);
+  useEffect(() => {
+    const cb = () => setTick(t => t + 1);
+    _pendingUnlockListeners.add(cb);
+    return () => { _pendingUnlockListeners.delete(cb); };
+  }, []);
+  return _pendingUnlock;
+}
+
 export function Lm({ p, s = 0.4, info, mk, children }: { p: SurfPos; s?: number; info?: LmInfo; mk?: string; children: ReactNode }) {
   const { isCollected, activeSkin } = useMonumentBridge(mk);
   const [hovered, setHovered]         = useState(false);
@@ -314,9 +334,13 @@ export function Lm({ p, s = 0.4, info, mk, children }: { p: SurfPos; s?: number;
         modelScale: 1.0,
         sparkleActive: true,
       };
+      // Surface the unlock to the page chrome so it can show a share prompt.
+      // Effective skin = whatever the user actually sees (active selection or
+      // the default 'stone' fallback for newly-collected monuments).
+      if (mk) _setPendingUnlock({ mk, skin: effectiveSkin ?? 'stone' });
     }
     prevCollectedRef.current = isCollected;
-  }, [isCollected]);
+  }, [isCollected, mk, effectiveSkin]);
 
   // Detect skin switch (activeSkin changes)
   useEffect(() => {

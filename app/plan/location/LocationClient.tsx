@@ -49,6 +49,7 @@ import {
   _triggerGlobeReady,
 } from "./globe/landmark";
 import AllLandmarks from "./globe/AllLandmarks";
+import UnlockShareToast from "./UnlockShareToast";
 // ─── GeoJSON types ────────────────────────────────────────────────────────────
 type GeoFeature = {
   geometry: { type: string; coordinates: number[][][][] | number[][][] } | null;
@@ -3524,6 +3525,10 @@ export default function LocationPage() {
         } catch { /* ignore */ }
         window.location.reload();
       }} />
+
+      {/* Share-this-unlock toast — fires whenever Lm flips a monument from
+          uncollected → collected (Phase C of the unlock-share flow). */}
+      <UnlockShareToast />
 
     </main>
   );

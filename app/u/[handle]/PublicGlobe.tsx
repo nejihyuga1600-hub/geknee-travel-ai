@@ -5,18 +5,41 @@
 // no trip flow, no unlock celebration triggering. Visitors can pan/zoom
 // to inspect what the owner has collected, period.
 
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { OrbitControls, Stars, Sphere } from "@react-three/drei";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
+import * as THREE from "three";
 import {
   _setCollectedMonuments,
   _setActiveSkins,
 } from "@/app/plan/location/globe/landmark";
+import { L } from "@/app/plan/location/globe/locations";
 import AllLandmarks from "@/app/plan/location/globe/AllLandmarks";
 
 type CollectedEntry = { mk: string; displaySkin: string };
 
-export default function PublicGlobe({ collected }: { collected: CollectedEntry[] }) {
+// Inside the Canvas: when focusMk is set (visitor landed via a share link),
+// fly the camera so the shared monument is dead-centre. Has to live inside
+// Canvas because useThree only works in r3f context.
+function CameraFocus({ mk }: { mk?: string }) {
+  const { camera } = useThree();
+  const done = useRef(false);
+  useEffect(() => {
+    if (!mk || done.current) return;
+    const surf = (L as Record<string, { pos: [number, number, number] } | undefined>)[mk];
+    if (!surf) return;
+    // Sit the camera 18 units out along the monument's surface normal so the
+    // monument fills roughly a third of the frame on a 16:10 viewport.
+    const dir = new THREE.Vector3(...surf.pos).normalize();
+    const target = dir.clone().multiplyScalar(18);
+    camera.position.copy(target);
+    camera.lookAt(0, 0, 0);
+    done.current = true;
+  }, [mk, camera]);
+  return null;
+}
+
+export default function PublicGlobe({ collected, focusMk }: { collected: CollectedEntry[]; focusMk?: string }) {
   // Push the owner's collection into the bridge so every <Lm /> in
   // AllLandmarks renders the right skin GLB (when available) or the
   // primitive fallback. The bridge is module-singleton; that's fine on a
@@ -45,6 +68,7 @@ export default function PublicGlobe({ collected }: { collected: CollectedEntry[]
       </Sphere>
 
       <AllLandmarks />
+      <CameraFocus mk={focusMk} />
 
       <OrbitControls
         makeDefault
@@ -57,7 +81,7 @@ export default function PublicGlobe({ collected }: { collected: CollectedEntry[]
         rotateSpeed={0.6}
         enableDamping
         dampingFactor={0.12}
-        autoRotate
+        autoRotate={!focusMk}
         autoRotateSpeed={0.45}
       />
     </Canvas>

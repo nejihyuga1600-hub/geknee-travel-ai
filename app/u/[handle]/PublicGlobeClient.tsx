@@ -8,6 +8,9 @@ import dynamic from "next/dynamic";
 
 const PublicGlobe = dynamic(() => import("./PublicGlobe"), { ssr: false });
 
-export default function PublicGlobeClient(props: { collected: { mk: string; displaySkin: string }[] }) {
+export default function PublicGlobeClient(props: {
+  collected: { mk: string; displaySkin: string }[];
+  focusMk?: string;
+}) {
   return <PublicGlobe {...props} />;
 }

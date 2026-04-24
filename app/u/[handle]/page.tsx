@@ -119,8 +119,12 @@ export async function generateMetadata(
   };
 }
 
-export default async function ProfilePage({ params }: { params: Params }) {
+export default async function ProfilePage(
+  { params, searchParams }: { params: Params; searchParams: SearchParams },
+) {
   const { handle } = await params;
+  const sp = await searchParams;
+  const focusMk = sp.unlocked && MONUMENT_NAMES[sp.unlocked] ? sp.unlocked : undefined;
   const user = await lookupUser(handle);
   if (!user) notFound();
 
@@ -214,7 +218,10 @@ export default async function ProfilePage({ params }: { params: Params }) {
           border: '1px solid rgba(148,163,184,0.18)',
           boxShadow: '0 24px 80px rgba(0,0,0,0.45)',
         }}>
-          <PublicGlobeClient collected={collected.map(c => ({ mk: c.mk, displaySkin: c.displaySkin }))} />
+          <PublicGlobeClient
+            collected={collected.map(c => ({ mk: c.mk, displaySkin: c.displaySkin }))}
+            focusMk={focusMk}
+          />
           {collected.length === 0 && (
             <div style={{
               position: 'absolute', inset: 0, display: 'flex', alignItems: 'center',
