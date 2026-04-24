@@ -57,6 +57,7 @@ export default function Home() {
             geknee
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
+            <Link href="/leaderboard" style={navLinkStyle}>Leaderboard</Link>
             <Link href="/pricing" style={navLinkStyle}>Pricing</Link>
             <Link href="/plan/location" style={{
               background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
