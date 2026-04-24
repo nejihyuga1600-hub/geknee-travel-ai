@@ -61,9 +61,13 @@ async function lookupUser(handle: string) {
 }
 
 type Params = Promise<{ handle: string }>;
+type SearchParams = Promise<{ unlocked?: string; skin?: string }>;
 
-export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+export async function generateMetadata(
+  { params, searchParams }: { params: Params; searchParams: SearchParams },
+): Promise<Metadata> {
   const { handle } = await params;
+  const sp = await searchParams;
   const user = await lookupUser(handle);
   if (!user) return { title: 'Not found · geknee' };
 
@@ -77,6 +81,28 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     distinct: ['monumentId'],
   });
   const count = distinct.length;
+
+  // If the URL carries ?unlocked=mk, this is a share link — emit the
+  // monument-hero unlock card instead of the generic profile card so
+  // Twitter/Discord/etc. unfurl with the new collectable.
+  if (sp.unlocked && MONUMENT_NAMES[sp.unlocked]) {
+    const mk = sp.unlocked;
+    const skin = sp.skin && /^[a-z]+$/.test(sp.skin) ? sp.skin : 'gold';
+    const monumentName = MONUMENT_NAMES[mk];
+    const title = `${displayName} just collected ${monumentName} · geknee`;
+    const desc = `${displayName} unlocked ${monumentName} on geknee. Visit their globe and start your own collection.`;
+    const ogUrl = `/api/og/share?mk=${encodeURIComponent(mk)}&skin=${encodeURIComponent(skin)}&u=${encodeURIComponent(displayName)}&h=${encodeURIComponent(handleForUrl)}`;
+    return {
+      title,
+      description: desc,
+      openGraph: {
+        title, description: desc, url: `/u/${handleForUrl}?unlocked=${mk}`, siteName: 'geknee',
+        images: [{ url: ogUrl, width: 1200, height: 630, alt: title }],
+        type: 'website',
+      },
+      twitter: { card: 'summary_large_image', title, description: desc, images: [ogUrl] },
+    };
+  }
 
   const title = `${displayName}'s collection — ${count} monument${count === 1 ? '' : 's'} collected · geknee`;
   const desc = `${displayName} has collected ${count} monument${count === 1 ? '' : 's'} on geknee. See their rarity tiers and start your own collection.`;

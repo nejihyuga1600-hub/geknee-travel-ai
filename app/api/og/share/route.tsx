@@ -49,15 +49,47 @@ const SKIN_LABEL: Record<string, string> = {
   obsidian: 'OBSIDIAN',
 };
 
+// Hero-image lookup. Priority: explicit ?hero= param → Blob asset (Nano Banana
+// PNG persisted by the Meshy promote pipeline, when available) → Wikipedia
+// thumbnail → null (typographic fallback in render).
+const BLOB_BASE = 'https://mrfgpxw07gmgmriv.public.blob.vercel-storage.com';
+
+async function resolveHero(mk: string, explicit: string | null): Promise<string | null> {
+  if (explicit) return explicit;
+  // Blob path matches what bin/meshy-promote.mjs will write to once Phase B
+  // hero-persistence ships. HEAD-check so missing assets fall through fast.
+  const blobUrl = `${BLOB_BASE}/share/${mk}_hero.png`;
+  try {
+    const head = await fetch(blobUrl, { method: 'HEAD' });
+    if (head.ok) return blobUrl;
+  } catch { /* fall through */ }
+  // Wikipedia thumbnail. Same fetch shape as the in-app wikiSummary helper
+  // in app/plan/location/globe/landmark.tsx but re-implemented inline so the
+  // edge bundle stays small.
+  const title = MONUMENT_NAMES[mk] ?? mk;
+  const t = encodeURIComponent(title.replace(/ /g, '_'));
+  const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${t}&redirects&prop=pageimages&pithumbsize=1200&format=json&origin=*`;
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const d = await r.json();
+    const page: { thumbnail?: { source?: string } } = Object.values(d.query.pages)[0] as { thumbnail?: { source?: string } };
+    return page?.thumbnail?.source ?? null;
+  } catch { return null; }
+}
+
 export async function GET(req: Request) {
   const url = new URL(req.url);
   const mk       = url.searchParams.get('mk')    ?? 'eiffelTower';
   const skin     = url.searchParams.get('skin')  ?? 'gold';
   const username = (url.searchParams.get('u')    ?? 'someone').slice(0, 32);
+  const handle   = (url.searchParams.get('h')    ?? '').slice(0, 32);
+  const heroParam = url.searchParams.get('hero');
 
   const monumentName = MONUMENT_NAMES[mk] ?? mk;
   const skinColor    = SKIN_COLOR[skin]   ?? '#ffd700';
   const skinLabel    = SKIN_LABEL[skin]   ?? skin.toUpperCase();
+  const heroUrl      = await resolveHero(mk, heroParam);
 
   return new ImageResponse(
     (
@@ -76,6 +108,29 @@ export async function GET(req: Request) {
           position: 'relative',
         }}
       >
+        {/* Hero image — Nano Banana PNG / Wikipedia thumb. Sits behind text
+            with a dark gradient overlay so the typography stays legible. */}
+        {heroUrl && (
+          <>
+            <img
+              src={heroUrl}
+              alt=""
+              width={1200}
+              height={630}
+              style={{
+                position: 'absolute', top: 0, left: 0,
+                width: '100%', height: '100%',
+                objectFit: 'cover', opacity: 0.55,
+              }}
+            />
+            <div style={{
+              position: 'absolute', top: 0, left: 0,
+              width: '100%', height: '100%',
+              background: 'linear-gradient(180deg, rgba(6,8,22,0.55) 0%, rgba(6,8,22,0.85) 60%, rgba(3,5,16,0.97) 100%)',
+              display: 'flex',
+            }} />
+          </>
+        )}
         {/* Decorative ring — same visual as the globe ring */}
         <div
           style={{
@@ -140,22 +195,36 @@ export async function GET(req: Request) {
           {monumentName}
         </div>
 
-        {/* Bottom — wordmark */}
+        {/* Bottom — visit-globe CTA when we have a handle, else wordmark. */}
         <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between' }}>
-          <div style={{ fontSize: 22, opacity: 0.75, maxWidth: 680, display: 'flex' }}>
-            plan trips, collect the world
-          </div>
+          {handle ? (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 14,
+              padding: '14px 22px',
+              background: 'rgba(255,255,255,0.08)',
+              border: `2px solid ${skinColor}`,
+              borderRadius: 14,
+              fontSize: 26, fontWeight: 700,
+            }}>
+              {String.fromCodePoint(0x1F30D)} visit @{handle}&apos;s globe
+              <span style={{ fontSize: 30, color: skinColor }}>{String.fromCodePoint(0x2192)}</span>
+            </div>
+          ) : (
+            <div style={{ fontSize: 22, opacity: 0.75, maxWidth: 680, display: 'flex' }}>
+              plan trips, collect the world
+            </div>
+          )}
           <div
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              fontSize: 34,
+              fontSize: 28,
               fontWeight: 900,
               letterSpacing: 1,
+              opacity: 0.85,
             }}
           >
-            <span style={{ fontSize: 40 }}>{String.fromCodePoint(0x1F30D)}</span>
             geknee.com
           </div>
         </div>
