@@ -835,6 +835,28 @@ export default function MonumentShop({ open, onClose }: Props) {
             </div>
           )}
 
+          {session?.user && (() => {
+            const uid = (session.user as { id?: string }).id;
+            if (!uid) return null;
+            return (
+              <a
+                href={`/u/${uid}`}
+                target="_blank"
+                rel="noreferrer"
+                style={{
+                  display: 'block', marginBottom: 12,
+                  padding: '8px 12px', borderRadius: 10,
+                  background: 'rgba(139,92,246,0.12)',
+                  border: '1px solid rgba(139,92,246,0.3)',
+                  color: '#c4b5fd', fontSize: 12, fontWeight: 700,
+                  textDecoration: 'none', textAlign: 'center',
+                }}
+              >
+                {String.fromCodePoint(0x1F517)} View your public collection page
+              </a>
+            );
+          })()}
+
           {lastUnlock && (() => {
             const username = (session?.user?.name ?? session?.user?.email?.split('@')[0] ?? 'traveler')
               .replace(/\s+/g, '').slice(0, 32);
