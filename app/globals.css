@@ -6,6 +6,23 @@
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
   --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Design-session tokens — cosmic-editorial voice. Applied as opt-in via
+     var(--brand-*) so routes upgrade individually rather than flipping the
+     whole app at once. Source of truth: .planning/design-2026-04-24/prototype/shared.jsx */
+  --brand-bg: #05050f;              /* near-black, faint violet undertone */
+  --brand-bg2: #0a0a1f;
+  --brand-surface: rgba(18, 18, 40, 0.72);   /* translucent panels — needs backdrop-filter */
+  --brand-surface-solid: #0d0d24;
+  --brand-border: rgba(148, 163, 208, 0.12);
+  --brand-border-hi: rgba(167, 139, 250, 0.35);
+  --brand-ink: #f2f2f8;             /* off-white — never pure white */
+  --brand-ink-dim: #a8a8c0;
+  --brand-ink-mute: #6b6b85;
+  --brand-accent: #a78bfa;          /* lavender — primary anchor */
+  --brand-accent-2: #7dd3fc;        /* icy blue — secondary */
+  --brand-gold: #fbbf24;            /* reserved for magic-moment highlights only */
+  --brand-danger: #f87171;
 }
 
 @theme inline {
