@@ -17,12 +17,15 @@ type Props = {
   lon: number;
   monuments: MonumentMarker[];
   onClose: () => void;
+  // When true, renders inside a parent container instead of fullscreen.
+  // Used by the Atlas shell to embed the map in the bottom sheet's full state.
+  embedded?: boolean;
 };
 
 // Mapbox zoom 0 = whole earth, 7 ≈ country, 10 ≈ city, 14 ≈ neighbourhood.
 const RETURN_TO_GLOBE_ZOOM = 7;
 
-export default function CityMapView({ name, lat, lon, monuments, onClose }: Props) {
+export default function CityMapView({ name, lat, lon, monuments, onClose, embedded }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const onCloseRef = useRef(onClose);
@@ -90,7 +93,7 @@ export default function CityMapView({ name, lat, lon, monuments, onClose }: Prop
 
   return (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 1000,
+      position: embedded ? 'absolute' : 'fixed', inset: 0, zIndex: embedded ? 0 : 1000,
       background: '#060816',
       animation: 'mapFadeIn 0.3s ease-out',
     }}>

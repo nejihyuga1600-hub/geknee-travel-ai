@@ -143,7 +143,8 @@ export default function BottomSheet({ state, onStateChange, peek, open, full }: 
             flex: 1,
             minHeight: 0,
             overflowY: state === "peek" ? "hidden" : "auto",
-            padding: "0 16px 16px",
+            padding: state === "full" ? 0 : "0 16px 16px",
+            position: state === "full" ? "relative" : undefined,
           }}
         >
           {state === "peek" && peek}

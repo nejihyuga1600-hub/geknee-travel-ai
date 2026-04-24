@@ -14,6 +14,7 @@ import * as THREE from "three";
 import { useRouter, useSearchParams } from "next/navigation";
 import TopNavPills from "./shell/TopNavPills";
 import BottomSheet, { type SheetState } from "./shell/BottomSheet";
+import DestinationSearch from "./shell/DestinationSearch";
 import { consumeGlobeTarget, consumeCameraZoom, flyToGlobe, zoomCamera, resetGlobeTilt, consumeResetTilt } from "@/lib/globeAnim";
 import { track } from "@/lib/analytics";
 import { R, geo, geoPos, type SurfPos } from "./globe/geo";
@@ -2304,6 +2305,17 @@ export default function LocationPage() {
   const searchParams = useSearchParams();
   const atlasShell = searchParams?.get("atlas") === "1";
   const [sheetState, setSheetState] = useState<SheetState>("peek");
+  // Atlas mode: when a landmark fires geknee:opencitymap, auto-promote the
+  // sheet to full so CityMapView is visible immediately. When the user drags
+  // it back below full, clear cityMap so the auto-open doesn't re-fire.
+  useEffect(() => {
+    if (!atlasShell) return;
+    if (cityMap) setSheetState("full");
+  }, [atlasShell, cityMap]);
+  useEffect(() => {
+    if (!atlasShell) return;
+    if (sheetState !== "full" && cityMap) setCityMap(null);
+  }, [atlasShell, sheetState, cityMap]);
 
   // Listen for "Explore on map" requests from city labels
   useEffect(() => {
@@ -2663,29 +2675,97 @@ export default function LocationPage() {
             state={sheetState}
             onStateChange={setSheetState}
             peek={
-              <div style={{ paddingTop: 4, color: "#c7d2fe", fontSize: 13, letterSpacing: "0.04em" }}>
-                Where to? · tap to plan
-              </div>
+              <DestinationSearch
+                compact
+                onSubmit={(v) => {
+                  setSheetState("open");
+                  router.push(`/plan/style?location=${encodeURIComponent(v)}`);
+                }}
+              />
             }
             open={
-              <div style={{ paddingTop: 12, color: "#c7d2fe" }}>
-                <div style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 22, marginBottom: 8 }}>
-                  Plan a trip
+              <div style={{ paddingTop: 8, color: "#c7d2fe" }}>
+                <div style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 22, marginBottom: 12 }}>
+                  Where to?
                 </div>
-                <div style={{ fontSize: 13, color: "rgba(199,210,254,0.75)" }}>
-                  Trip-build flow lands here in step 5.
+                <DestinationSearch
+                  onSubmit={(v) => router.push(`/plan/style?location=${encodeURIComponent(v)}`)}
+                />
+                <div style={{ marginTop: 16, fontSize: 11, letterSpacing: "0.08em", textTransform: "uppercase", color: "rgba(199,210,254,0.55)" }}>
+                  Popular
                 </div>
+                <div style={{ marginTop: 8, display: "flex", flexWrap: "wrap", gap: 8 }}>
+                  {["Paris", "Tokyo", "New York", "Rome", "Bali", "London", "Barcelona", "Reykjavik"].map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => router.push(`/plan/style?location=${encodeURIComponent(c)}`)}
+                      style={{
+                        background: "rgba(167,139,250,0.12)",
+                        border: "1px solid rgba(167,139,250,0.3)",
+                        color: "#c7d2fe",
+                        fontSize: 12,
+                        padding: "6px 12px",
+                        borderRadius: 999,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
+                {cityMap && (
+                  <div style={{ marginTop: 16, padding: 12, borderRadius: 10, background: "rgba(167,139,250,0.08)", border: "1px solid rgba(167,139,250,0.25)" }}>
+                    <div style={{ fontSize: 13, color: "#c7d2fe" }}>Exploring <strong>{cityMap.name}</strong></div>
+                    <button
+                      onClick={() => setSheetState("full")}
+                      style={{ marginTop: 8, background: "linear-gradient(135deg,#a78bfa,#7dd3fc)", border: "none", color: "#fff", fontSize: 12, fontWeight: 700, padding: "6px 12px", borderRadius: 8, cursor: "pointer" }}
+                    >
+                      Open map
+                    </button>
+                  </div>
+                )}
               </div>
             }
             full={
-              <div style={{ paddingTop: 12, color: "#c7d2fe" }}>
-                <div style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 22, marginBottom: 8 }}>
-                  Map view
+              cityMap ? (
+                <div style={{ position: "absolute", inset: 0 }}>
+                  <CityMapView
+                    embedded
+                    name={cityMap.name}
+                    lat={cityMap.lat}
+                    lon={cityMap.lon}
+                    monuments={(() => {
+                      const activeByMk = new Map<string, string>();
+                      for (const c of collectedMonuments) {
+                        if (c.active && c.skin !== 'default') activeByMk.set(c.monumentId, c.skin);
+                      }
+                      const out: { mk: string; name: string; lat: number; lon: number; ringColor: string }[] = [];
+                      activeByMk.forEach((skin, mk) => {
+                        const coords = MONUMENT_LATLON[mk];
+                        const info   = INFO[mk as keyof typeof INFO] as LmInfo | undefined;
+                        if (!coords) return;
+                        const ringColor = SKIN_RING_COLOR[skin] ?? '#ffd700';
+                        out.push({ mk, name: info?.name ?? mk, lat: coords.lat, lon: coords.lon, ringColor });
+                      });
+                      return out;
+                    })()}
+                    onClose={() => {
+                      zoomCamera(20);
+                      setCityMap(null);
+                      setSheetState("peek");
+                    }}
+                  />
                 </div>
-                <div style={{ fontSize: 13, color: "rgba(199,210,254,0.75)" }}>
-                  CityMapView embeds here in step 6.
+              ) : (
+                <div style={{ paddingTop: 8, color: "#c7d2fe" }}>
+                  <div style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 22, marginBottom: 8 }}>
+                    Tap a landmark
+                  </div>
+                  <div style={{ fontSize: 13, color: "rgba(199,210,254,0.75)" }}>
+                    Spin the globe and tap a landmark to open its city map here.
+                  </div>
                 </div>
-              </div>
+              )
             }
           />
         </>
@@ -2699,14 +2779,13 @@ export default function LocationPage() {
 
       {/* Monument collection shop */}
       <MonumentShop open={shopOpen} onClose={() => setShopOpen(false)} />
-      {cityMap && <CityMapView
+      {/* Legacy fullscreen CityMapView. Hidden in shell mode — the sheet's
+          full state renders CityMapView in the same component below. */}
+      {!atlasShell && cityMap && <CityMapView
         name={cityMap.name}
         lat={cityMap.lat}
         lon={cityMap.lon}
         monuments={(() => {
-          // Ring markers for each collected monument with a known skin + coords.
-          // Mapbox's own building extrusions render the actual landmark, so we
-          // no longer overlay our GLB — just the skin-coloured ring on the ground.
           const activeByMk = new Map<string, string>();
           for (const c of collectedMonuments) {
             if (c.active && c.skin !== 'default') activeByMk.set(c.monumentId, c.skin);
@@ -2722,7 +2801,6 @@ export default function LocationPage() {
           return out;
         })()}
         onClose={() => {
-          // Pull the globe camera out past CLOSE_DIST so the auto-open doesn't re-fire immediately
           zoomCamera(20);
           setCityMap(null);
         }}
