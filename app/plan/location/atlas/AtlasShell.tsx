@@ -9,12 +9,18 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import AtlasGlobeClient from "./AtlasGlobeClient";
+import dynamic from "next/dynamic";
 import {
   POPULAR_SUGGESTIONS,
   resolveDestination,
   type Suggestion,
 } from "./destinations";
+
+// LocationClient is the live planner — when mounted with chromeless, it
+// renders only the real R3F globe (country borders, monuments, click-to-fly,
+// procedural Earth texture). ssr:false because it touches window at module
+// scope. Dynamic import keeps Atlas's first paint cheap.
+const PlannerGlobe = dynamic(() => import("../LocationClient"), { ssr: false, loading: () => null });
 
 type SheetState = "peek" | "open" | "full";
 type TripStyle = "luxury" | "adventure" | "slow" | "mix";
@@ -98,8 +104,8 @@ export default function AtlasShell() {
         overflow: "hidden",
       }}
     >
-      {/* Background globe */}
-      <AtlasGlobeClient />
+      {/* Background globe — real LocationClient planet, no chrome. */}
+      <PlannerGlobe chromeless />
 
       {/* Top bar */}
       <nav

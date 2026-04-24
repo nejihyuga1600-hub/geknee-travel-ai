@@ -2285,7 +2285,10 @@ const MonumentShop    = dynamic(() => import("@/app/components/MonumentShop"),  
 const CityMapView     = dynamic(() => import("@/app/components/CityMapView"),     { ssr: false });
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
-export default function LocationPage() {
+// `chromeless` mounts only the globe Canvas + loading overlay so other
+// surfaces (e.g. the Atlas shell at /plan/location/atlas) can render the
+// real planet as their background without bringing the planner chrome.
+export default function LocationPage({ chromeless = false }: { chromeless?: boolean } = {}) {
   const [location, setLocation] = useState("");
   const [authOpen,      setAuthOpen]      = useState(false);
   const [panelOpen,     setPanelOpen]     = useState(false);
@@ -2379,17 +2382,28 @@ export default function LocationPage() {
     resetGlobeTilt();
   };
 
+  // <main> at the top route, plain <div> when mounted as background so we
+  // don't emit two <main> tags on /plan/location/atlas.
+  const Wrapper = chromeless ? "div" : "main";
+
   return (
     // position:fixed on canvas bypasses the entire layout chain — no parent
-    // needs explicit height. The main just provides the stacking context.
-    <main style={{ position: "fixed", inset: 0, overflow: "hidden", background: "#060816", touchAction: "none" }}>
+    // needs explicit height. The wrapper just provides the stacking context.
+    <Wrapper style={{
+      position: chromeless ? "absolute" : "fixed",
+      inset: 0,
+      overflow: "hidden",
+      background: chromeless ? "transparent" : "#060816",
+      touchAction: "none",
+    }}>
 
-      {/* Deep-space gradient background */}
-      <div style={{
+      {/* Deep-space gradient background. Hidden when chromeless so the host
+          surface (AtlasShell) provides its own backdrop. */}
+      {!chromeless && <div style={{
         position: "fixed", inset: 0, pointerEvents: "none", zIndex: 0,
         background:
           "radial-gradient(ellipse at 40% 45%, rgba(30,70,200,0.4) 0%, rgba(6,8,22,0.96) 58%, #030510 100%)",
-      }} />
+      }} />}
 
       {/* Full-page 3D canvas — fixed to viewport so it always fills edge-to-edge */}
       <Canvas
@@ -2438,8 +2452,9 @@ export default function LocationPage() {
             renders, so getContext() is guaranteed available. */}
       </Canvas>
 
-      {/* Globe loading overlay */}
-      {!globeReady && (
+      {/* Globe loading overlay. Suppressed in chromeless mode so the host
+          surface (AtlasShell) stays visible while the globe builds its texture. */}
+      {!chromeless && !globeReady && (
         <div style={{
           position: "fixed", inset: 0, zIndex: 50,
           background: "rgba(4,5,16,0.92)",
@@ -2461,7 +2476,7 @@ export default function LocationPage() {
       {/* Fraunces hero overlay — Atlas voice on the planner. Floats over
           the globe near the top-center, fades out once the user has picked
           a destination so it doesn't crowd the planning chrome. */}
-      {globeReady && !location && (
+      {!chromeless && globeReady && !location && (
         <div style={{
           position: "fixed", top: 80, left: 0, right: 0, zIndex: 15,
           textAlign: "center", pointerEvents: "none",
@@ -2493,6 +2508,7 @@ export default function LocationPage() {
         </div>
       )}
 
+      {!chromeless && (<>
       {/* Initialize / home button — top-center */}
       <div style={{ position: "fixed", top: 18, left: "50%", transform: "translateX(-50%)", zIndex: 20 }}>
         <button
@@ -2692,6 +2708,7 @@ export default function LocationPage() {
           uncollected → collected (Phase C of the unlock-share flow). */}
       <UnlockShareToast />
 
-    </main>
+      </>)}
+    </Wrapper>
   );
 }
