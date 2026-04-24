@@ -7193,15 +7193,13 @@ export default function LocationPage() {
               {String.fromCodePoint(0x1F3DB)}{!isMobile && " Collection"}
             </button>
 
-            {/* Go Pro button — header links to the pricing page so the Pro value
-                prop gets a full surface; UpgradeModal still opens contextually
-                from inside the app when users hit generation / save limits. */}
-            <a
-              href="/pricing"
-              onClick={() => track('upgrade_click', { surface: 'header' })}
+            {/* Go Pro button — opens the contextual pricing modal. /pricing exists
+                as a standalone SEO/shareable URL but in-app goes through the modal. */}
+            <button
+              onClick={() => { track('upgrade_click', { surface: 'header' }); setUpgradeOpen(true); }}
               style={{
                 background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
-                border: "none", borderRadius: 10, textDecoration: "none",
+                border: "none", borderRadius: 10,
                 color: "#fff", fontSize: 12, fontWeight: 700,
                 padding: isMobile ? "7px 10px" : "8px 14px", cursor: "pointer",
                 display: "flex", alignItems: "center", gap: 6,
@@ -7209,7 +7207,7 @@ export default function LocationPage() {
               }}
             >
               {String.fromCodePoint(0x2728)} {isMobile ? "Pro" : "Go Pro"}
-            </a>
+            </button>
 
             {/* Trips & Friends button */}
             <button

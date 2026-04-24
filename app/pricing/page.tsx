@@ -1,6 +1,11 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import CheckoutButton from './CheckoutButton';
+import { fetchStripePrices } from '@/lib/stripe-prices';
+
+// Revalidate the page hourly — Stripe prices don't change often, no need
+// to hit their API on every pageview.
+export const revalidate = 3600;
 
 export const metadata: Metadata = {
   title: 'Pricing · geknee',
@@ -32,6 +37,10 @@ async function PricingBody({ searchParamsPromise }: { searchParamsPromise: Promi
   const success = sp.success === '1';
   const canceled = sp.canceled === '1';
 
+  // Live from Stripe (revalidated hourly). Falls back to em-dashes if Stripe
+  // is unreachable — better than showing misleading numbers.
+  const { monthly, yearly, savingsPct } = await fetchStripePrices();
+
   const tiers: Tier[] = [
     {
       name: 'Free',
@@ -54,8 +63,8 @@ async function PricingBody({ searchParamsPromise }: { searchParamsPromise: Promi
     {
       name: 'Pro Monthly',
       tagline: 'For the serial trip-planner.',
-      price: '$9',
-      priceSub: '/ month',
+      price: monthly?.amount ?? '—',
+      priceSub: monthly?.sub ?? '/ month',
       highlight: false,
       features: [
         { label: 'Everything in Free', included: true },
@@ -71,14 +80,14 @@ async function PricingBody({ searchParamsPromise }: { searchParamsPromise: Promi
     },
     {
       name: 'Pro Yearly',
-      tagline: 'Save 2 months — most popular.',
-      price: '$79',
-      priceSub: '/ year',
+      tagline: savingsPct ? `Save ${savingsPct}% — best deal.` : 'Annual plan.',
+      price: yearly?.amount ?? '—',
+      priceSub: yearly?.sub ?? '/ year',
       highlight: true,
-      badge: 'Save 27%',
+      badge: savingsPct ? `Save ${savingsPct}%` : undefined,
       features: [
         { label: 'Everything in Pro Monthly', included: true },
-        { label: 'Save $29 vs. paying monthly', included: true },
+        ...(savingsPct ? [{ label: `${savingsPct}% off vs. paying monthly`, included: true }] : []),
         { label: 'Exclusive Pro-Yearly monument skin', included: true },
       ],
       cta: (
