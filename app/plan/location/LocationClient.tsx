@@ -11,7 +11,9 @@ const isMobile = typeof window !== "undefined" && (
   /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || window.innerWidth < 768
 );
 import * as THREE from "three";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import TopNavPills from "./shell/TopNavPills";
+import BottomSheet, { type SheetState } from "./shell/BottomSheet";
 import { consumeGlobeTarget, consumeCameraZoom, flyToGlobe, zoomCamera, resetGlobeTilt, consumeResetTilt } from "@/lib/globeAnim";
 import { track } from "@/lib/analytics";
 import { R, geo, geoPos, type SurfPos } from "./globe/geo";
@@ -2299,6 +2301,9 @@ export default function LocationPage() {
   // Bumped to force a Canvas remount when WebGL context is lost (Safari tab
   // switch, GPU pressure, dev HMR). Without this, the canvas stays blank.
   const [glKey, setGlKey] = useState(0);
+  const searchParams = useSearchParams();
+  const atlasShell = searchParams?.get("atlas") === "1";
+  const [sheetState, setSheetState] = useState<SheetState>("peek");
 
   // Listen for "Explore on map" requests from city labels
   useEffect(() => {
@@ -2461,7 +2466,7 @@ export default function LocationPage() {
       {/* Fraunces hero overlay — Atlas voice on the planner. Floats over
           the globe near the top-center, fades out once the user has picked
           a destination so it doesn't crowd the planning chrome. */}
-      {globeReady && !location && (
+      {globeReady && !location && (!atlasShell || sheetState === "peek") && (
         <div style={{
           position: "fixed", top: 80, left: 0, right: 0, zIndex: 15,
           textAlign: "center", pointerEvents: "none",
@@ -2493,8 +2498,9 @@ export default function LocationPage() {
         </div>
       )}
 
-      {/* Initialize / home button — top-center */}
-      <div style={{ position: "fixed", top: 18, left: "50%", transform: "translateX(-50%)", zIndex: 20 }}>
+      {/* Initialize / home button — top-center. Hidden in Atlas shell mode;
+          reset is moved into the menu (settings panel). */}
+      <div style={{ position: "fixed", top: 18, left: "50%", transform: "translateX(-50%)", zIndex: 20, display: atlasShell ? "none" : undefined }}>
         <button
           onClick={handleInitialize}
           title="Reset globe orientation"
@@ -2514,8 +2520,9 @@ export default function LocationPage() {
         </button>
       </div>
 
-      {/* Auth / user area — top-right corner, above canvas (zIndex 20) */}
-      <div style={{ position: "fixed", top: 18, right: 14, zIndex: 20, display: "flex", alignItems: "center", gap: isMobile ? 5 : 8 }}>
+      {/* Auth / user area — top-right corner, above canvas (zIndex 20).
+          Hidden in Atlas shell mode (replaced by TopNavPills below). */}
+      <div style={{ position: "fixed", top: 18, right: 14, zIndex: 20, display: atlasShell ? "none" : "flex", alignItems: "center", gap: isMobile ? 5 : 8 }}>
         {session?.user ? (
           <>
             {/* Monument Shop button */}
@@ -2638,6 +2645,51 @@ export default function LocationPage() {
           <span style={{ display: "block", width: 14, height: 1.5, background: "currentColor", borderRadius: 1 }} />
         </button>
       </div>
+
+      {/* Atlas shell — pill nav + bottom sheet (gated by ?atlas=1). */}
+      {atlasShell && (
+        <>
+          <TopNavPills
+            session={session}
+            isMobile={isMobile}
+            notifUnread={notifUnread}
+            onSignIn={() => setAuthOpen(true)}
+            onShop={() => setShopOpen(true)}
+            onUpgrade={() => { track('upgrade_click', { surface: 'atlas-pill' }); setUpgradeOpen(true); }}
+            onTrips={() => { setPanelOpen(true); setNotifUnread(0); }}
+            onSettings={() => setSettingsOpen(true)}
+          />
+          <BottomSheet
+            state={sheetState}
+            onStateChange={setSheetState}
+            peek={
+              <div style={{ paddingTop: 4, color: "#c7d2fe", fontSize: 13, letterSpacing: "0.04em" }}>
+                Where to? · tap to plan
+              </div>
+            }
+            open={
+              <div style={{ paddingTop: 12, color: "#c7d2fe" }}>
+                <div style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 22, marginBottom: 8 }}>
+                  Plan a trip
+                </div>
+                <div style={{ fontSize: 13, color: "rgba(199,210,254,0.75)" }}>
+                  Trip-build flow lands here in step 5.
+                </div>
+              </div>
+            }
+            full={
+              <div style={{ paddingTop: 12, color: "#c7d2fe" }}>
+                <div style={{ fontFamily: "var(--font-display), Georgia, serif", fontSize: 22, marginBottom: 8 }}>
+                  Map view
+                </div>
+                <div style={{ fontSize: 13, color: "rgba(199,210,254,0.75)" }}>
+                  CityMapView embeds here in step 6.
+                </div>
+              </div>
+            }
+          />
+        </>
+      )}
 
       {/* Auth modal */}
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} />
