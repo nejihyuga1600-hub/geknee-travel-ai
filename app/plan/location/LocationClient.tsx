@@ -2296,6 +2296,9 @@ export default function LocationPage() {
   const [collectedMonuments, setCollectedMonumentsState] = useState<{ monumentId: string; skin: string; active: boolean }[]>([]);
   const [notifUnread,   setNotifUnread]   = useState(0);
   const [globeReady,    setGlobeReady]    = useState(false);
+  // Bumped to force a Canvas remount when WebGL context is lost (Safari tab
+  // switch, GPU pressure, dev HMR). Without this, the canvas stays blank.
+  const [glKey, setGlKey] = useState(0);
 
   // Listen for "Explore on map" requests from city labels
   useEffect(() => {
@@ -2390,18 +2393,25 @@ export default function LocationPage() {
 
       {/* Full-page 3D canvas — fixed to viewport so it always fills edge-to-edge */}
       <Canvas
+        key={glKey}
         style={{ position: "fixed", top: 0, left: 0, width: "100vw", height: "100svh", zIndex: 1, touchAction: "none" }}
         camera={{ position: [0, 0, 26], fov: 50 }}
         dpr={[1, isMobile ? 1.5 : 2]}
         gl={{
           antialias: !isMobile,
           powerPreference: isMobile ? "default" : "high-performance",
+          failIfMajorPerformanceCaveat: false,
         }}
         onCreated={({ gl }) => {
-          // Prevent Safari from intercepting touch events on the WebGL canvas
           gl.domElement.style.touchAction = "none";
-          // Handle WebGL context loss gracefully (Safari drops context during app switch)
-          gl.domElement.addEventListener("webglcontextlost", (e) => { e.preventDefault(); }, false);
+          // WebGL context loss → remount Canvas. preventDefault keeps the
+          // browser from killing the context permanently; the key bump forces
+          // R3F to rebuild the scene with a fresh GL context.
+          gl.domElement.addEventListener("webglcontextlost", (e) => {
+            e.preventDefault();
+            setGlobeReady(false);
+            setGlKey((k) => k + 1);
+          }, false);
         }}
       >
         <OrbitControls
