@@ -2449,6 +2449,41 @@ export default function LocationPage() {
         </div>
       )}
 
+      {/* Fraunces hero overlay — Atlas voice on the planner. Floats over
+          the globe near the top-center, fades out once the user has picked
+          a destination so it doesn't crowd the planning chrome. */}
+      {globeReady && !location && (
+        <div style={{
+          position: "fixed", top: 80, left: 0, right: 0, zIndex: 15,
+          textAlign: "center", pointerEvents: "none",
+          padding: "0 24px",
+        }}>
+          <h1 style={{
+            margin: 0,
+            fontFamily: "var(--font-display), Georgia, serif",
+            fontSize: "clamp(36px, 6vw, 56px)",
+            fontWeight: 400,
+            letterSpacing: "-0.02em",
+            lineHeight: 1.08,
+            color: "var(--brand-ink)",
+            textShadow: "0 2px 30px rgba(6,8,22,0.85)",
+          }}>
+            Where are you{" "}
+            <em style={{ fontStyle: "italic", color: "var(--brand-accent)" }}>wandering</em>
+            ?
+          </h1>
+          <div style={{
+            marginTop: 8,
+            color: "var(--brand-ink-dim)",
+            fontSize: 13,
+            letterSpacing: "0.04em",
+            textShadow: "0 2px 10px rgba(6,8,22,0.85)",
+          }}>
+            Spin the globe · tap a landmark · or search a city
+          </div>
+        </div>
+      )}
+
       {/* Initialize / home button — top-center */}
       <div style={{ position: "fixed", top: 18, left: "50%", transform: "translateX(-50%)", zIndex: 20 }}>
         <button
