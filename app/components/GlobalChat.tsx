@@ -307,7 +307,7 @@ function GlobalChatUI({ ctx }: { ctx: ReturnType<typeof usePageContext> }) {
             }}
             title="Open GeKnee AI Genie"
           >
-            <img src="/Geknee.png" alt="GeKnee Genie" style={{ width: 62, height: 62, objectFit: 'contain', filter: 'drop-shadow(0 0 8px rgba(167,139,250,0.7))' }} />
+            <span aria-label="GeKnee Genie" style={{ fontSize: 36, lineHeight: 1, filter: 'drop-shadow(0 0 8px rgba(167,139,250,0.7))' }}>{String.fromCodePoint(0x1F9DE)}</span>
           </button>
         )}
 
@@ -478,7 +478,7 @@ function GlobalChatUI({ ctx }: { ctx: ReturnType<typeof usePageContext> }) {
               padding: 6, overflow: 'hidden', position: 'relative',
             }}
           >
-            <img src="/Geknee.png" alt="GeKnee Genie" style={{ width: 62, height: 62, objectFit: 'contain', filter: 'drop-shadow(0 0 8px rgba(167,139,250,0.7)) brightness(0.7)' }} />
+            <span aria-label="GeKnee Genie" style={{ fontSize: 36, lineHeight: 1, filter: 'drop-shadow(0 0 8px rgba(167,139,250,0.7)) brightness(0.7)', opacity: 0.6 }}>{String.fromCodePoint(0x1F9DE)}</span>
             <span style={{ position: 'absolute', fontSize: 18, color: '#fff', fontWeight: 700, textShadow: '0 1px 4px rgba(0,0,0,0.8)' }}>{String.fromCodePoint(0x00D7)}</span>
           </button>
         )}
