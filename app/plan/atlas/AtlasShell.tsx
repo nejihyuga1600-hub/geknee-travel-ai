@@ -10,26 +10,55 @@
 import { useState } from "react";
 import Link from "next/link";
 import AtlasGlobeClient from "./AtlasGlobeClient";
+import {
+  POPULAR_SUGGESTIONS,
+  resolveDestination,
+  type Suggestion,
+} from "./destinations";
 
 type SheetState = "peek" | "open" | "full";
+type Trip = {
+  destination: string;
+  lat: number | null;
+  lon: number | null;
+  mk: string | null;        // monument key when matched, null for free text
+};
 
 const STEPS = ["Destination", "Dates", "Style", "Review"] as const;
+
+const EMPTY_TRIP: Trip = { destination: "", lat: null, lon: null, mk: null };
 
 export default function AtlasShell() {
   const [sheet, setSheet] = useState<SheetState>("peek");
   const [step, setStep] = useState(0);
   const [dest, setDest] = useState("");
+  const [trip, setTrip] = useState<Trip>(EMPTY_TRIP);
 
-  const sheetHeight = sheet === "peek" ? 108 : sheet === "open" ? 380 : "85%";
+  const sheetHeight = sheet === "peek" ? 108 : sheet === "open" ? 420 : "85%";
 
-  // Toggle through peek → open → full → peek on grab-bar tap.
   const cycleSheet = () =>
     setSheet((s) => (s === "peek" ? "open" : s === "open" ? "full" : "peek"));
 
-  // Simple destination submit — wiring to the real geocode + trip state
-  // happens in the next phase. For now just advances the sheet.
-  const submitDest = () => {
-    if (!dest.trim()) return;
+  // Resolve typed destination → trip state. Matched monument gives us a
+  // mk + lat/lon for the globe pin (next phase). Unmatched still proceeds
+  // — the trip just doesn't have a pin yet.
+  const submitDest = (raw?: string) => {
+    const value = (raw ?? dest).trim();
+    if (!value) return;
+    const match = resolveDestination(value);
+    if (match) {
+      setTrip({ destination: match.name, lat: match.lat, lon: match.lon, mk: match.mk });
+      setDest(match.name);
+    } else {
+      setTrip({ destination: value, lat: null, lon: null, mk: null });
+    }
+    setSheet("open");
+    setStep(1);
+  };
+
+  const pickSuggestion = (s: Suggestion) => {
+    setTrip({ destination: s.name, lat: s.lat, lon: s.lon, mk: s.mk });
+    setDest(s.name);
     setSheet("open");
     setStep(1);
   };
@@ -276,7 +305,16 @@ export default function AtlasShell() {
               padding: "24px 28px 32px",
             }}
           >
-            {step === 0 && <StepPlaceholder title="Destination" line="Search or pick a landmark on the globe." />}
+            {step === 0 && (
+              <StepDestination
+                dest={dest}
+                setDest={setDest}
+                submitDest={submitDest}
+                pickSuggestion={pickSuggestion}
+                trip={trip}
+                onNext={() => setStep(1)}
+              />
+            )}
             {step === 1 && <StepPlaceholder title="Dates" line="When's the trip?" />}
             {step === 2 && <StepPlaceholder title="Style" line="Luxury, adventure, slow, or something in between." />}
             {step === 3 && <StepPlaceholder title="Review" line="Last look before we save the plan." />}
@@ -454,6 +492,197 @@ function StepPlaceholder({ title, line }: { title: string; line: string }) {
           /plan/location
         </Link>{" "}
         remains the production flow for now.
+      </div>
+    </div>
+  );
+}
+
+function StepDestination({
+  dest,
+  setDest,
+  submitDest,
+  pickSuggestion,
+  trip,
+  onNext,
+}: {
+  dest: string;
+  setDest: (v: string) => void;
+  submitDest: (v?: string) => void;
+  pickSuggestion: (s: Suggestion) => void;
+  trip: Trip;
+  onNext: () => void;
+}) {
+  return (
+    <div>
+      <h2
+        style={{
+          margin: 0,
+          fontFamily: "var(--font-display), Georgia, serif",
+          fontSize: 28,
+          fontWeight: 500,
+          letterSpacing: "-0.01em",
+          color: "var(--brand-ink)",
+        }}
+      >
+        Where to
+        <em style={{ fontStyle: "italic", color: "var(--brand-accent)" }}>?</em>
+      </h2>
+      <p
+        style={{
+          marginTop: 8,
+          color: "var(--brand-ink-dim)",
+          fontSize: 13,
+          lineHeight: 1.5,
+          maxWidth: 560,
+        }}
+      >
+        Type a city, country, or landmark — or pick one of the popular spots below.
+      </p>
+
+      <input
+        value={dest}
+        onChange={(e) => setDest(e.target.value)}
+        onKeyDown={(e) => e.key === "Enter" && submitDest()}
+        placeholder="Try 'Kyoto', 'Iceland', 'Eiffel Tower'…"
+        style={{
+          width: "100%",
+          marginTop: 16,
+          padding: "12px 16px",
+          borderRadius: 12,
+          border: "1px solid var(--brand-border)",
+          background: "rgba(255,255,255,0.04)",
+          color: "var(--brand-ink)",
+          fontSize: 15,
+          fontFamily: "var(--font-ui), system-ui, sans-serif",
+          outline: "none",
+        }}
+      />
+
+      <div
+        style={{
+          marginTop: 20,
+          fontSize: 11,
+          color: "var(--brand-ink-mute)",
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+        }}
+      >
+        Popular
+      </div>
+      <div
+        style={{
+          marginTop: 10,
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+          gap: 10,
+        }}
+      >
+        {POPULAR_SUGGESTIONS.map((s) => {
+          const active = trip.mk === s.mk;
+          return (
+            <button
+              key={s.mk}
+              onClick={() => pickSuggestion(s)}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                padding: "10px 12px",
+                borderRadius: 10,
+                background: active
+                  ? "rgba(167, 139, 250, 0.12)"
+                  : "rgba(255,255,255,0.03)",
+                border: `1px solid ${active ? "var(--brand-border-hi)" : "var(--brand-border)"}`,
+                color: "var(--brand-ink)",
+                fontFamily: "var(--font-ui), system-ui, sans-serif",
+                fontSize: 13,
+                fontWeight: 500,
+                textAlign: "left",
+                cursor: "pointer",
+              }}
+            >
+              <span style={{ fontSize: 18 }}>{s.emoji}</span>
+              <span style={{ minWidth: 0, flex: 1 }}>
+                <span
+                  style={{
+                    display: "block",
+                    fontWeight: 600,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {s.name}
+                </span>
+                <span
+                  style={{
+                    display: "block",
+                    fontSize: 11,
+                    color: "var(--brand-ink-mute)",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  {s.location}
+                </span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Footer state — confirms what's recorded so far + Next */}
+      <div
+        style={{
+          marginTop: 28,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+        }}
+      >
+        <div
+          style={{
+            color: "var(--brand-ink-mute)",
+            fontSize: 12,
+            fontFamily: "var(--font-ui), system-ui, sans-serif",
+          }}
+        >
+          {trip.destination ? (
+            <>
+              <span style={{ color: "var(--brand-accent-2)" }}>{String.fromCodePoint(0x2713)}</span>{" "}
+              {trip.destination}
+              {trip.mk && (
+                <span style={{ marginLeft: 8, color: "var(--brand-ink-mute)" }}>
+                  · pinned
+                </span>
+              )}
+            </>
+          ) : (
+            "no destination yet"
+          )}
+        </div>
+        <button
+          onClick={onNext}
+          disabled={!trip.destination}
+          style={{
+            padding: "10px 18px",
+            borderRadius: 10,
+            border: "none",
+            background: trip.destination
+              ? "linear-gradient(135deg, var(--brand-accent), var(--brand-accent-2))"
+              : "rgba(255,255,255,0.04)",
+            color: trip.destination ? "#0a0a1f" : "var(--brand-ink-mute)",
+            fontFamily: "var(--font-ui), system-ui, sans-serif",
+            fontSize: 13,
+            fontWeight: 700,
+            letterSpacing: "0.02em",
+            cursor: trip.destination ? "pointer" : "not-allowed",
+          }}
+        >
+          Next {String.fromCodePoint(0x2192)}
+        </button>
       </div>
     </div>
   );
