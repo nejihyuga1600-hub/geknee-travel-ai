@@ -109,9 +109,9 @@ export default async function LeaderboardPage() {
             {String.fromCodePoint(0x2190)} geknee home
           </Link>
           <Link href="/plan/location" style={{
-            background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', padding: '8px 14px',
+            background: 'linear-gradient(135deg,#a78bfa,#7dd3fc)', padding: '8px 14px',
             borderRadius: 10, color: '#fff', fontSize: 12, fontWeight: 700,
-            textDecoration: 'none', boxShadow: '0 4px 14px rgba(99,102,241,0.35)',
+            textDecoration: 'none', boxShadow: '0 4px 14px rgba(167, 139, 250,0.35)',
           }}>
             Open the globe {String.fromCodePoint(0x27A4)}
           </Link>
@@ -146,7 +146,7 @@ export default async function LeaderboardPage() {
             </div>
             <Link href="/plan/location" style={{
               display: 'inline-block', marginTop: 18,
-              background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+              background: 'linear-gradient(135deg,#a78bfa,#7dd3fc)',
               padding: '10px 18px', borderRadius: 10, color: '#fff',
               fontSize: 13, fontWeight: 800, textDecoration: 'none',
             }}>
@@ -191,7 +191,7 @@ export default async function LeaderboardPage() {
                     width: 40, height: 40, borderRadius: '50%',
                     background: r.image
                       ? `url(${r.image}) center/cover`
-                      : 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+                      : 'linear-gradient(135deg,#a78bfa,#7dd3fc)',
                     border: isPodium ? `2px solid ${accent}` : '2px solid rgba(148,163,184,0.2)',
                     flexShrink: 0,
                   }} />

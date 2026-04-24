@@ -55,7 +55,7 @@ export default function UpgradeModal({ open, onClose, feature, reason, generatio
         onClick={e => e.stopPropagation()}
         style={{
           background: 'linear-gradient(135deg,#0f172a,#1e1b4b)',
-          border: '1px solid rgba(129,140,248,0.3)',
+          border: '1px solid rgba(167, 139, 250,0.3)',
           borderRadius: 24, padding: '36px 32px',
           maxWidth: 440, width: '92%', animation: 'modalSlideUp 0.3s ease-out',
           boxShadow: '0 32px 80px rgba(0,0,0,0.7)',
@@ -129,7 +129,7 @@ export default function UpgradeModal({ open, onClose, feature, reason, generatio
             disabled={!!loading}
             style={{
               padding: '14px 0', borderRadius: 14, border: 'none',
-              background: loading ? 'rgba(99,102,241,0.5)' : 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+              background: loading ? 'rgba(167, 139, 250,0.5)' : 'linear-gradient(135deg,#a78bfa,#7dd3fc)',
               color: '#fff', fontSize: 15, fontWeight: 700, cursor: loading ? 'wait' : 'pointer',
               position: 'relative',
             }}
@@ -147,8 +147,8 @@ export default function UpgradeModal({ open, onClose, feature, reason, generatio
             disabled={!!loading}
             style={{
               padding: '12px 0', borderRadius: 14,
-              border: '1px solid rgba(99,102,241,0.4)',
-              background: 'rgba(99,102,241,0.08)',
+              border: '1px solid rgba(167, 139, 250,0.4)',
+              background: 'rgba(167, 139, 250,0.08)',
               color: '#a5b4fc', fontSize: 14, fontWeight: 600, cursor: loading ? 'wait' : 'pointer',
             }}
           >

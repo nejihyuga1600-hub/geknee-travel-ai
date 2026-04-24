@@ -186,9 +186,9 @@ export default async function ProfilePage(
             {String.fromCodePoint(0x2190)} geknee home
           </Link>
           <Link href="/plan/location" style={{
-            background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', padding: '8px 14px',
+            background: 'linear-gradient(135deg,#a78bfa,#7dd3fc)', padding: '8px 14px',
             borderRadius: 10, color: '#fff', fontSize: 12, fontWeight: 700,
-            textDecoration: 'none', boxShadow: '0 4px 14px rgba(99,102,241,0.35)',
+            textDecoration: 'none', boxShadow: '0 4px 14px rgba(167, 139, 250,0.35)',
           }}>
             Start your own {String.fromCodePoint(0x27A4)}
           </Link>
@@ -233,7 +233,7 @@ export default async function ProfilePage(
           marginBottom: 40,
           borderRadius: 20,
           overflow: 'hidden',
-          background: 'radial-gradient(ellipse at 30% 20%, rgba(99,102,241,0.15) 0%, rgba(6,8,22,0.9) 70%)',
+          background: 'radial-gradient(ellipse at 30% 20%, rgba(167, 139, 250,0.15) 0%, rgba(6,8,22,0.9) 70%)',
           border: '1px solid rgba(148,163,184,0.18)',
           boxShadow: '0 24px 80px rgba(0,0,0,0.45)',
         }}>
@@ -331,8 +331,8 @@ export default async function ProfilePage(
         {/* Footer CTA */}
         <section style={{ marginTop: 56, textAlign: 'center' }}>
           <div style={{
-            background: 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(139,92,246,0.2))',
-            border: '1px solid rgba(139,92,246,0.4)',
+            background: 'linear-gradient(135deg, rgba(167, 139, 250,0.2), rgba(167, 139, 250,0.2))',
+            border: '1px solid rgba(167, 139, 250,0.4)',
             borderRadius: 16, padding: '36px 20px', maxWidth: 640, margin: '0 auto',
           }}>
             <h2 style={{
@@ -348,10 +348,10 @@ export default async function ProfilePage(
             </p>
             <Link href="/plan/location" style={{
               display: 'inline-block', marginTop: 18,
-              background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+              background: 'linear-gradient(135deg,#a78bfa,#7dd3fc)',
               padding: '12px 22px', borderRadius: 10, color: '#fff',
               fontSize: 14, fontWeight: 800, textDecoration: 'none',
-              boxShadow: '0 8px 22px rgba(99,102,241,0.4)',
+              boxShadow: '0 8px 22px rgba(167, 139, 250,0.4)',
             }}>
               Open the globe {String.fromCodePoint(0x27A4)}
             </Link>

@@ -437,15 +437,15 @@ function DetailView({
       {/* Hero card */}
       <div style={{
         background: unlocked
-          ? 'linear-gradient(135deg,rgba(139,92,246,0.15),rgba(236,72,153,0.08))'
+          ? 'linear-gradient(135deg,rgba(167, 139, 250,0.15),rgba(236,72,153,0.08))'
           : 'rgba(255,255,255,0.03)',
-        border: `1px solid ${unlocked ? 'rgba(139,92,246,0.4)' : 'rgba(255,255,255,0.08)'}`,
+        border: `1px solid ${unlocked ? 'rgba(167, 139, 250,0.4)' : 'rgba(255,255,255,0.08)'}`,
         borderRadius: 16, padding: '18px 20px', marginBottom: 20,
         display: 'flex', alignItems: 'center', gap: 16,
       }}>
         <div style={{
           fontSize: 52,
-          filter: unlocked ? 'none' : 'brightness(0) drop-shadow(0 0 10px rgba(139,92,246,0.6))',
+          filter: unlocked ? 'none' : 'brightness(0) drop-shadow(0 0 10px rgba(167, 139, 250,0.6))',
         }}>
           {item.emoji}
         </div>
@@ -728,10 +728,10 @@ export default function MonumentShop({ open, onClose }: Props) {
     }} onClick={onClose}>
       <div onClick={e => e.stopPropagation()} style={{
         background: 'linear-gradient(135deg,#0a0f1e,#0f172a,#1a0a2e)',
-        border: '1px solid rgba(139,92,246,0.3)',
+        border: '1px solid rgba(167, 139, 250,0.3)',
         borderRadius: 24, width: '92%', maxWidth: 560, animation: 'modalSlideUp 0.3s ease-out',
         maxHeight: '88vh', display: 'flex', flexDirection: 'column',
-        boxShadow: '0 32px 80px rgba(0,0,0,0.8), 0 0 60px rgba(139,92,246,0.1)',
+        boxShadow: '0 32px 80px rgba(0,0,0,0.8), 0 0 60px rgba(167, 139, 250,0.1)',
         overflow: 'hidden',
       }}>
         {/* ── Header ──────────────────────────────────────────────────────── */}
@@ -768,7 +768,7 @@ export default function MonumentShop({ open, onClose }: Props) {
             ] as const).map(({ key, label }) => (
               <button key={key} onClick={() => switchTab(key)} style={{
                 flex: 1, padding: '8px 0', borderRadius: '10px 10px 0 0', border: 'none',
-                background: tab === key ? 'rgba(139,92,246,0.15)' : 'transparent',
+                background: tab === key ? 'rgba(167, 139, 250,0.15)' : 'transparent',
                 borderBottom: tab === key ? '2px solid #a855f7' : '2px solid transparent',
                 color: tab === key ? '#c4b5fd' : 'rgba(255,255,255,0.3)',
                 fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
@@ -856,8 +856,8 @@ export default function MonumentShop({ open, onClose }: Props) {
                 style={{
                   display: 'block', marginBottom: 12,
                   padding: '8px 12px', borderRadius: 10,
-                  background: 'rgba(139,92,246,0.12)',
-                  border: '1px solid rgba(139,92,246,0.3)',
+                  background: 'rgba(167, 139, 250,0.12)',
+                  border: '1px solid rgba(167, 139, 250,0.3)',
                   color: '#c4b5fd', fontSize: 12, fontWeight: 700,
                   textDecoration: 'none', textAlign: 'center',
                 }}
@@ -884,7 +884,7 @@ export default function MonumentShop({ open, onClose }: Props) {
             };
             return (
               <div style={{
-                background: 'linear-gradient(135deg, rgba(245,158,11,0.15), rgba(99,102,241,0.15))',
+                background: 'linear-gradient(135deg, rgba(245,158,11,0.15), rgba(167, 139, 250,0.15))',
                 border: '1px solid rgba(245,158,11,0.35)',
                 borderRadius: 12, padding: '12px 14px', marginBottom: 12,
               }}>
@@ -904,7 +904,7 @@ export default function MonumentShop({ open, onClose }: Props) {
                   <button
                     onClick={() => { track('share_click', { channel: 'copy', mk: lastUnlock.mk, skin: lastUnlock.skin }); copy(); }}
                     style={{
-                      padding: '8px 14px', borderRadius: 8, background: '#8b5cf6',
+                      padding: '8px 14px', borderRadius: 8, background: '#7dd3fc',
                       color: '#fff', fontSize: 12, fontWeight: 700, border: 'none', cursor: 'pointer',
                     }}
                   >Copy link</button>
@@ -959,18 +959,18 @@ export default function MonumentShop({ open, onClose }: Props) {
                       onClick={() => setSelected(item)}
                       style={{
                         background: unlocked
-                          ? 'linear-gradient(135deg,rgba(139,92,246,0.1),rgba(236,72,153,0.06))'
+                          ? 'linear-gradient(135deg,rgba(167, 139, 250,0.1),rgba(236,72,153,0.06))'
                           : 'rgba(255,255,255,0.03)',
-                        border: `1px solid ${unlocked ? 'rgba(139,92,246,0.3)' : eligible ? 'rgba(139,92,246,0.15)' : 'rgba(255,255,255,0.06)'}`,
+                        border: `1px solid ${unlocked ? 'rgba(167, 139, 250,0.3)' : eligible ? 'rgba(167, 139, 250,0.15)' : 'rgba(255,255,255,0.06)'}`,
                         borderRadius: 14, padding: '14px 12px', cursor: 'pointer',
                         transition: 'all 0.2s',
-                        boxShadow: unlocked ? '0 4px 20px rgba(139,92,246,0.1)' : 'none',
+                        boxShadow: unlocked ? '0 4px 20px rgba(167, 139, 250,0.1)' : 'none',
                       }}>
 
                       {/* Emoji / silhouette */}
                       <div style={{
                         fontSize: 36, textAlign: 'center', marginBottom: 8,
-                        filter: unlocked ? 'none' : 'brightness(0) drop-shadow(0 0 8px rgba(139,92,246,0.45))',
+                        filter: unlocked ? 'none' : 'brightness(0) drop-shadow(0 0 8px rgba(167, 139, 250,0.45))',
                         userSelect: 'none',
                       }}>
                         {item.emoji}
@@ -1022,7 +1022,7 @@ export default function MonumentShop({ open, onClose }: Props) {
                       {!unlocked && eligible && (
                         <div style={{
                           width: '100%', padding: '5px 0', borderRadius: 8,
-                          background: 'rgba(139,92,246,0.2)', border: '1px solid rgba(139,92,246,0.35)',
+                          background: 'rgba(167, 139, 250,0.2)', border: '1px solid rgba(167, 139, 250,0.35)',
                           color: '#c4b5fd', fontSize: 10, fontWeight: 700, textAlign: 'center',
                         }}>
                           {String.fromCodePoint(0x1F513)} Ready to collect

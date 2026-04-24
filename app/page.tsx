@@ -60,10 +60,10 @@ export default function Home() {
             <Link href="/leaderboard" style={navLinkStyle}>Leaderboard</Link>
             <Link href="/pricing" style={navLinkStyle}>Pricing</Link>
             <Link href="/plan/location" style={{
-              background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+              background: 'linear-gradient(135deg,#a78bfa,#7dd3fc)',
               padding: '9px 16px', borderRadius: 10, color: '#fff',
               fontSize: 13, fontWeight: 800, textDecoration: 'none',
-              boxShadow: '0 6px 18px rgba(99,102,241,0.35)',
+              boxShadow: '0 6px 18px rgba(167, 139, 250,0.35)',
             }}>
               Open the globe {String.fromCodePoint(0x27A4)}
             </Link>
@@ -80,8 +80,8 @@ export default function Home() {
           <div>
             <div style={{
               display: 'inline-block',
-              background: 'rgba(139,92,246,0.15)',
-              border: '1px solid rgba(139,92,246,0.35)',
+              background: 'rgba(167, 139, 250,0.15)',
+              border: '1px solid rgba(167, 139, 250,0.35)',
               color: '#c4b5fd',
               fontSize: 12, fontWeight: 800, letterSpacing: 1.5,
               padding: '5px 12px', borderRadius: 999,
@@ -107,10 +107,10 @@ export default function Home() {
 
             <div style={{ display: 'flex', gap: 12, marginTop: 32, flexWrap: 'wrap' }}>
               <Link href="/plan/location" style={{
-                background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+                background: 'linear-gradient(135deg,#a78bfa,#7dd3fc)',
                 padding: '14px 22px', borderRadius: 12, color: '#fff',
                 fontSize: 14, fontWeight: 800, textDecoration: 'none',
-                boxShadow: '0 10px 30px rgba(99,102,241,0.4)',
+                boxShadow: '0 10px 30px rgba(167, 139, 250,0.4)',
               }}>
                 Open the globe {String.fromCodePoint(0x27A4)}
               </Link>
@@ -262,8 +262,8 @@ export default function Home() {
           textAlign: 'center',
         }}>
           <div style={{
-            background: 'linear-gradient(135deg, rgba(99,102,241,0.25), rgba(139,92,246,0.25))',
-            border: '1px solid rgba(139,92,246,0.4)',
+            background: 'linear-gradient(135deg, rgba(167, 139, 250,0.25), rgba(167, 139, 250,0.25))',
+            border: '1px solid rgba(167, 139, 250,0.4)',
             borderRadius: 20, padding: '48px 24px',
           }}>
             <h2 style={{
@@ -279,10 +279,10 @@ export default function Home() {
             </p>
             <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 24, flexWrap: 'wrap' }}>
               <Link href="/plan/location" style={{
-                background: 'linear-gradient(135deg,#6366f1,#8b5cf6)',
+                background: 'linear-gradient(135deg,#a78bfa,#7dd3fc)',
                 padding: '14px 26px', borderRadius: 12, color: '#fff',
                 fontSize: 14, fontWeight: 800, textDecoration: 'none',
-                boxShadow: '0 10px 30px rgba(99,102,241,0.4)',
+                boxShadow: '0 10px 30px rgba(167, 139, 250,0.4)',
               }}>
                 Open the globe {String.fromCodePoint(0x27A4)}
               </Link>
@@ -327,7 +327,7 @@ function HeroVisual() {
       <div style={{
         position: 'absolute', inset: 0,
         borderRadius: '50%',
-        border: '2px solid rgba(99,102,241,0.35)',
+        border: '2px solid rgba(167, 139, 250,0.35)',
         animation: 'pulseRing 5s ease-in-out infinite',
       }} />
       {/* inner ring */}
@@ -344,7 +344,7 @@ function HeroVisual() {
         position: 'relative',
         borderRadius: '50%',
         overflow: 'hidden',
-        boxShadow: '0 30px 100px rgba(99,102,241,0.35)',
+        boxShadow: '0 30px 100px rgba(167, 139, 250,0.35)',
       }}>
         <HeroGlobeClient />
       </div>

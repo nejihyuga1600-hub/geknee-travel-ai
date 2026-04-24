@@ -476,7 +476,7 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind }: {
                   style={{
                     display: "block", marginTop: "3px",
                     padding: "7px 0", borderRadius: "6px",
-                    background: "linear-gradient(135deg,#06b6d4,#6366f1)",
+                    background: "linear-gradient(135deg,#06b6d4,#a78bfa)",
                     color: "#fff", fontSize: "11px", fontWeight: 700,
                     textAlign: "center", textDecoration: "none",
                     cursor: "pointer",
@@ -1640,7 +1640,7 @@ function CityLabel({ n, lat, lon, pos, orientation, fontSize }: {
                   style={{
                     display: "block", marginTop: "3px",
                     padding: "7px 0", borderRadius: "6px",
-                    background: "linear-gradient(135deg,#06b6d4,#6366f1)",
+                    background: "linear-gradient(135deg,#06b6d4,#a78bfa)",
                     color: "#fff", fontSize: "11px", fontWeight: 700,
                     textAlign: "center", textDecoration: "none",
                     cursor: "pointer",
@@ -2439,8 +2439,8 @@ export default function LocationPage() {
         }}>
           <div style={{
             width: 48, height: 48, borderRadius: "50%",
-            border: "3px solid rgba(99,102,241,0.25)",
-            borderTopColor: "#6366f1",
+            border: "3px solid rgba(167, 139, 250,0.25)",
+            borderTopColor: "#a78bfa",
             animation: "spin 0.9s linear infinite",
           }} />
           <span style={{ color: "#818cf8", fontSize: 13, fontWeight: 600, letterSpacing: "0.08em" }}>
@@ -2455,7 +2455,7 @@ export default function LocationPage() {
           onClick={handleInitialize}
           title="Reset globe orientation"
           style={{
-            background: "rgba(6,8,22,0.80)", border: "1px solid rgba(129,140,248,0.35)",
+            background: "rgba(6,8,22,0.80)", border: "1px solid rgba(167, 139, 250,0.35)",
             backdropFilter: "blur(14px)", borderRadius: 12, color: "#c7d2fe",
             fontSize: 12, fontWeight: 700, padding: "8px 16px", cursor: "pointer",
             display: "flex", alignItems: "center", gap: 8,
@@ -2479,12 +2479,12 @@ export default function LocationPage() {
               onClick={() => setShopOpen(true)}
               title="Monument Collection"
               style={{
-                background: "rgba(6,8,22,0.75)", border: "1px solid rgba(139,92,246,0.4)",
+                background: "rgba(6,8,22,0.75)", border: "1px solid rgba(167, 139, 250,0.4)",
                 backdropFilter: "blur(12px)", borderRadius: 10,
                 color: "#c4b5fd", fontSize: isMobile ? 16 : 12, fontWeight: 700,
                 padding: isMobile ? "6px 8px" : "8px 14px", cursor: "pointer",
                 display: "flex", alignItems: "center", gap: isMobile ? 0 : 6,
-                boxShadow: "0 2px 12px rgba(139,92,246,0.2)",
+                boxShadow: "0 2px 12px rgba(167, 139, 250,0.2)",
               }}
             >
               {String.fromCodePoint(0x1F3DB)}{!isMobile && " Collection"}
@@ -2495,12 +2495,12 @@ export default function LocationPage() {
             <button
               onClick={() => { track('upgrade_click', { surface: 'header' }); setUpgradeOpen(true); }}
               style={{
-                background: "linear-gradient(135deg,#6366f1,#8b5cf6)",
+                background: "linear-gradient(135deg,#a78bfa,#7dd3fc)",
                 border: "none", borderRadius: 10,
                 color: "#fff", fontSize: 12, fontWeight: 700,
                 padding: isMobile ? "7px 10px" : "8px 14px", cursor: "pointer",
                 display: "flex", alignItems: "center", gap: 6,
-                boxShadow: "0 2px 12px rgba(99,102,241,0.4)",
+                boxShadow: "0 2px 12px rgba(167, 139, 250,0.4)",
               }}
             >
               {String.fromCodePoint(0x2728)} {isMobile ? "Pro" : "Go Pro"}
@@ -2511,7 +2511,7 @@ export default function LocationPage() {
               onClick={() => { setPanelOpen(true); setNotifUnread(0); }}
               title="Trips &amp; Friends"
               style={{
-                background: "rgba(6,8,22,0.75)", border: "1px solid rgba(99,102,241,0.35)",
+                background: "rgba(6,8,22,0.75)", border: "1px solid rgba(167, 139, 250,0.35)",
                 backdropFilter: "blur(12px)", borderRadius: 10, color: "#c7d2fe",
                 fontSize: isMobile ? 16 : 12, fontWeight: 600,
                 padding: isMobile ? "6px 8px" : "8px 14px", cursor: "pointer",
@@ -2548,10 +2548,10 @@ export default function LocationPage() {
                 <img
                   src={session.user.image}
                   alt={session.user.name ?? "avatar"}
-                  style={{ width: isMobile ? 30 : 34, height: isMobile ? 30 : 34, borderRadius: "50%", border: "2px solid rgba(99,102,241,0.5)" }}
+                  style={{ width: isMobile ? 30 : 34, height: isMobile ? 30 : 34, borderRadius: "50%", border: "2px solid rgba(167, 139, 250,0.5)" }}
                 />
               ) : (
-                <div style={{ width: isMobile ? 30 : 34, height: isMobile ? 30 : 34, borderRadius: "50%", background: "rgba(99,102,241,0.25)", border: "2px solid rgba(99,102,241,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMobile ? 12 : 13, fontWeight: 700, color: "#a5b4fc" }}>
+                <div style={{ width: isMobile ? 30 : 34, height: isMobile ? 30 : 34, borderRadius: "50%", background: "rgba(167, 139, 250,0.25)", border: "2px solid rgba(167, 139, 250,0.4)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMobile ? 12 : 13, fontWeight: 700, color: "#0a0a1f" }}>
                   {(session.user.name ?? session.user.email ?? "?")[0].toUpperCase()}
                 </div>
               )}
@@ -2562,7 +2562,7 @@ export default function LocationPage() {
           <button
             onClick={() => setAuthOpen(true)}
             style={{
-              background: "rgba(6,8,22,0.75)", border: "1px solid rgba(129,140,248,0.35)",
+              background: "rgba(6,8,22,0.75)", border: "1px solid rgba(167, 139, 250,0.35)",
               backdropFilter: "blur(12px)",
               borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600,
               padding: "9px 18px", cursor: "pointer",
@@ -2582,7 +2582,7 @@ export default function LocationPage() {
           onClick={() => setSettingsOpen(true)}
           title="Settings"
           style={{
-            background: "rgba(6,8,22,0.75)", border: "1px solid rgba(99,102,241,0.3)",
+            background: "rgba(6,8,22,0.75)", border: "1px solid rgba(167, 139, 250,0.3)",
             backdropFilter: "blur(12px)", borderRadius: 10, color: "rgba(200,210,255,0.8)",
             width: 36, height: 36, cursor: "pointer", display: "flex", flexDirection: "column",
             alignItems: "center", justifyContent: "center", gap: 4, padding: 0,

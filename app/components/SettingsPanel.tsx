@@ -110,7 +110,7 @@ const TIMEZONES = [
 
 const BG    = "rgba(6,8,22,0.97)";
 const CARD  = "rgba(255,255,255,0.04)";
-const BORD  = "rgba(99,102,241,0.2)";
+const BORD  = "rgba(167, 139, 250,0.2)";
 const BORD2 = "rgba(255,255,255,0.08)";
 const TEXT  = "#e2e8f0";
 const MUTED = "rgba(255,255,255,0.45)";
@@ -166,7 +166,7 @@ function Toggle({ on, onChange }: { on: boolean; onChange: (v: boolean) => void 
     >
       <span style={{
         display: "block", width: 40, height: 22, borderRadius: 11,
-        background: on ? "#6366f1" : "rgba(255,255,255,0.15)",
+        background: on ? "#a78bfa" : "rgba(255,255,255,0.15)",
         position: "relative", transition: "background 0.2s", pointerEvents: "none",
       }}>
         <span style={{
@@ -314,7 +314,7 @@ export default function SettingsPanel({ open, onClose }: Props) {
         </div>
 
         {/* Scrollable content */}
-        <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px 40px", scrollbarWidth: "thin", scrollbarColor: "rgba(99,102,241,0.3) transparent" }}>
+        <div style={{ flex: 1, overflowY: "auto", padding: "20px 20px 40px", scrollbarWidth: "thin", scrollbarColor: "rgba(167, 139, 250,0.3) transparent" }}>
 
           {/* ── Language ── */}
           <Section title="Language">
@@ -446,7 +446,7 @@ export default function SettingsPanel({ open, onClose }: Props) {
                     onClick={() => simulateMapDownload(city)}
                     disabled={mapDownloading === city}
                     style={{
-                      background: mapDownloading === city ? "rgba(99,102,241,0.2)" : "rgba(99,102,241,0.15)",
+                      background: mapDownloading === city ? "rgba(167, 139, 250,0.2)" : "rgba(167, 139, 250,0.15)",
                       border: `1px solid ${BORD}`,
                       borderRadius: 7, color: INDIGO, fontSize: 11, fontWeight: 600,
                       padding: "5px 12px", cursor: mapDownloading === city ? "default" : "pointer",
@@ -515,7 +515,7 @@ export default function SettingsPanel({ open, onClose }: Props) {
                     onClick={sendFeedback}
                     disabled={!feedbackText.trim() || feedbackSending}
                     style={{
-                      width: "100%", background: feedbackText.trim() ? "#6366f1" : "rgba(99,102,241,0.25)",
+                      width: "100%", background: feedbackText.trim() ? "#a78bfa" : "rgba(167, 139, 250,0.25)",
                       border: "none", borderRadius: 8, color: feedbackText.trim() ? "#fff" : MUTED,
                       fontSize: 13, fontWeight: 600, padding: "10px", cursor: feedbackText.trim() ? "pointer" : "default",
                       transition: "background 0.2s",

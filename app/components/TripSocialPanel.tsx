@@ -58,7 +58,7 @@ function Avatar({ src, name, size = 28 }: { src?: string | null; name?: string |
   const initials = (name ?? '?').split(' ').map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
   if (src) return <img src={src} alt={name ?? ''} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />;
   return (
-    <div style={{ width: size, height: size, borderRadius: '50%', background: 'rgba(99,102,241,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.38, fontWeight: 700, color: '#a5b4fc', flexShrink: 0 }}>
+    <div style={{ width: size, height: size, borderRadius: '50%', background: 'rgba(167, 139, 250,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: size * 0.38, fontWeight: 700, color: '#a5b4fc', flexShrink: 0 }}>
       {initials}
     </div>
   );
@@ -374,7 +374,7 @@ export default function TripSocialPanel({
   if (!open) return null;
 
   // ── Style constants ────────────────────────────────────────────────────────
-  const BTN  = (bg = '#6366f1'): React.CSSProperties => ({ background: bg, border: 'none', borderRadius: 8, color: '#fff', fontSize: 12, fontWeight: 600, padding: '6px 12px', cursor: 'pointer' });
+  const BTN  = (bg = '#a78bfa'): React.CSSProperties => ({ background: bg, border: 'none', borderRadius: 8, color: '#fff', fontSize: 12, fontWeight: 600, padding: '6px 12px', cursor: 'pointer' });
   const GHOST: React.CSSProperties = { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: 'rgba(255,255,255,0.55)', fontSize: 12, fontWeight: 500, padding: '5px 10px', cursor: 'pointer' };
   const INPUT: React.CSSProperties = { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#fff', fontSize: 13, padding: '8px 12px', outline: 'none', width: '100%', boxSizing: 'border-box' };
   const CARD:  React.CSSProperties = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '12px 14px', marginBottom: 10 };
@@ -388,7 +388,7 @@ export default function TripSocialPanel({
       <div onClick={() => { if (activeGroup) { setActiveGroup(null); setChatMsgs([]); } else onClose(); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 49, animation: 'modalFadeIn 0.25s ease-out' }} />
 
       {/* Panel */}
-      <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 380, background: 'rgba(6,8,22,0.97)', backdropFilter: 'blur(24px)', borderLeft: '1px solid rgba(99,102,241,0.2)', zIndex: 50, display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 40px rgba(0,0,0,0.6)', animation: 'panelSlideIn 0.3s ease-out' }}>
+      <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 380, background: 'rgba(6,8,22,0.97)', backdropFilter: 'blur(24px)', borderLeft: '1px solid rgba(167, 139, 250,0.2)', zIndex: 50, display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 40px rgba(0,0,0,0.6)', animation: 'panelSlideIn 0.3s ease-out' }}>
 
         {/* ── Header ── */}
         {!activeGroup ? (
@@ -410,7 +410,7 @@ export default function TripSocialPanel({
                         )}
                         <button
                           onClick={() => { setEditingUsername(true); setUsernameInput(username ?? ''); setUsernameError(''); }}
-                          style={{ background: 'none', border: 'none', color: 'rgba(99,102,241,0.6)', fontSize: 10, cursor: 'pointer', padding: '0 2px' }}
+                          style={{ background: 'none', border: 'none', color: 'rgba(167, 139, 250,0.6)', fontSize: 10, cursor: 'pointer', padding: '0 2px' }}
                         >
                           {username ? 'edit' : '+ set username'}
                         </button>
@@ -558,7 +558,7 @@ export default function TripSocialPanel({
                             value={renameValue}
                             onChange={e => setRenameValue(e.target.value)}
                             onKeyDown={e => { if (e.key === 'Enter') saveRename(trip.id); if (e.key === 'Escape') setRenamingId(null); }}
-                            style={{ flex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(129,140,248,0.5)', borderRadius: 6, color: '#e0e7ff', fontSize: 13, padding: '3px 8px', outline: 'none' }}
+                            style={{ flex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(167, 139, 250,0.5)', borderRadius: 6, color: '#e0e7ff', fontSize: 13, padding: '3px 8px', outline: 'none' }}
                           />
                           <button onClick={() => saveRename(trip.id)} disabled={renameSaving} style={{ ...BTN('#4f46e5'), fontSize: 11, padding: '3px 10px' }}>
                             {renameSaving ? '…' : 'Save'}
@@ -643,7 +643,7 @@ export default function TripSocialPanel({
                   </button>
                   {addOpen && (
                     <div style={{ marginTop: 10 }}>
-                      <div style={{ fontSize: 10, color: 'rgba(129,140,248,0.5)', marginBottom: 6 }}>@username or email address</div>
+                      <div style={{ fontSize: 10, color: 'rgba(167, 139, 250,0.5)', marginBottom: 6 }}>@username or email address</div>
                       <div style={{ display: 'flex', gap: 8 }}>
                         <input style={{ ...INPUT, flex: 1 }} placeholder="@username or email" value={addQuery}
                           onChange={e => { setAddQuery(e.target.value); setAddError(''); }}
@@ -679,7 +679,7 @@ export default function TripSocialPanel({
                       onClick={() => openGroup(g.location)}
                       style={{ ...CARD, width: '100%', textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', marginBottom: 8 }}
                     >
-                      <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
+                      <div style={{ width: 36, height: 36, borderRadius: 10, background: 'rgba(167, 139, 250,0.2)', border: '1px solid rgba(167, 139, 250,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
                         {String.fromCodePoint(0x1F4AC)}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -785,7 +785,7 @@ export default function TripSocialPanel({
                       maxWidth: '82%', padding: '9px 13px',
                       borderRadius: isMe ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
                       background: isMe
-                        ? 'linear-gradient(135deg,rgba(56,189,248,0.2),rgba(129,140,248,0.2))'
+                        ? 'linear-gradient(135deg,rgba(56,189,248,0.2),rgba(167, 139, 250,0.2))'
                         : 'rgba(255,255,255,0.07)',
                       border: isMe ? '1px solid rgba(56,189,248,0.3)' : '1px solid rgba(255,255,255,0.08)',
                       color: '#e2e8f0', fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap',
@@ -812,7 +812,7 @@ export default function TripSocialPanel({
                 disabled={chatSending || !chatInput.trim()}
                 style={{
                   width: 38, height: 38, borderRadius: 10, border: 'none', flexShrink: 0,
-                  background: chatInput.trim() && !chatSending ? 'linear-gradient(135deg,#0ea5e9,#6366f1)' : 'rgba(255,255,255,0.08)',
+                  background: chatInput.trim() && !chatSending ? 'linear-gradient(135deg,#0ea5e9,#a78bfa)' : 'rgba(255,255,255,0.08)',
                   color: '#fff', fontSize: 15, cursor: chatInput.trim() && !chatSending ? 'pointer' : 'not-allowed',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}
