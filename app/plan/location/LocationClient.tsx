@@ -2,7 +2,8 @@
 
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls, Sphere, Stars, Html, useGLTF, Text, useTexture, Sparkles } from "@react-three/drei";
-import { EffectComposer, Bloom } from "@react-three/postprocessing";
+// EffectComposer/Bloom from @react-three/postprocessing was removed —
+// see comment near GlobeScene render. Re-add when guarded.
 import { useEffect, useRef, useState, useMemo, Component, Suspense, type ReactNode } from "react";
 
 // ─── Mobile performance detection ────────────────────────────────────────────
@@ -2417,16 +2418,14 @@ export default function LocationPage() {
         />
         <DampingUpdater />
         <GlobeScene />
-        {!isMobile && (
-          <EffectComposer>
-            <Bloom
-              luminanceThreshold={0.6}
-              luminanceSmoothing={0.4}
-              intensity={0.5}
-              mipmapBlur
-            />
-          </EffectComposer>
-        )}
+        {/* @react-three/postprocessing's EffectComposer was crashing the
+            entire Canvas with "null is not an object (renderer.getContext()
+            .getContextAttributes().alpha)" — getContext() returned null at
+            mount time on some browsers / with current dep versions.
+            Reported by user 2026-04-24 as the globe not loading. Bloom is
+            decorative; safer to ship without it. To re-enable, gate it
+            behind a useState that flips true only AFTER the first frame
+            renders, so getContext() is guaranteed available. */}
       </Canvas>
 
       {/* Globe loading overlay */}
