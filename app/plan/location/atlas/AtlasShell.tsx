@@ -225,6 +225,36 @@ export default function AtlasShell() {
         </div>
       </nav>
 
+      {/* Initialize / Home — top-center, prominent. Same affordance the
+          legacy planner had: tap to reset the globe orientation. */}
+      <div style={{ position: "absolute", top: 18, left: "50%", transform: "translateX(-50%)", zIndex: 11 }}>
+        <button
+          onClick={() => resetGlobeTilt()}
+          title="Reset globe orientation"
+          style={{
+            background: "rgba(6,8,22,0.80)",
+            border: "1px solid rgba(167, 139, 250, 0.35)",
+            backdropFilter: "blur(14px)",
+            borderRadius: 12,
+            color: "#c7d2fe",
+            fontSize: 12, fontWeight: 700,
+            padding: "8px 16px",
+            cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 8,
+            boxShadow: "0 2px 16px rgba(0,0,0,0.5)",
+            letterSpacing: "0.05em", textTransform: "uppercase",
+            fontFamily: "inherit",
+          }}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <circle cx="12" cy="12" r="10" />
+            <line x1="2" y1="12" x2="22" y2="12" />
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+          </svg>
+          Home
+        </button>
+      </div>
+
       {/* Peek-state hero line — Fraunces serif, lavender emphasis */}
       {sheet === "peek" && (
         <div
