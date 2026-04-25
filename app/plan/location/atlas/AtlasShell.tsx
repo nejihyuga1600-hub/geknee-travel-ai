@@ -88,6 +88,21 @@ export default function AtlasShell() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [authOpen,     setAuthOpen]     = useState(false);
   const [genieOpen,    setGenieOpen]    = useState(false);
+  // Hide the "Spin the globe · tap a landmark · or type below" hero copy as
+  // soon as the user does any of those — typed in dest, picked a destination,
+  // or interacted with the page at all (covers globe-spin without a click).
+  const [hasInteracted, setHasInteracted] = useState(false);
+  useEffect(() => {
+    if (hasInteracted) return;
+    const flip = () => setHasInteracted(true);
+    window.addEventListener("pointerdown", flip, { once: true });
+    window.addEventListener("keydown", flip, { once: true });
+    return () => {
+      window.removeEventListener("pointerdown", flip);
+      window.removeEventListener("keydown", flip);
+    };
+  }, [hasInteracted]);
+  const heroVisible = sheet === "peek" && !hasInteracted && !dest && !trip.destination;
 
   const sheetHeight = sheet === "peek" ? 108 : sheet === "open" ? 420 : "85%";
 
@@ -265,8 +280,9 @@ export default function AtlasShell() {
         </button>
       </div>
 
-      {/* Peek-state hero line — Fraunces serif, lavender emphasis */}
-      {sheet === "peek" && (
+      {/* Peek-state hero line — fades out the moment the user spins / taps /
+          types, so it stops crowding the planning chrome. */}
+      {heroVisible && (
         <div
           style={{
             position: "absolute",
