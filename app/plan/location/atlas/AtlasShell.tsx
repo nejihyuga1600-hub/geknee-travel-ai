@@ -915,6 +915,13 @@ function StepDestination({
       </p>
 
       <input
+        ref={(el) => {
+          // Pull focus when this step mounts so the cursor lands here after
+          // the user clicks the peek search bar at the bottom.
+          if (el && document.activeElement !== el) {
+            requestAnimationFrame(() => el.focus());
+          }
+        }}
         value={dest}
         onChange={(e) => setDest(e.target.value)}
         onKeyDown={(e) => e.key === "Enter" && submitDest()}
