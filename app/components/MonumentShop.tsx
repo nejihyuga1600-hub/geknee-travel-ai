@@ -738,11 +738,19 @@ export default function MonumentShop({ open, onClose }: Props) {
         <div style={{ padding: '20px 24px 0', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
             <div>
-              <div style={{ fontSize: 20, fontWeight: 800, color: '#e0e7ff', letterSpacing: '-0.02em' }}>
-                {String.fromCodePoint(0x1F3DB)} Explorer Collection
+              <div style={{
+                fontSize: 24, fontWeight: 500,
+                fontFamily: 'var(--font-display, Georgia, serif)',
+                color: '#f2f2f8',
+                letterSpacing: '-0.01em',
+                lineHeight: 1.1,
+              }}>
+                {tab === 'monuments' ? 'Monuments' : 'Animals'},
+                {' '}
+                <em style={{ fontStyle: 'italic', color: '#a78bfa' }}>earned.</em>
               </div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>
-                {total} / {allTotal} collected
+              <div style={{ fontSize: 11, color: '#a8a8c0', marginTop: 4, letterSpacing: '0.02em' }}>
+                {total} of {allTotal} unlocked
               </div>
             </div>
             <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)', fontSize: 22, cursor: 'pointer', padding: 4 }}>
@@ -751,27 +759,28 @@ export default function MonumentShop({ open, onClose }: Props) {
           </div>
 
           {/* Progress */}
-          <div style={{ height: 3, background: 'rgba(255,255,255,0.07)', borderRadius: 99, marginBottom: 14, overflow: 'hidden' }}>
+          <div style={{ height: 4, background: 'rgba(148,163,208,0.12)', borderRadius: 99, marginBottom: 14, overflow: 'hidden' }}>
             <div style={{
               height: '100%', borderRadius: 99,
-              background: 'linear-gradient(90deg,#7c3aed,#a855f7,#ec4899)',
+              background: 'linear-gradient(90deg,#a78bfa,#7dd3fc)',
               width: `${(total / allTotal) * 100}%`,
               transition: 'width 0.6s ease',
             }} />
           </div>
 
-          {/* Tabs: Monuments | Animals */}
-          <div style={{ display: 'flex', gap: 4 }}>
+          {/* Tabs: Monuments | Animals — pill style */}
+          <div style={{ display: 'flex', gap: 6 }}>
             {([
-              { key: 'monuments', label: `${String.fromCodePoint(0x1F3DB)} Monuments` },
-              { key: 'animals',   label: `${String.fromCodePoint(0x1F43E)} Animals` },
+              { key: 'monuments', label: 'Monuments' },
+              { key: 'animals',   label: 'Animals' },
             ] as const).map(({ key, label }) => (
               <button key={key} onClick={() => switchTab(key)} style={{
-                flex: 1, padding: '8px 0', borderRadius: '10px 10px 0 0', border: 'none',
-                background: tab === key ? 'rgba(167, 139, 250,0.15)' : 'transparent',
-                borderBottom: tab === key ? '2px solid #a855f7' : '2px solid transparent',
-                color: tab === key ? '#c4b5fd' : 'rgba(255,255,255,0.3)',
-                fontSize: 13, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
+                padding: '7px 16px', borderRadius: 999,
+                background: tab === key ? 'rgba(167,139,250,0.16)' : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${tab === key ? 'rgba(167,139,250,0.55)' : 'rgba(148,163,208,0.18)'}`,
+                color: tab === key ? '#a78bfa' : '#a8a8c0',
+                fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.15s',
+                fontFamily: 'inherit',
               }}>
                 {label}
               </button>
@@ -937,11 +946,12 @@ export default function MonumentShop({ open, onClose }: Props) {
               <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
                 {(['all', 'unlocked', 'locked'] as const).map(f => (
                   <button key={f} onClick={() => setFilter(f)} style={{
-                    padding: '4px 12px', borderRadius: 99, border: '1px solid',
-                    borderColor: filter === f ? '#a855f7' : 'rgba(255,255,255,0.1)',
-                    background: filter === f ? 'rgba(168,85,247,0.15)' : 'transparent',
-                    color: filter === f ? '#c4b5fd' : 'rgba(255,255,255,0.35)',
-                    fontSize: 12, cursor: 'pointer', textTransform: 'capitalize',
+                    padding: '5px 14px', borderRadius: 999, border: '1px solid',
+                    borderColor: filter === f ? 'rgba(167,139,250,0.55)' : 'rgba(148,163,208,0.18)',
+                    background: filter === f ? 'rgba(167,139,250,0.16)' : 'rgba(255,255,255,0.03)',
+                    color: filter === f ? '#a78bfa' : '#a8a8c0',
+                    fontSize: 11, fontWeight: 600, cursor: 'pointer', textTransform: 'capitalize',
+                    fontFamily: 'inherit',
                   }}>
                     {f}
                   </button>
