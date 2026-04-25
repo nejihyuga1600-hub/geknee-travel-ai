@@ -21,6 +21,7 @@ import React, {
   type ReactNode,
 } from "react";
 import * as THREE from "three";
+import { createPortal } from "react-dom";
 
 import { type SurfPos } from "./geo";
 import { type LmInfo } from "./info";
@@ -137,7 +138,7 @@ export async function wikiSummary(title: string, thumbPx = 800): Promise<{ img: 
   return { img: page?.thumbnail?.source ?? null, extract: page?.extract ?? "", description: page?.description ?? "" };
 }
 
-export function LandmarkLabel({ info, planUrl }: { info: LmInfo; planUrl?: string }) {
+export function LandmarkLabel({ info, planUrl, floating }: { info: LmInfo; planUrl?: string; floating?: boolean }) {
   const [imgUrl, setImgUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -204,6 +205,7 @@ export function LandmarkLabel({ info, planUrl }: { info: LmInfo; planUrl?: strin
         )}
       </div>
 
+      {!floating && (<>
       <div style={{
         position: "absolute", bottom: "-12px", left: "50%", transform: "translateX(-50%)",
         width: 0, height: 0,
@@ -216,6 +218,7 @@ export function LandmarkLabel({ info, planUrl }: { info: LmInfo; planUrl?: strin
         borderLeft: "7px solid transparent", borderRight: "7px solid transparent",
         borderTop: "10px solid #061840",
       }} />
+      </>)}
     </div>
   );
 }
@@ -601,19 +604,21 @@ export function Lm({ p, s = 0.4, info, mk, children }: { p: SurfPos; s?: number;
         </mesh>
       </group>
 
-      {showLabel && info && (
-        <Html
-          center
-          position={[0, effS * 1.8 + 0.3, 0]}
-          distanceFactor={14}
-          zIndexRange={[200, 100]}
-          style={{ pointerEvents: mobileActive ? "auto" : "none" }}
-        >
+      {showLabel && info && typeof document !== "undefined" && createPortal(
+        <div style={{
+          position: "fixed",
+          top: 84,
+          left: 24,
+          zIndex: 200,
+          pointerEvents: mobileActive ? "auto" : "none",
+        }}>
           <LandmarkLabel
             info={info}
             planUrl={mobileActive ? `/plan/style?location=${encodeURIComponent(info.name)}` : undefined}
+            floating
           />
-        </Html>
+        </div>,
+        document.body,
       )}
     </group>
   );

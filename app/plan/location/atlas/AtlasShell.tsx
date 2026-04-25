@@ -32,15 +32,19 @@ const SettingsPanel  = dynamic(() => import("@/app/components/SettingsPanel"),  
 const AuthModal      = dynamic(() => import("@/app/components/AuthModal"),      { ssr: false });
 
 type SheetState = "peek" | "open" | "full";
-type TripStyle = "luxury" | "adventure" | "slow" | "mix";
+type TripStyle = "relaxed" | "adventure" | "culture" | "foodie" | "luxury" | "budget";
+type TripBudget = "$" | "$$" | "$$$" | "$$$$";
 type Trip = {
   destination: string;
   lat: number | null;
   lon: number | null;
   mk: string | null;        // monument key when matched, null for free text
   startDate: string;        // YYYY-MM-DD
+  endDate: string;          // YYYY-MM-DD (free-form return date)
   nights: number;           // 1-30
+  flexibleMonth: string | null; // e.g. "Mar"
   style: TripStyle | null;
+  budget: TripBudget | null;
 };
 
 const STEPS = ["Destination", "Dates", "Style", "Review"] as const;
@@ -48,15 +52,21 @@ const STEPS = ["Destination", "Dates", "Style", "Review"] as const;
 const EMPTY_TRIP: Trip = {
   destination: "",
   lat: null, lon: null, mk: null,
-  startDate: "", nights: 7, style: null,
+  startDate: "", endDate: "", nights: 7,
+  flexibleMonth: null, style: null, budget: null,
 };
 
 const STYLE_OPTIONS: { id: TripStyle; label: string; tag: string }[] = [
-  { id: "luxury",    label: "Luxury",    tag: "Hotels, fine meals, paced." },
-  { id: "adventure", label: "Adventure", tag: "Hike, climb, sleep rough." },
-  { id: "slow",      label: "Slow",      tag: "One city, deep time." },
-  { id: "mix",       label: "Mix",       tag: "A bit of everything." },
+  { id: "relaxed",   label: "Relaxed",   tag: "Slow mornings, long dinners" },
+  { id: "adventure", label: "Adventure", tag: "Hikes, surf, off-grid" },
+  { id: "culture",   label: "Culture",   tag: "Museums, history, walks" },
+  { id: "foodie",    label: "Foodie",    tag: "Chasing every market and kitchen" },
+  { id: "luxury",    label: "Luxury",    tag: "Spas, suites, first-class" },
+  { id: "budget",    label: "Budget",    tag: "Hostels, buses, street food" },
 ];
+
+const BUDGETS: TripBudget[] = ["$", "$$", "$$$", "$$$$"];
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
 function addDays(yyyymmdd: string, n: number): string {
   if (!yyyymmdd) return "";
@@ -357,6 +367,7 @@ export default function AtlasShell() {
               onChange={(e) => setDest(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && submitDest()}
               onClick={(e) => e.stopPropagation()}
+              onFocus={() => setSheet("open")}
               placeholder="Try 'Kyoto', 'Iceland', 'somewhere warm'…"
               style={{
                 flex: 1,
@@ -1160,88 +1171,87 @@ function StepDates({
   onBack: () => void;
   onNext: () => void;
 }) {
-  const today = new Date().toISOString().slice(0, 10);
-  const endDate = trip.startDate ? addDays(trip.startDate, trip.nights) : "";
-  const valid = !!trip.startDate && trip.nights >= 1 && trip.nights <= 90;
+  const dateInput = {
+    width: "100%", boxSizing: "border-box" as const,
+    padding: "12px 14px",
+    borderRadius: 10,
+    border: "1px solid var(--brand-border)",
+    background: "rgba(255,255,255,0.04)",
+    color: "var(--brand-ink)",
+    fontSize: 14,
+    fontFamily: "var(--font-ui), system-ui, sans-serif",
+    outline: "none",
+    colorScheme: "dark" as const,
+  };
+  const labelText = {
+    fontSize: 10,
+    color: "var(--brand-ink-mute)",
+    letterSpacing: "0.12em",
+    textTransform: "uppercase" as const,
+    fontWeight: 600,
+    marginBottom: 6,
+    display: "block",
+  };
 
   return (
     <div>
-      <StepHeader title="When's the trip?" hint="Start date and nights — that's all we need to scaffold the plan." />
+      <h3 style={{
+        fontFamily: "var(--font-display), Georgia, serif",
+        fontSize: 24, fontWeight: 400, margin: "0 0 6px",
+        letterSpacing: "-0.01em",
+      }}>When?</h3>
+      <div style={{ color: "var(--brand-ink-dim)", fontSize: 13, marginBottom: 20 }}>
+        {trip.destination ? `For your trip to ${trip.destination}` : "Pick a travel window — dates optional"}
+      </div>
 
-      <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "1fr 140px", gap: 12 }}>
-        <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <span style={{ fontSize: 11, color: "var(--brand-ink-mute)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-            Start date
-          </span>
-          <input
-            type="date"
-            min={today}
-            value={trip.startDate}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <label>
+          <span style={labelText}>Depart</span>
+          <input type="date" value={trip.startDate}
             onChange={(e) => setTrip({ ...trip, startDate: e.target.value })}
-            style={{
-              padding: "12px 14px",
-              borderRadius: 10,
-              border: "1px solid var(--brand-border)",
-              background: "rgba(255,255,255,0.04)",
-              color: "var(--brand-ink)",
-              fontSize: 14,
-              fontFamily: "var(--font-ui), system-ui, sans-serif",
-              outline: "none",
-              colorScheme: "dark",
-            }}
-          />
+            style={dateInput} />
         </label>
-        <label style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <span style={{ fontSize: 11, color: "var(--brand-ink-mute)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
-            Nights
-          </span>
-          <input
-            type="number"
-            min={1} max={90}
-            value={trip.nights}
-            onChange={(e) => {
-              const n = parseInt(e.target.value, 10);
-              if (Number.isFinite(n)) setTrip({ ...trip, nights: Math.min(90, Math.max(1, n)) });
-            }}
-            style={{
-              padding: "12px 14px",
-              borderRadius: 10,
-              border: "1px solid var(--brand-border)",
-              background: "rgba(255,255,255,0.04)",
-              color: "var(--brand-ink)",
-              fontSize: 14,
-              fontFamily: "var(--font-ui), system-ui, sans-serif",
-              outline: "none",
-            }}
-          />
+        <label>
+          <span style={labelText}>Return</span>
+          <input type="date" value={trip.endDate}
+            onChange={(e) => setTrip({ ...trip, endDate: e.target.value })}
+            style={dateInput} />
         </label>
       </div>
 
-      {endDate && (
-        <div
-          style={{
-            marginTop: 14,
-            padding: "10px 14px",
-            background: "rgba(167, 139, 250, 0.08)",
-            border: "1px solid var(--brand-border-hi)",
-            borderRadius: 10,
-            color: "var(--brand-ink-dim)",
-            fontSize: 12,
-            fontFamily: "var(--font-ui), system-ui, sans-serif",
-          }}
-        >
-          Returns <strong style={{ color: "var(--brand-ink)" }}>{endDate}</strong>
-          {" · "}
-          {trip.nights} night{trip.nights === 1 ? "" : "s"}
-          {trip.destination && (
-            <>
-              {" "}in <strong style={{ color: "var(--brand-ink)" }}>{trip.destination}</strong>
-            </>
-          )}
+      <div style={{ marginTop: 22 }}>
+        <div style={labelText}>Flexible? Pick a month</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          {MONTHS.map((m) => {
+            const active = trip.flexibleMonth === m;
+            return (
+              <button key={m}
+                onClick={() => setTrip({ ...trip, flexibleMonth: active ? null : m })}
+                style={{
+                  display: "inline-flex", alignItems: "center",
+                  padding: "5px 10px",
+                  borderRadius: 999,
+                  fontSize: 11, fontWeight: 500,
+                  fontFamily: "inherit",
+                  background: active ? "rgba(167,139,250,0.16)" : "rgba(255,255,255,0.03)",
+                  border: `1px solid ${active ? "var(--brand-border-hi)" : "var(--brand-border)"}`,
+                  color: active ? "var(--brand-accent)" : "var(--brand-ink-dim)",
+                  cursor: "pointer",
+                }}
+              >{m}</button>
+            );
+          })}
         </div>
-      )}
+      </div>
 
-      <StepNav onBack={onBack} onNext={onNext} nextDisabled={!valid} />
+      <div style={{ marginTop: 22 }}>
+        <div style={labelText}>Trip length · {trip.nights} nights</div>
+        <input type="range" min={2} max={21} value={trip.nights}
+          onChange={(e) => setTrip({ ...trip, nights: parseInt(e.target.value, 10) })}
+          style={{ width: "100%", accentColor: "var(--brand-accent)" }} />
+      </div>
+
+      <StepNav onBack={onBack} onNext={onNext} nextDisabled={false} />
     </div>
   );
 }
@@ -1254,52 +1264,68 @@ function StepStyle({
   onBack: () => void;
   onNext: () => void;
 }) {
+  const labelText = {
+    fontSize: 10, color: "var(--brand-ink-mute)",
+    letterSpacing: "0.12em", textTransform: "uppercase" as const,
+    fontWeight: 600, marginBottom: 8,
+  };
   return (
     <div>
-      <StepHeader title="What's the vibe?" hint="Pick one — it shapes the kind of itinerary we'll draft." />
+      <h3 style={{
+        fontFamily: "var(--font-display), Georgia, serif",
+        fontSize: 24, fontWeight: 400, margin: "0 0 20px",
+        letterSpacing: "-0.01em",
+      }}>What kind of trip?</h3>
 
-      <div
-        style={{
-          marginTop: 16,
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: 10,
-        }}
-      >
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))",
+        gap: 10,
+      }}>
         {STYLE_OPTIONS.map((s) => {
           const active = trip.style === s.id;
           return (
-            <button
-              key={s.id}
+            <button key={s.id}
               onClick={() => setTrip({ ...trip, style: s.id })}
               style={{
-                padding: "16px 16px",
-                borderRadius: 12,
+                background: active ? "rgba(167,139,250,0.1)" : "rgba(255,255,255,0.03)",
                 border: `1px solid ${active ? "var(--brand-border-hi)" : "var(--brand-border)"}`,
-                background: active ? "rgba(167, 139, 250, 0.12)" : "rgba(255,255,255,0.03)",
-                color: "var(--brand-ink)",
-                fontFamily: "var(--font-ui), system-ui, sans-serif",
+                borderRadius: 14,
+                padding: "14px",
                 textAlign: "left",
                 cursor: "pointer",
-              }}
-            >
-              <div
-                style={{
-                  fontFamily: "var(--font-display), Georgia, serif",
-                  fontSize: 22,
-                  fontWeight: 500,
-                  color: active ? "var(--brand-accent)" : "var(--brand-ink)",
-                  letterSpacing: "-0.01em",
-                }}
-              >
-                {s.label}
-              </div>
-              <div style={{ fontSize: 12, color: "var(--brand-ink-dim)", marginTop: 4 }}>
-                {s.tag}
-              </div>
+                color: "var(--brand-ink)",
+                fontFamily: "inherit",
+                transition: "all 160ms",
+              }}>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>{s.label}</div>
+              <div style={{ fontSize: 11, color: "var(--brand-ink-mute)", marginTop: 3 }}>{s.tag}</div>
             </button>
           );
         })}
+      </div>
+
+      <div style={{ marginTop: 24 }}>
+        <div style={labelText}>Budget per person</div>
+        <div style={{ display: "flex", gap: 8 }}>
+          {BUDGETS.map((b) => {
+            const active = trip.budget === b;
+            return (
+              <button key={b}
+                onClick={() => setTrip({ ...trip, budget: b })}
+                style={{
+                  flex: 1, padding: "10px 0",
+                  background: active ? "rgba(167,139,250,0.16)" : "rgba(255,255,255,0.03)",
+                  border: `1px solid ${active ? "var(--brand-border-hi)" : "var(--brand-border)"}`,
+                  borderRadius: 10,
+                  color: active ? "var(--brand-accent)" : "var(--brand-ink-dim)",
+                  fontSize: 14, fontWeight: 600,
+                  fontFamily: "inherit",
+                  cursor: "pointer",
+                }}>{b}</button>
+            );
+          })}
+        </div>
       </div>
 
       <StepNav onBack={onBack} onNext={onNext} nextDisabled={!trip.style} />

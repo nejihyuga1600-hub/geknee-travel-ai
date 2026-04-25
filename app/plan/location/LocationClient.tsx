@@ -2663,30 +2663,8 @@ export default function LocationPage({ chromeless = false }: { chromeless?: bool
 
       {/* Monument collection shop */}
       <MonumentShop open={shopOpen} onClose={() => setShopOpen(false)} />
-      {cityMap && <CityMapView
-        name={cityMap.name}
-        lat={cityMap.lat}
-        lon={cityMap.lon}
-        monuments={(() => {
-          const activeByMk = new Map<string, string>();
-          for (const c of collectedMonuments) {
-            if (c.active && c.skin !== 'default') activeByMk.set(c.monumentId, c.skin);
-          }
-          const out: { mk: string; name: string; lat: number; lon: number; ringColor: string }[] = [];
-          activeByMk.forEach((skin, mk) => {
-            const coords = MONUMENT_LATLON[mk];
-            const info   = INFO[mk as keyof typeof INFO] as LmInfo | undefined;
-            if (!coords) return;
-            const ringColor = SKIN_RING_COLOR[skin] ?? '#ffd700';
-            out.push({ mk, name: info?.name ?? mk, lat: coords.lat, lon: coords.lon, ringColor });
-          });
-          return out;
-        })()}
-        onClose={() => {
-          zoomCamera(20);
-          setCityMap(null);
-        }}
-      />}
+      {/* CityMapView lives below the chromeless gate so it surfaces even
+          when AtlasShell mounts us as the background globe. */}
 
       {/* Upgrade modal */}
       <UpgradeModal open={upgradeOpen} onClose={() => setUpgradeOpen(false)} />
@@ -2709,6 +2687,33 @@ export default function LocationPage({ chromeless = false }: { chromeless?: bool
       <UnlockShareToast />
 
       </>)}
+
+      {cityMap && (
+        <CityMapView
+          name={cityMap.name}
+          lat={cityMap.lat}
+          lon={cityMap.lon}
+          monuments={(() => {
+            const activeByMk = new Map<string, string>();
+            for (const c of collectedMonuments) {
+              if (c.active && c.skin !== 'default') activeByMk.set(c.monumentId, c.skin);
+            }
+            const out: { mk: string; name: string; lat: number; lon: number; ringColor: string }[] = [];
+            activeByMk.forEach((skin, mk) => {
+              const coords = MONUMENT_LATLON[mk];
+              const info   = INFO[mk as keyof typeof INFO] as LmInfo | undefined;
+              if (!coords) return;
+              const ringColor = SKIN_RING_COLOR[skin] ?? '#ffd700';
+              out.push({ mk, name: info?.name ?? mk, lat: coords.lat, lon: coords.lon, ringColor });
+            });
+            return out;
+          })()}
+          onClose={() => {
+            zoomCamera(20);
+            setCityMap(null);
+          }}
+        />
+      )}
     </Wrapper>
   );
 }
