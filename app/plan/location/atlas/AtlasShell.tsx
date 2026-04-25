@@ -12,6 +12,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
+import { resetGlobeTilt } from "@/lib/globeAnim";
 import {
   POPULAR_SUGGESTIONS,
   resolveDestination,
@@ -140,12 +141,13 @@ export default function AtlasShell() {
           padding: "18px 24px",
         }}
       >
-        <Link
-          href="/"
+        <button
+          onClick={() => resetGlobeTilt()}
+          title="Reset globe orientation"
           style={{
             display: "inline-flex",
             alignItems: "center",
-            gap: 10,
+            gap: 8,
             padding: "8px 14px",
             borderRadius: 999,
             background: "var(--brand-surface)",
@@ -155,12 +157,18 @@ export default function AtlasShell() {
             fontSize: 12,
             fontWeight: 600,
             letterSpacing: "0.08em",
-            textDecoration: "none",
+            cursor: "pointer",
             textTransform: "uppercase",
+            fontFamily: "inherit",
           }}
         >
-          {String.fromCodePoint(0x1f30d)} Home
-        </Link>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <circle cx="12" cy="12" r="10" />
+            <line x1="2" y1="12" x2="22" y2="12" />
+            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+          </svg>
+          Home
+        </button>
         <span
           style={{
             fontSize: 10,
