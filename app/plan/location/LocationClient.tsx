@@ -5,6 +5,7 @@ import { OrbitControls, Sphere, Stars, Html, useGLTF, Text, useTexture, Sparkles
 // EffectComposer/Bloom from @react-three/postprocessing was removed —
 // see comment near GlobeScene render. Re-add when guarded.
 import { useEffect, useRef, useState, useMemo, Component, Suspense, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 // ─── Mobile performance detection ────────────────────────────────────────────
 const isMobile = typeof window !== "undefined" && (
@@ -432,75 +433,60 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind }: {
         {name.toUpperCase()}
       </Text>
 
-      {showCard && (
-        <Html
-          center
-          position={[0, 0.75, 0]}
-          distanceFactor={14}
-          zIndexRange={[300, 200]}
-          style={{ pointerEvents: mobileActive ? "auto" : "none" }}
-        >
-          <div style={{
-            position: "relative",
-            background: "linear-gradient(150deg, #0e2a6e 0%, #061840 100%)",
-            border: "1.5px solid #50c8ff",
-            borderRadius: "10px",
-            overflow: "hidden",
-            width: cardWidth,
-            boxShadow: "0 0 14px rgba(60,180,255,0.4), 0 4px 14px rgba(0,0,0,0.5)",
-            fontFamily: '"Segoe UI", system-ui, -apple-system, sans-serif',
-            pointerEvents: mobileActive ? "auto" : "none",
-          }}>
-            {imgUrl && (
-              <img src={imgUrl} alt={name} style={{
-                display: "block", width: "100%", height: "110px",
-                objectFit: "cover", borderBottom: "1px solid #50c8ff",
-              }} />
-            )}
-            <div style={{ padding: "8px 10px 10px", textAlign: "center" }}>
-              <div style={{
-                fontSize: "13px", fontWeight: 800, color: "#ffffff",
-                letterSpacing: "0.02em", marginBottom: "4px",
-                textShadow: "0 0 8px rgba(100,210,255,0.9)",
-              }}>{name}</div>
-              <div style={{
-                fontSize: "11px", color: "#c0ecff", lineHeight: 1.5,
-                borderTop: imgUrl ? "1px solid rgba(80,200,255,0.2)" : "none",
-                paddingTop: imgUrl ? "4px" : 0,
-                textAlign: "left",
-              }}>
-                {fact || "Tap to explore!"}
-              </div>
-              {mobileActive && (
-                <a
-                  href={`/plan/style?location=${encodeURIComponent(name)}`}
-                  style={{
-                    display: "block", marginTop: "3px",
-                    padding: "7px 0", borderRadius: "6px",
-                    background: "linear-gradient(135deg,#06b6d4,#a78bfa)",
-                    color: "#fff", fontSize: "11px", fontWeight: 700,
-                    textAlign: "center", textDecoration: "none",
-                    cursor: "pointer",
-                  }}
-                >
-                  Plan my trip {String.fromCodePoint(0x27A4)}
-                </a>
-              )}
+      {showCard && typeof document !== "undefined" && createPortal(
+        <div style={{
+          position: "fixed",
+          top: 84, left: 24,
+          width: 240,
+          maxHeight: "calc(100vh - 120px)",
+          zIndex: 200,
+          pointerEvents: mobileActive ? "auto" : "none",
+          background: "rgba(13,13,36,0.96)",
+          backdropFilter: "blur(18px)",
+          border: "1px solid rgba(167,139,250,0.35)",
+          borderRadius: 14,
+          overflow: "hidden",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+          fontFamily: "var(--font-ui), Inter, system-ui, sans-serif",
+          display: "flex", flexDirection: "column",
+        }}>
+          {imgUrl && (
+            <img src={imgUrl} alt={name} style={{
+              display: "block", width: "100%", height: 110,
+              objectFit: "cover", flexShrink: 0,
+            }} />
+          )}
+          <div style={{ padding: "10px 14px 12px", overflowY: "auto", flex: 1 }}>
+            <div style={{
+              fontSize: 14, fontWeight: 600,
+              fontFamily: "var(--font-display, Georgia, serif)",
+              color: "#f2f2f8", marginBottom: 4,
+              letterSpacing: "-0.01em",
+            }}>{name}</div>
+            <div style={{
+              fontSize: 11, color: "#a8a8c0", lineHeight: 1.5,
+              borderTop: imgUrl ? "1px solid rgba(148,163,208,0.15)" : "none",
+              paddingTop: imgUrl ? 6 : 0,
+            }}>
+              {fact || "Tap to explore!"}
             </div>
-            <div style={{
-              position: "absolute", bottom: "-7px", left: "50%", transform: "translateX(-50%)",
-              width: 0, height: 0,
-              borderLeft: "5px solid transparent", borderRight: "5px solid transparent",
-              borderTop: "7px solid #50c8ff",
-            }} />
-            <div style={{
-              position: "absolute", bottom: "-5px", left: "50%", transform: "translateX(-50%)",
-              width: 0, height: 0,
-              borderLeft: "4px solid transparent", borderRight: "4px solid transparent",
-              borderTop: "6px solid #061840",
-            }} />
+            {mobileActive && (
+              <a
+                href={`/plan/style?location=${encodeURIComponent(name)}`}
+                style={{
+                  display: "block", marginTop: 10,
+                  padding: "8px 0", borderRadius: 10,
+                  background: "linear-gradient(135deg,#a78bfa,#7dd3fc)",
+                  color: "#0a0a1f", fontSize: 11, fontWeight: 700,
+                  textAlign: "center", textDecoration: "none",
+                }}
+              >
+                Plan my trip →
+              </a>
+            )}
           </div>
-        </Html>
+        </div>,
+        document.body,
       )}
 
       <sprite
