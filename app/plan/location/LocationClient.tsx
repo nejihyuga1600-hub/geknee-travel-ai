@@ -6,6 +6,7 @@ import { OrbitControls, Sphere, Stars, Html, useGLTF, Text, useTexture, Sparkles
 // see comment near GlobeScene render. Re-add when guarded.
 import { useEffect, useRef, useState, useMemo, Component, Suspense, type ReactNode } from "react";
 import { createPortal } from "react-dom";
+import { getExtraCities, loadExtraCities, useExtraCitiesVersion } from "./globe/cityData";
 
 // ─── Mobile performance detection ────────────────────────────────────────────
 const isMobile = typeof window !== "undefined" && (
@@ -1671,13 +1672,37 @@ function CityLabels({ camDist }: { camDist: number }) {
   // Dynamic separation threshold: wider zoom = stricter = fewer cities shown.
   // camDist ~21 → thresh ~4°, camDist ~14 → thresh ~1.5°, camDist <12 → ~0.6°
   const sepThresh = camDist > 18 ? 6.0 : camDist > 15 ? 4.0 : camDist > 12 ? 2.0 : 1.0;
+  const extraVersion = useExtraCitiesVersion();
+  // Population threshold for extras (curated CITIES always pass through).
+  // Far zoom = only big cities; close zoom = full long tail.
+  const popMin = camDist > 18 ? 1_000_000
+              : camDist > 15 ?   300_000
+              : camDist > 12 ?    80_000
+              :                        0;
 
   const items = useMemo(() => {
-    return CITIES.map(({ n, lat, lon }) => {
-      const pos = geoPos(lat, lon, R * 1.019);
-      return { n, lat, lon, pos, orientation: computeOrientation(pos), tier: CITY_TIER1.has(n) ? 1 : 2 };
-    });
-  }, []);
+    const base = CITIES.map(({ n, lat, lon }) => ({
+      n, lat, lon,
+      pos: geoPos(lat, lon, R * 1.019),
+      tier: CITY_TIER1.has(n) ? 1 : 2,
+      pop: Infinity,
+    }));
+    const extra = getExtraCities()
+      .filter((c) => (c.p ?? 0) >= popMin)
+      .map((c) => ({
+        n: c.n, lat: c.lat, lon: c.lon,
+        pos: geoPos(c.lat, c.lon, R * 1.019),
+        tier: 3,
+        pop: c.p ?? 0,
+      }));
+    return [...base, ...extra].map((it) => ({
+      ...it,
+      orientation: computeOrientation(it.pos),
+    }));
+  // extraVersion bumps when the GeoNames JSON arrives — recompute then.
+  // popMin is camDist-derived so it's in deps too.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [extraVersion, popMin]);
 
   // Greedy spatial dedup: sort tier-1 first, then pick cities that are
   // at least sepThresh° away from any already-selected city.
@@ -1821,8 +1846,10 @@ const NEARBY_DEG   = NEARBY_MILES / 69.0; // 1° ≈ 69 miles
 const MIN_SEP_DEG  = 0.65;                // ~45 miles min gap between shown pins
 
 function NearbyCities({ lat, lon }: { lat: number; lon: number }) {
+  const extraVersion = useExtraCitiesVersion();
   const nearby = useMemo(() => {
-    const candidates = CITIES
+    const all = [...CITIES, ...getExtraCities()];
+    const candidates = all
       .map(c => ({ ...c, deg: angDist(lat, lon, c.lat, c.lon) }))
       .filter(c => c.deg <= NEARBY_DEG)
       .sort((a, b) => a.deg - b.deg);
@@ -1837,7 +1864,8 @@ function NearbyCities({ lat, lon }: { lat: number; lon: number }) {
       }
     }
     return selected;
-  }, [lat, lon]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lat, lon, extraVersion]);
 
   return (
     <>
@@ -2168,9 +2196,12 @@ function GlobeScene() {
       const local = globeRef.current.worldToLocal(worldCenter.clone());
       const lat = Math.asin(Math.max(-1, Math.min(1, local.y / R))) * (180 / Math.PI);
       const lon = Math.atan2(-local.z, local.x) * (180 / Math.PI);
-      // Find nearest known city (nicer label than raw coords)
+      // Find nearest known city (nicer label than raw coords). Searches both
+      // the curated CITIES and the GeoNames extras, so close-zoom city
+      // resolution gets the long tail too.
       let best = { n: `${lat.toFixed(2)}°, ${lon.toFixed(2)}°`, lat, lon, d: Infinity };
-      for (const c of CITIES) {
+      const all: { n: string; lat: number; lon: number }[] = [...CITIES, ...getExtraCities()];
+      for (const c of all) {
         const dLat = c.lat - lat, dLon = c.lon - lon;
         const d = dLat * dLat + dLon * dLon;
         if (d < best.d) best = { n: c.n, lat: c.lat, lon: c.lon, d };
@@ -2289,6 +2320,13 @@ export default function LocationPage({ chromeless = false }: { chromeless?: bool
   // Bumped to force a Canvas remount when WebGL context is lost (Safari tab
   // switch, GPU pressure, dev HMR). Without this, the canvas stays blank.
   const [glKey, setGlKey] = useState(0);
+
+  // Pull in the long-tail GeoNames cities once on mount. Curated CITIES wins
+  // on duplicates; the load just appends the rest.
+  useEffect(() => {
+    const seen = new Set(CITIES.map((c) => c.n));
+    void loadExtraCities(seen);
+  }, []);
 
   // Listen for "Explore on map" requests from city labels
   useEffect(() => {
