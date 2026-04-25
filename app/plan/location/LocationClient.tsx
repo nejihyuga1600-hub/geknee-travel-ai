@@ -439,47 +439,44 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind }: {
             <div style={{
               position: "fixed",
               top: 84, left: 24,
-              width: 240,
-              maxHeight: "calc(100vh - 120px)",
+              width: 180,
               zIndex: 200,
               pointerEvents: mobileActive ? "auto" : "none",
               background: "rgba(13,13,36,0.96)",
               backdropFilter: "blur(18px)",
               border: "1px solid rgba(167,139,250,0.35)",
-              borderRadius: 14,
+              borderRadius: 12,
               overflow: "hidden",
-              boxShadow: "0 20px 60px rgba(0,0,0,0.6)",
+              boxShadow: "0 12px 40px rgba(0,0,0,0.55)",
               fontFamily: "var(--font-ui), Inter, system-ui, sans-serif",
-              display: "flex", flexDirection: "column",
             }}>
-              {imgUrl && (
-                <img src={imgUrl} alt={name} style={{
-                  display: "block", width: "100%", height: 110,
-                  objectFit: "cover", flexShrink: 0,
-                }} />
-              )}
-              <div style={{ padding: "10px 14px 12px", overflowY: "auto", flex: 1 }}>
+              <div style={{ padding: "8px 12px 10px" }}>
                 <div style={{
-                  fontSize: 14, fontWeight: 600,
+                  fontSize: 13, fontWeight: 600,
                   fontFamily: "var(--font-display, Georgia, serif)",
-                  color: "#f2f2f8", marginBottom: 4,
+                  color: "#f2f2f8",
                   letterSpacing: "-0.01em",
+                  marginBottom: 4,
                 }}>{name}</div>
-                <div style={{
-                  fontSize: 11, color: "#a8a8c0", lineHeight: 1.5,
-                  borderTop: imgUrl ? "1px solid rgba(148,163,208,0.15)" : "none",
-                  paddingTop: imgUrl ? 6 : 0,
-                }}>
-                  {fact || "Tap to explore!"}
-                </div>
+                {fact && (
+                  <div style={{
+                    fontSize: 10, color: "#a8a8c0", lineHeight: 1.45,
+                    display: "-webkit-box",
+                    WebkitLineClamp: 3,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}>
+                    {fact}
+                  </div>
+                )}
                 {mobileActive && (
                   <a
                     href={`/plan/style?location=${encodeURIComponent(name)}`}
                     style={{
-                      display: "block", marginTop: 10,
-                      padding: "8px 0", borderRadius: 10,
+                      display: "block", marginTop: 8,
+                      padding: "5px 0", borderRadius: 8,
                       background: "linear-gradient(135deg,#a78bfa,#7dd3fc)",
-                      color: "#0a0a1f", fontSize: 11, fontWeight: 700,
+                      color: "#0a0a1f", fontSize: 10, fontWeight: 700,
                       textAlign: "center", textDecoration: "none",
                     }}
                   >
