@@ -282,7 +282,7 @@ export default function AtlasShell() {
 
       {/* Peek-state hero line — fades out the moment the user spins / taps /
           types, so it stops crowding the planning chrome. */}
-      {heroVisible && (
+      {sheet === "peek" && (
         <div
           style={{
             position: "absolute",
@@ -292,6 +292,9 @@ export default function AtlasShell() {
             textAlign: "center",
             zIndex: 5,
             pointerEvents: "none",
+            opacity: heroVisible ? 1 : 0,
+            transform: `translateY(${heroVisible ? 0 : -8}px)`,
+            transition: "opacity 900ms ease-out, transform 900ms ease-out",
           }}
         >
           <div
