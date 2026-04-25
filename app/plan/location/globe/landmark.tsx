@@ -604,21 +604,25 @@ export function Lm({ p, s = 0.4, info, mk, children }: { p: SurfPos; s?: number;
         </mesh>
       </group>
 
-      {showLabel && info && typeof document !== "undefined" && createPortal(
-        <div style={{
-          position: "fixed",
-          top: 84,
-          left: 24,
-          zIndex: 200,
-          pointerEvents: mobileActive ? "auto" : "none",
-        }}>
-          <LandmarkLabel
-            info={info}
-            planUrl={mobileActive ? `/plan/style?location=${encodeURIComponent(info.name)}` : undefined}
-            floating
-          />
-        </div>,
-        document.body,
+      {showLabel && info && (
+        <Html as="div" zIndexRange={[0, 0]} style={{ pointerEvents: "none", width: 0, height: 0 }}>
+          {typeof document !== "undefined" && createPortal(
+            <div style={{
+              position: "fixed",
+              top: 84,
+              left: 24,
+              zIndex: 200,
+              pointerEvents: mobileActive ? "auto" : "none",
+            }}>
+              <LandmarkLabel
+                info={info}
+                planUrl={mobileActive ? `/plan/style?location=${encodeURIComponent(info.name)}` : undefined}
+                floating
+              />
+            </div>,
+            document.body,
+          )}
+        </Html>
       )}
     </group>
   );
