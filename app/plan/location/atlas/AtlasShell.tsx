@@ -10,6 +10,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import {
   POPULAR_SUGGESTIONS,
   resolveDestination,
@@ -61,6 +62,7 @@ export default function AtlasShell() {
   const [step, setStep] = useState(0);
   const [dest, setDest] = useState("");
   const [trip, setTrip] = useState<Trip>(EMPTY_TRIP);
+  const router = useRouter();
 
   const sheetHeight = sheet === "peek" ? 108 : sheet === "open" ? 420 : "85%";
 
@@ -70,25 +72,20 @@ export default function AtlasShell() {
   // Resolve typed destination → trip state. Matched monument gives us a
   // mk + lat/lon for the globe pin (next phase). Unmatched still proceeds
   // — the trip just doesn't have a pin yet.
+  // Routes to the live trip-build flow at /plan/style so existing users
+  // get the working dates → style → review pages instead of Atlas's still-
+  // unwired step bodies. Once those are wired, replace router.push with
+  // setSheet("open") + setStep(1) to keep the user inside the sheet.
   const submitDest = (raw?: string) => {
     const value = (raw ?? dest).trim();
     if (!value) return;
     const match = resolveDestination(value);
-    if (match) {
-      setTrip({ ...trip, destination: match.name, lat: match.lat, lon: match.lon, mk: match.mk });
-      setDest(match.name);
-    } else {
-      setTrip({ ...trip, destination: value, lat: null, lon: null, mk: null });
-    }
-    setSheet("open");
-    setStep(1);
+    const name = match ? match.name : value;
+    router.push(`/plan/style?location=${encodeURIComponent(name)}`);
   };
 
   const pickSuggestion = (s: Suggestion) => {
-    setTrip({ ...trip, destination: s.name, lat: s.lat, lon: s.lon, mk: s.mk });
-    setDest(s.name);
-    setSheet("open");
-    setStep(1);
+    router.push(`/plan/style?location=${encodeURIComponent(s.name)}`);
   };
 
   return (
