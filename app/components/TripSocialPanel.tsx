@@ -374,11 +374,11 @@ export default function TripSocialPanel({
   if (!open) return null;
 
   // ── Style constants ────────────────────────────────────────────────────────
-  const BTN  = (bg = '#a78bfa'): React.CSSProperties => ({ background: bg, border: 'none', borderRadius: 8, color: '#fff', fontSize: 12, fontWeight: 600, padding: '6px 12px', cursor: 'pointer' });
-  const GHOST: React.CSSProperties = { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: 'rgba(255,255,255,0.55)', fontSize: 12, fontWeight: 500, padding: '5px 10px', cursor: 'pointer' };
-  const INPUT: React.CSSProperties = { background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#fff', fontSize: 13, padding: '8px 12px', outline: 'none', width: '100%', boxSizing: 'border-box' };
-  const CARD:  React.CSSProperties = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '12px 14px', marginBottom: 10 };
-  const TAB   = (active: boolean): React.CSSProperties => ({ flex: 1, padding: '10px 0', fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none', borderBottom: active ? '2px solid #818cf8' : '2px solid transparent', background: 'none', color: active ? '#c7d2fe' : 'rgba(255,255,255,0.35)', transition: 'all 0.15s' });
+  const BTN  = (bg = 'linear-gradient(135deg,#a78bfa,#7dd3fc)'): React.CSSProperties => ({ background: bg, border: 'none', borderRadius: 10, color: '#0a0a1f', fontSize: 12, fontWeight: 700, padding: '7px 14px', cursor: 'pointer', fontFamily: 'inherit' });
+  const GHOST: React.CSSProperties = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,208,0.18)', borderRadius: 10, color: '#a8a8c0', fontSize: 12, fontWeight: 500, padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit' };
+  const INPUT: React.CSSProperties = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,208,0.18)', borderRadius: 10, color: '#f2f2f8', fontSize: 13, padding: '9px 12px', outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' };
+  const CARD:  React.CSSProperties = { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(148,163,208,0.12)', borderRadius: 14, padding: '14px 16px', marginBottom: 10 };
+  const TAB   = (active: boolean): React.CSSProperties => ({ flex: 1, padding: '10px 0', fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none', borderRadius: 10, background: active ? 'rgba(167,139,250,0.14)' : 'transparent', color: active ? '#a78bfa' : '#a8a8c0', transition: 'all 0.15s', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 });
 
   const myAuthor = username ? `@${username}` : myName;
 
@@ -456,7 +456,7 @@ export default function TripSocialPanel({
             </div>
 
             {/* Tabs */}
-            <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.07)', margin: '14px 0 0', flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: 6, padding: '0 18px', margin: '14px 0 0', flexShrink: 0 }}>
               <button style={TAB(tab === 'trips')} onClick={() => { setTab('trips'); markTabRead('trip_update'); }}>
                 {String.fromCodePoint(0x1F9F3)} My Trips
                 {tripNotifCount > 0 && (
