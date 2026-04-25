@@ -7,10 +7,11 @@
 // APIs is the next phase — see .planning/design-2026-04-24/prototype/
 // variant-atlas.jsx and atlas-panels.jsx for the target shape.
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import {
   POPULAR_SUGGESTIONS,
   resolveDestination,
@@ -22,6 +23,12 @@ import {
 // procedural Earth texture). ssr:false because it touches window at module
 // scope. Dynamic import keeps Atlas's first paint cheap.
 const PlannerGlobe = dynamic(() => import("../LocationClient"), { ssr: false, loading: () => null });
+// Live product modals — pulled in only when the user opens them.
+const MonumentShop   = dynamic(() => import("@/app/components/MonumentShop"),   { ssr: false });
+const UpgradeModal   = dynamic(() => import("@/app/components/UpgradeModal"),   { ssr: false });
+const TripSocialPanel = dynamic(() => import("@/app/components/TripSocialPanel"), { ssr: false });
+const SettingsPanel  = dynamic(() => import("@/app/components/SettingsPanel"),  { ssr: false });
+const AuthModal      = dynamic(() => import("@/app/components/AuthModal"),      { ssr: false });
 
 type SheetState = "peek" | "open" | "full";
 type TripStyle = "luxury" | "adventure" | "slow" | "mix";
@@ -63,6 +70,13 @@ export default function AtlasShell() {
   const [dest, setDest] = useState("");
   const [trip, setTrip] = useState<Trip>(EMPTY_TRIP);
   const router = useRouter();
+  const { data: session } = useSession();
+  const [shopOpen,     setShopOpen]     = useState(false);
+  const [upgradeOpen,  setUpgradeOpen]  = useState(false);
+  const [tripsOpen,    setTripsOpen]    = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [authOpen,     setAuthOpen]     = useState(false);
+  const [genieOpen,    setGenieOpen]    = useState(false);
 
   const sheetHeight = sheet === "peek" ? 108 : sheet === "open" ? 420 : "85%";
 
@@ -72,20 +86,28 @@ export default function AtlasShell() {
   // Resolve typed destination → trip state. Matched monument gives us a
   // mk + lat/lon for the globe pin (next phase). Unmatched still proceeds
   // — the trip just doesn't have a pin yet.
-  // Routes to the live trip-build flow at /plan/style so existing users
-  // get the working dates → style → review pages instead of Atlas's still-
-  // unwired step bodies. Once those are wired, replace router.push with
-  // setSheet("open") + setStep(1) to keep the user inside the sheet.
+  // Keeps the user inside the bottom sheet and advances to step 1 (Dates).
+  // Atlas's full flow (Destination → Dates → Style → Review) lives in the
+  // sheet — we don't router.push to /plan/style anymore.
   const submitDest = (raw?: string) => {
     const value = (raw ?? dest).trim();
     if (!value) return;
     const match = resolveDestination(value);
-    const name = match ? match.name : value;
-    router.push(`/plan/style?location=${encodeURIComponent(name)}`);
+    if (match) {
+      setTrip({ ...trip, destination: match.name, lat: match.lat, lon: match.lon, mk: match.mk });
+      setDest(match.name);
+    } else {
+      setTrip({ ...trip, destination: value, lat: null, lon: null, mk: null });
+    }
+    setSheet("open");
+    setStep(1);
   };
 
   const pickSuggestion = (s: Suggestion) => {
-    router.push(`/plan/style?location=${encodeURIComponent(s.name)}`);
+    setTrip({ ...trip, destination: s.name, lat: s.lat, lon: s.lon, mk: s.mk });
+    setDest(s.name);
+    setSheet("open");
+    setStep(1);
   };
 
   return (
@@ -151,12 +173,47 @@ export default function AtlasShell() {
           · AUTO-SAVED
         </span>
 
-        <div style={{ display: "flex", gap: 8 }}>
-          <NavPill href="/u/nghia">Collection</NavPill>
-          <NavPill href="/pricing" accent>
-            Go Pro
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <NavPill onClick={() => setShopOpen(true)} title="Monument Collection">
+            <ColIcon /> <span>Collection</span>
           </NavPill>
-          <NavPill href="/leaderboard">Leaderboard</NavPill>
+          <NavPill onClick={() => setUpgradeOpen(true)} accent>
+            <SparkleIcon /> <span>Go Pro</span>
+          </NavPill>
+          <NavPill onClick={() => { if (session?.user) setTripsOpen(true); else setAuthOpen(true); }} title="Trips & Friends">
+            <TripsIcon /> <span>Trips</span>
+          </NavPill>
+          {session?.user ? (
+            <button
+              onClick={() => setTripsOpen(true)}
+              title={session.user.name ?? "Account"}
+              style={{
+                width: 34, height: 34, borderRadius: "50%",
+                background: "linear-gradient(135deg, var(--brand-accent), var(--brand-accent-2, #7dd3fc))",
+                color: "#0a0a1f",
+                display: "grid", placeItems: "center",
+                fontFamily: "var(--font-display, Georgia, serif)",
+                fontWeight: 700, fontSize: 14,
+                border: "1px solid var(--brand-border)",
+                cursor: "pointer", padding: 0,
+                overflow: "hidden",
+              }}
+            >
+              {session.user.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={session.user.image} alt="" style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+              ) : (
+                (session.user.name ?? session.user.email ?? "?")[0]?.toUpperCase()
+              )}
+            </button>
+          ) : (
+            <NavPill onClick={() => setAuthOpen(true)} title="Sign in">
+              <span>Sign in</span>
+            </NavPill>
+          )}
+          <NavPill onClick={() => setSettingsOpen(true)} iconOnly title="Menu">
+            <MenuIcon />
+          </NavPill>
         </div>
       </nav>
 
@@ -399,42 +456,267 @@ export default function AtlasShell() {
           .
         </div>
       </div>
+
+      {/* Genie corner — quiet ✦ assistant. */}
+      <GenieCorner trip={trip} step={step} steps={STEPS} open={genieOpen} setOpen={setGenieOpen} />
+
+      {/* Live product modals — wired to the existing components, not the
+          stale design-session copies. */}
+      <MonumentShop   open={shopOpen}     onClose={() => setShopOpen(false)} />
+      <UpgradeModal   open={upgradeOpen}  onClose={() => setUpgradeOpen(false)} />
+      <TripSocialPanel open={tripsOpen}    onClose={() => setTripsOpen(false)} currentLocation={trip.destination} />
+      <SettingsPanel  open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <AuthModal      open={authOpen}     onClose={() => setAuthOpen(false)} />
     </main>
+  );
+}
+
+// ── Top-nav glyph icons (geometric, no emoji per design system) ──────────
+function ColIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden>
+      <path d="M3 6V14M13 6V14M3 6h10M2 6l6-4 6 4M5.5 14h5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+function SparkleIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden>
+      <path d="M8 1l1.5 4.5L14 7l-4.5 1.5L8 13l-1.5-4.5L2 7l4.5-1.5z" />
+    </svg>
+  );
+}
+function TripsIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden>
+      <path d="M5 8a2 2 0 104 0 2 2 0 00-4 0zM11.5 10a1.5 1.5 0 10.01-3M1.5 13c.5-2 2.5-3 5.5-3s5 1 5.5 3" strokeLinecap="round" />
+    </svg>
+  );
+}
+function MenuIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden>
+      <path d="M2.5 4.5h11M2.5 8h11M2.5 11.5h11" />
+    </svg>
+  );
+}
+
+// ── Genie corner: ✦ floating assistant button + popover with chips ───────
+function GenieCorner({
+  trip, step, steps, open, setOpen,
+}: {
+  trip: Trip;
+  step: number;
+  steps: readonly string[];
+  open: boolean;
+  setOpen: (b: boolean) => void;
+}) {
+  const [messages, setMessages] = useState<{ role: "genie" | "user"; text: string }[]>([
+    { role: "genie", text: "Hey — I'm here if you want a nudge. Ask about pricing, seasons, itineraries, anything." },
+  ]);
+  const [draft, setDraft] = useState("");
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({ top: 1e6, behavior: "smooth" });
+  }, [messages, open]);
+
+  const send = (override?: string) => {
+    const text = (override ?? draft).trim();
+    if (!text) return;
+    setMessages((m) => [...m, { role: "user", text }]);
+    setDraft("");
+    setTimeout(() => {
+      const ctx = trip.destination
+        ? `For ${trip.destination}${trip.style ? ` (${trip.style})` : ""}: `
+        : "";
+      const replies = [
+        `${ctx}Good question. Based on what you've told me, I'd lean toward shoulder season — fewer crowds, better prices.`,
+        `${ctx}I'd budget 2–3 days for the signature spots and leave the rest unstructured. That's where the best memories happen.`,
+        `${ctx}Worth checking: weather window, holidays at the destination, and any visa lead time.`,
+      ];
+      setMessages((m) => [...m, { role: "genie", text: replies[Math.floor(Math.random() * replies.length)] }]);
+    }, 550);
+  };
+
+  const suggestions =
+    step === 0 ? ["Warm, under $2k", "Somewhere I can hike", "Best food in Asia"]
+    : step === 1 ? ["When is shoulder season?", "Cheapest month to fly"]
+    : step === 2 ? ["Is adventure too much for a first trip?", "Explain each style"]
+    : ["Summarize my trip", "Estimate total cost"];
+
+  return (
+    <>
+      <button
+        onClick={() => setOpen(!open)}
+        title="Ask the assistant"
+        style={{
+          position: "fixed",
+          right: 24,
+          bottom: 130,
+          width: 52, height: 52, borderRadius: 14,
+          background: "linear-gradient(135deg, var(--brand-accent), var(--brand-accent-2, #7dd3fc))",
+          color: "#0a0a1f",
+          border: "1px solid var(--brand-border-hi)",
+          cursor: "pointer",
+          display: "grid", placeItems: "center",
+          fontFamily: "var(--font-display, Georgia, serif)",
+          fontSize: 22, fontWeight: 600,
+          boxShadow: "0 10px 30px rgba(167,139,250,0.25)",
+          zIndex: 30,
+          transition: "transform 150ms",
+          transform: open ? "scale(0.94)" : "scale(1)",
+        }}
+      >✦</button>
+
+      {open && (
+        <div style={{
+          position: "fixed",
+          right: 24, bottom: 196,
+          width: 360, maxHeight: 480,
+          background: "rgba(13,13,36,0.96)",
+          backdropFilter: "blur(18px)",
+          border: "1px solid var(--brand-border-hi)",
+          borderRadius: 18,
+          boxShadow: "0 20px 60px rgba(0,0,0,0.5)",
+          zIndex: 30,
+          display: "flex", flexDirection: "column",
+        }}>
+          <div style={{
+            padding: "14px 16px",
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+            borderBottom: "1px solid var(--brand-border)",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{
+                width: 26, height: 26, borderRadius: 8,
+                background: "linear-gradient(135deg, var(--brand-accent), var(--brand-accent-2, #7dd3fc))",
+                color: "#0a0a1f",
+                display: "grid", placeItems: "center",
+                fontFamily: "var(--font-display, Georgia, serif)",
+                fontWeight: 600, fontSize: 13,
+              }}>✦</span>
+              <div>
+                <div style={{ fontFamily: "var(--font-display, Georgia, serif)", fontSize: 15, fontWeight: 500 }}>Assistant</div>
+                <div style={{ fontSize: 10, color: "var(--brand-ink-mute)", letterSpacing: "0.1em" }}>
+                  <span style={{ color: "#34d399" }}>●</span> ONLINE · {steps[step]}
+                </div>
+              </div>
+            </div>
+            <button onClick={() => setOpen(false)} style={{
+              background: "none", border: "none", color: "var(--brand-ink-mute)",
+              fontSize: 20, cursor: "pointer", padding: 4, lineHeight: 1,
+            }}>×</button>
+          </div>
+
+          <div ref={scrollRef} style={{
+            flex: 1, overflowY: "auto",
+            padding: "14px 16px",
+            display: "flex", flexDirection: "column", gap: 10,
+          }}>
+            {messages.map((m, i) => (
+              <div key={i} style={{
+                alignSelf: m.role === "genie" ? "flex-start" : "flex-end",
+                maxWidth: "85%",
+                padding: "10px 12px",
+                borderRadius: m.role === "genie" ? "4px 14px 14px 14px" : "14px 4px 14px 14px",
+                background: m.role === "genie" ? "rgba(167,139,250,0.1)" : "rgba(255,255,255,0.06)",
+                border: `1px solid ${m.role === "genie" ? "var(--brand-border-hi)" : "var(--brand-border)"}`,
+                color: "var(--brand-ink)", fontSize: 13, lineHeight: 1.5,
+              }}>{m.text}</div>
+            ))}
+          </div>
+
+          <div style={{ padding: "0 16px 10px", display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {suggestions.map((s) => (
+              <button key={s} onClick={() => send(s)} style={{
+                fontSize: 11,
+                background: "rgba(255,255,255,0.03)",
+                border: "1px solid var(--brand-border)",
+                color: "var(--brand-ink-dim)",
+                padding: "5px 10px", borderRadius: 999,
+                cursor: "pointer",
+              }}>{s}</button>
+            ))}
+          </div>
+
+          <div style={{
+            padding: 10, borderTop: "1px solid var(--brand-border)",
+            display: "flex", gap: 8,
+            background: "rgba(255,255,255,0.02)",
+            borderRadius: "0 0 18px 18px",
+          }}>
+            <input
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") send(); }}
+              placeholder="Ask anything…"
+              style={{
+                flex: 1, background: "rgba(255,255,255,0.04)",
+                border: "1px solid var(--brand-border)", borderRadius: 10,
+                padding: "8px 12px", color: "var(--brand-ink)",
+                fontSize: 13, outline: "none",
+              }}
+            />
+            <button onClick={() => send()} disabled={!draft.trim()} style={{
+              background: draft.trim() ? "var(--brand-accent)" : "rgba(255,255,255,0.05)",
+              color: draft.trim() ? "#0a0a1f" : "var(--brand-ink-mute)",
+              border: "none", padding: "8px 14px", borderRadius: 10,
+              fontSize: 12, fontWeight: 600,
+              cursor: draft.trim() ? "pointer" : "not-allowed",
+            }}>Send</button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
 function NavPill({
   children,
   href,
+  onClick,
   accent,
+  iconOnly,
+  title,
 }: {
   children: React.ReactNode;
-  href: string;
+  href?: string;
+  onClick?: () => void;
   accent?: boolean;
+  iconOnly?: boolean;
+  title?: string;
 }) {
+  const style = {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    padding: iconOnly ? "8px 10px" : "8px 14px",
+    borderRadius: 999,
+    background: accent
+      ? "rgba(167, 139, 250, 0.16)"
+      : "var(--brand-surface)",
+    backdropFilter: "blur(12px)",
+    border: `1px solid ${accent ? "var(--brand-border-hi)" : "var(--brand-border)"}`,
+    color: accent ? "var(--brand-accent)" : "var(--brand-ink)",
+    fontSize: 12,
+    fontWeight: accent ? 700 : 500,
+    letterSpacing: "0.02em",
+    textDecoration: "none",
+    cursor: "pointer",
+    fontFamily: "inherit",
+  } as const;
+  if (href) {
+    return (
+      <Link href={href} style={style} title={title}>
+        {children}
+      </Link>
+    );
+  }
   return (
-    <Link
-      href={href}
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 6,
-        padding: "8px 14px",
-        borderRadius: 999,
-        background: accent
-          ? "rgba(167, 139, 250, 0.16)"
-          : "var(--brand-surface)",
-        backdropFilter: "blur(12px)",
-        border: `1px solid ${accent ? "var(--brand-border-hi)" : "var(--brand-border)"}`,
-        color: "var(--brand-ink)",
-        fontSize: 12,
-        fontWeight: accent ? 700 : 500,
-        letterSpacing: "0.02em",
-        textDecoration: "none",
-      }}
-    >
+    <button onClick={onClick} title={title} style={style}>
       {children}
-    </Link>
+    </button>
   );
 }
 
