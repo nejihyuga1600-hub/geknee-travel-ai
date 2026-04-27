@@ -80,29 +80,30 @@ export default function Home() {
           <div>
             <div style={{
               display: 'inline-block',
-              background: 'rgba(167, 139, 250,0.15)',
-              border: '1px solid rgba(167, 139, 250,0.35)',
-              color: '#c4b5fd',
-              fontSize: 12, fontWeight: 800, letterSpacing: 1.5,
-              padding: '5px 12px', borderRadius: 999,
-              marginBottom: 22, textTransform: 'uppercase',
+              fontSize: 10, fontWeight: 600,
+              letterSpacing: '0.22em', textTransform: 'uppercase',
+              color: 'var(--brand-accent)',
+              marginBottom: 24,
             }}>
-              Collection game · Trip planner inside
+              {String.fromCodePoint(0x2726)} Collection game · Trip planner inside
             </div>
             <h1 style={{
-              fontSize: 'clamp(44px, 7vw, 84px)', lineHeight: 1.02, margin: 0,
+              fontSize: 'clamp(52px, 8vw, 96px)', lineHeight: 0.98, margin: 0,
               fontFamily: 'var(--font-display), Georgia, serif',
-              fontWeight: 500, letterSpacing: -2,
+              fontWeight: 400, letterSpacing: '-0.035em',
               color: 'var(--brand-ink)',
             }}>
-              Collect the{' '}
-              <em style={{ fontStyle: 'italic', color: 'var(--brand-accent)' }}>world</em>
-              .
+              Collect<br />
+              <em style={{ fontStyle: 'italic', color: 'var(--brand-accent)' }}>the world.</em>
             </h1>
-            <p style={{ fontSize: 18, color: '#cbd5e1', marginTop: 20, maxWidth: 520, lineHeight: 1.55 }}>
-              A 3D globe where every monument is a collectable. Visit places in person,
-              complete the quest, unlock the rare skin. No way to buy them. The trip
-              planner is just so you can get there.
+            <p style={{
+              fontFamily: 'var(--font-display), Georgia, serif',
+              fontSize: 'clamp(17px, 1.5vw, 22px)', lineHeight: 1.45,
+              maxWidth: 520, marginTop: 28,
+              color: '#a8a8c0', fontWeight: 300,
+            }}>
+              A 3D globe where every monument is a collectable. Visit in person,
+              complete the quest, unlock the rare skin. No shortcuts.
             </p>
 
             <div style={{ display: 'flex', gap: 12, marginTop: 32, flexWrap: 'wrap' }}>
