@@ -149,8 +149,23 @@ export default function AtlasShell() {
         overflow: "hidden",
       }}
     >
-      {/* Background globe — real LocationClient planet, no chrome. */}
-      <PlannerGlobe chromeless />
+      {/* Background globe — real LocationClient planet, no chrome. The
+          wrapper translates up + scales down as the sheet grows so the globe
+          gets out of the way of the planning surface. The chromeless
+          LocationClient wrapper inside is position:absolute so the Canvas
+          (position:fixed) follows the transformed ancestor. */}
+      <div style={{
+        position: "absolute", inset: 0,
+        transform:
+          sheet === "peek" ? "translateY(0) scale(1)"
+          : sheet === "open" ? "translateY(-12%) scale(0.92)"
+          : "translateY(-26%) scale(0.55)",
+        transformOrigin: "50% 35%",
+        transition: "transform 600ms cubic-bezier(0.23, 1, 0.32, 1)",
+        willChange: "transform",
+      }}>
+        <PlannerGlobe chromeless />
+      </div>
 
       {/* Top bar */}
       <nav
