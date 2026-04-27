@@ -292,15 +292,16 @@ function createEarthTexture(
     poly([[-24,63],[-13,63],[-13,66],[-18,68],[-24,65]], "#b8e8ff"); // Iceland
   }
 
-  // ── Borders on top — thinner + sharper. Halved widths from the previous
-  // ~8/5 px stroke; alpha bumped to keep readability at the new weight.
-  const bdrAlpha  = terrainBitmap ? 0.92 : 0.95;
-  const bdrWidth  = terrainBitmap ? 3.5  : 4.5;
-  const stateWdth = terrainBitmap ? 2.0  : 2.5;
+  // Hairline borders. Pulled down again per user request — countries 2px
+  // / states 1px on the 8K canvas. Alpha pushed near opaque white so the
+  // thin stroke holds against the satellite imagery underneath.
+  const bdrAlpha  = terrainBitmap ? 0.98 : 1.0;
+  const bdrWidth  = terrainBitmap ? 2.0  : 2.5;
+  const stateWdth = terrainBitmap ? 1.0  : 1.25;
   drawBorders(countriesGeo, `rgba(255,255,255,${bdrAlpha})`, bdrWidth);
 
   const STATE_FILTER = new Set(["USA", "CAN", "AUS", "BRA", "MEX", "RUS", "CHN", "IND", "ARG"]);
-  drawBorders(statesGeo, `rgba(255,255,255,${terrainBitmap ? 0.65 : 0.75})`, stateWdth,
+  drawBorders(statesGeo, `rgba(255,255,255,${terrainBitmap ? 0.85 : 0.9})`, stateWdth,
     f => STATE_FILTER.has(f.properties.adm0_a3));
 
   const tex = new THREE.CanvasTexture(canvas);
