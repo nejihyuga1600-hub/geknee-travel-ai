@@ -248,17 +248,31 @@ export default function Home() {
             renders to OG meta when a user shares an unlock. Three monument
             + skin combos picked for visual variety. The route falls back
             to Wikipedia thumbs until per-skin Nano Banana heroes land. */}
-        <section style={{ maxWidth: 1180, margin: '0 auto', padding: '32px 28px 64px' }}>
+        <section style={{ maxWidth: 1180, margin: '0 auto', padding: '48px 28px 72px' }}>
+          <div style={{
+            fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase',
+            color: 'var(--brand-accent)', fontWeight: 600, marginBottom: 12,
+          }}>
+            § Every unlock is a share
+          </div>
           <h2 style={{
-            fontSize: 32, fontWeight: 500, letterSpacing: -0.6, marginBottom: 8,
             fontFamily: 'var(--font-display), Georgia, serif',
+            fontWeight: 400, fontSize: 'clamp(28px, 4vw, 52px)', margin: 0,
+            letterSpacing: '-0.02em', lineHeight: 1.1,
             color: 'var(--brand-ink)',
           }}>
-            Every unlock is a share.
+            One tap. Your friends{' '}
+            <em style={{ fontStyle: 'italic', color: 'var(--brand-accent)' }}>
+              start collecting.
+            </em>
           </h2>
-          <p style={{ color: '#94a3b8', marginBottom: 28, fontSize: 14, maxWidth: 580 }}>
-            One tap turns your unlock into a card. Friends visit your spectator globe and
-            see exactly what you collected.
+          <p style={{
+            color: 'var(--brand-ink-dim, #a8a8c0)',
+            marginTop: 16, marginBottom: 32,
+            fontSize: 14, maxWidth: 580, lineHeight: 1.55,
+          }}>
+            Each unlock turns into a share card. Friends land on your spectator
+            globe and see exactly what you collected.
           </p>
           <div style={{
             display: 'grid',
