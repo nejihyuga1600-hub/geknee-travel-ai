@@ -93,8 +93,10 @@ function createEarthTexture(
   canvas.width = W;
   canvas.height = H;
   const ctx = canvas.getContext("2d")!;
-  ctx.lineJoin = "round";
-  ctx.lineCap  = "round";
+  // miter joins + butt caps render crisper polygon corners than round.
+  ctx.lineJoin = "miter";
+  ctx.miterLimit = 4;
+  ctx.lineCap  = "butt";
 
   // lon/lat → canvas pixel
   function px(lon: number, lat: number): [number, number] {
@@ -290,15 +292,15 @@ function createEarthTexture(
     poly([[-24,63],[-13,63],[-13,66],[-18,68],[-24,65]], "#b8e8ff"); // Iceland
   }
 
-  // ── Borders on top — thinner + slightly more transparent over satellite ────
-  // Satellite imagery has its own landmass colouring so borders need less weight.
-  const bdrAlpha  = terrainBitmap ? 0.75 : 0.85;
-  const bdrWidth  = terrainBitmap ? 8.0  : 10.0;
-  const stateWdth = terrainBitmap ? 5.0  : 7.0;
+  // ── Borders on top — thinner + sharper. Halved widths from the previous
+  // ~8/5 px stroke; alpha bumped to keep readability at the new weight.
+  const bdrAlpha  = terrainBitmap ? 0.92 : 0.95;
+  const bdrWidth  = terrainBitmap ? 3.5  : 4.5;
+  const stateWdth = terrainBitmap ? 2.0  : 2.5;
   drawBorders(countriesGeo, `rgba(255,255,255,${bdrAlpha})`, bdrWidth);
 
   const STATE_FILTER = new Set(["USA", "CAN", "AUS", "BRA", "MEX", "RUS", "CHN", "IND", "ARG"]);
-  drawBorders(statesGeo, `rgba(255,255,255,${terrainBitmap ? 0.45 : 0.55})`, stateWdth,
+  drawBorders(statesGeo, `rgba(255,255,255,${terrainBitmap ? 0.65 : 0.75})`, stateWdth,
     f => STATE_FILTER.has(f.properties.adm0_a3));
 
   const tex = new THREE.CanvasTexture(canvas);
@@ -444,7 +446,7 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind, lat: latProp, lo
               top: "calc(64px + 1vh)",
               left: "calc(8px + 1vw)",
               // Always small relative to the viewport; never grows past 220px.
-              width: "clamp(140px, 16vw, 220px)",
+              width: "clamp(280px, 32vw, 440px)",
               zIndex: 200,
               pointerEvents: mobileActive ? "auto" : "none",
               background: "rgba(13,13,36,0.96)",
@@ -461,14 +463,14 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind, lat: latProp, lo
             }}>
               {imgUrl && (
                 <img src={imgUrl} alt="" style={{
-                  display: "block", width: "100%", height: 84,
+                  display: "block", width: "100%", height: 168,
                   objectFit: "cover",
                   borderBottom: "1px solid rgba(167,139,250,0.25)",
                 }} />
               )}
-              <div style={{ padding: "8px 10px 10px" }}>
+              <div style={{ padding: "16px 20px 20px" }}>
                 <div style={{
-                  fontSize: "clamp(11px, 1.05vw, 13px)", fontWeight: 600,
+                  fontSize: "clamp(22px, 2.1vw, 26px)", fontWeight: 600,
                   fontFamily: "var(--font-display, Georgia, serif)",
                   color: "#f2f2f8",
                   letterSpacing: "-0.01em",
@@ -479,7 +481,7 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind, lat: latProp, lo
                 }}>{name}</div>
                 {fact && (
                   <div style={{
-                    fontSize: "clamp(9px, 0.85vw, 10px)",
+                    fontSize: "clamp(18px, 1.7vw, 20px)",
                     color: "#a8a8c0", lineHeight: 1.4,
                     display: "-webkit-box",
                     WebkitLineClamp: 3,
@@ -490,7 +492,7 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind, lat: latProp, lo
                   </div>
                 )}
                 {mobileActive && (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, marginTop: 7 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 14 }}>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -499,11 +501,11 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind, lat: latProp, lo
                         }));
                       }}
                       style={{
-                        padding: "4px 0", borderRadius: 7,
+                        padding: "8px 0", borderRadius: 10,
                         background: "rgba(167,139,250,0.14)",
                         border: "1px solid rgba(167,139,250,0.35)",
                         color: "#c7d2fe",
-                        fontSize: "clamp(9px, 0.85vw, 10px)",
+                        fontSize: "clamp(18px, 1.7vw, 20px)",
                         fontWeight: 700,
                         cursor: "pointer", fontFamily: "inherit",
                       }}
@@ -514,10 +516,10 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind, lat: latProp, lo
                       href={`/plan/style?location=${encodeURIComponent(name)}`}
                       style={{
                         display: "block",
-                        padding: "4px 0", borderRadius: 7,
+                        padding: "8px 0", borderRadius: 10,
                         background: "linear-gradient(135deg,#a78bfa,#7dd3fc)",
                         color: "#0a0a1f",
-                        fontSize: "clamp(9px, 0.85vw, 10px)",
+                        fontSize: "clamp(18px, 1.7vw, 20px)",
                         fontWeight: 700,
                         textAlign: "center", textDecoration: "none",
                       }}
@@ -1634,7 +1636,7 @@ function CityLabel({ n, lat, lon, pos, orientation, fontSize }: {
               position: "fixed",
               top: "calc(64px + 1vh)",
               left: "calc(8px + 1vw)",
-              width: "clamp(140px, 16vw, 220px)",
+              width: "clamp(280px, 32vw, 440px)",
               zIndex: 200,
               pointerEvents: mobileActive ? "auto" : "none",
               background: "rgba(13,13,36,0.96)",
@@ -1648,14 +1650,14 @@ function CityLabel({ n, lat, lon, pos, orientation, fontSize }: {
             }}>
               {imgUrl && (
                 <img src={imgUrl} alt="" style={{
-                  display: "block", width: "100%", height: 84,
+                  display: "block", width: "100%", height: 168,
                   objectFit: "cover",
                   borderBottom: "1px solid rgba(167,139,250,0.25)",
                 }} />
               )}
-              <div style={{ padding: "8px 10px 10px" }}>
+              <div style={{ padding: "16px 20px 20px" }}>
                 <div style={{
-                  fontSize: "clamp(11px, 1.05vw, 13px)", fontWeight: 600,
+                  fontSize: "clamp(22px, 2.1vw, 26px)", fontWeight: 600,
                   fontFamily: "var(--font-display, Georgia, serif)",
                   color: "#f2f2f8",
                   letterSpacing: "-0.01em",
@@ -1664,7 +1666,7 @@ function CityLabel({ n, lat, lon, pos, orientation, fontSize }: {
                 }}>{n}</div>
                 {fact && (
                   <div style={{
-                    fontSize: "clamp(9px, 0.85vw, 10px)",
+                    fontSize: "clamp(18px, 1.7vw, 20px)",
                     color: "#a8a8c0", lineHeight: 1.4,
                     display: "-webkit-box",
                     WebkitLineClamp: 3,
@@ -1675,7 +1677,7 @@ function CityLabel({ n, lat, lon, pos, orientation, fontSize }: {
                   </div>
                 )}
                 {mobileActive && (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, marginTop: 7 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginTop: 14 }}>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -1684,11 +1686,11 @@ function CityLabel({ n, lat, lon, pos, orientation, fontSize }: {
                         }));
                       }}
                       style={{
-                        padding: "4px 0", borderRadius: 7,
+                        padding: "8px 0", borderRadius: 10,
                         background: "rgba(167,139,250,0.14)",
                         border: "1px solid rgba(167,139,250,0.35)",
                         color: "#c7d2fe",
-                        fontSize: "clamp(9px, 0.85vw, 10px)",
+                        fontSize: "clamp(18px, 1.7vw, 20px)",
                         fontWeight: 700,
                         cursor: "pointer", fontFamily: "inherit",
                       }}
@@ -1699,10 +1701,10 @@ function CityLabel({ n, lat, lon, pos, orientation, fontSize }: {
                       href={`/plan/style?location=${encodeURIComponent(n)}`}
                       style={{
                         display: "block",
-                        padding: "4px 0", borderRadius: 7,
+                        padding: "8px 0", borderRadius: 10,
                         background: "linear-gradient(135deg,#a78bfa,#7dd3fc)",
                         color: "#0a0a1f",
-                        fontSize: "clamp(9px, 0.85vw, 10px)",
+                        fontSize: "clamp(18px, 1.7vw, 20px)",
                         fontWeight: 700,
                         textAlign: "center", textDecoration: "none",
                       }}
