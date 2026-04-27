@@ -363,12 +363,14 @@ const _geoCardCache = new Map<string, { imgUrl: string | null; fact: string }>()
 
 // Interactive country/state label that shows a Wikipedia info card on hover.
 // Used for: countries without state subdivisions, and states without city labels.
-function GeoInfoLabel({ name, pos, orientation, fontSize, kind }: {
+function GeoInfoLabel({ name, pos, orientation, fontSize, kind, lat: latProp, lon: lonProp }: {
   name: string;
   pos: [number, number, number];
   orientation: THREE.Quaternion;
   fontSize: number;
   kind: "country" | "state";
+  lat: number;
+  lon: number;
 }) {
   const [hovered, setHovered]           = useState(false);
   const [mobileActive, setMobileActive] = useState(false);
@@ -471,18 +473,37 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind }: {
                   </div>
                 )}
                 {mobileActive && (
-                  <a
-                    href={`/plan/style?location=${encodeURIComponent(name)}`}
-                    style={{
-                      display: "block", marginTop: 8,
-                      padding: "5px 0", borderRadius: 8,
-                      background: "linear-gradient(135deg,#a78bfa,#7dd3fc)",
-                      color: "#0a0a1f", fontSize: 10, fontWeight: 700,
-                      textAlign: "center", textDecoration: "none",
-                    }}
-                  >
-                    Plan my trip →
-                  </a>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 8 }}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.dispatchEvent(new CustomEvent("geknee:opencitymap", {
+                          detail: { name, lat: latProp, lon: lonProp },
+                        }));
+                      }}
+                      style={{
+                        padding: "5px 0", borderRadius: 8,
+                        background: "rgba(167,139,250,0.14)",
+                        border: "1px solid rgba(167,139,250,0.35)",
+                        color: "#c7d2fe", fontSize: 10, fontWeight: 700,
+                        cursor: "pointer", fontFamily: "inherit",
+                      }}
+                    >
+                      Open map
+                    </button>
+                    <a
+                      href={`/plan/style?location=${encodeURIComponent(name)}`}
+                      style={{
+                        display: "block",
+                        padding: "5px 0", borderRadius: 8,
+                        background: "linear-gradient(135deg,#a78bfa,#7dd3fc)",
+                        color: "#0a0a1f", fontSize: 10, fontWeight: 700,
+                        textAlign: "center", textDecoration: "none",
+                      }}
+                    >
+                      Plan trip →
+                    </a>
+                  </div>
                 )}
               </div>
             </div>,
@@ -513,6 +534,7 @@ function GeoLabels({ countries, states, zoomLevel }: {
   const items = useMemo(() => {
     const result: Array<{
       key: string; name: string; pos: [number, number, number];
+      lat: number; lon: number;
       kind: "country" | "state"; orientation: THREE.Quaternion;
       isInfoLabel: boolean;
     }> = [];
@@ -527,7 +549,7 @@ function GeoLabels({ countries, states, zoomLevel }: {
         const cPos = geoPos(c[1], c[0], labelR);
         // Countries without state subdivisions become interactive info labels
         const isInfoLabel = !STATE_COUNTRIES.has(name);
-        result.push({ key: `c-${name}`, name, pos: cPos, kind: "country", orientation: computeOrientation(cPos), isInfoLabel });
+        result.push({ key: `c-${name}`, name, pos: cPos, lat: c[1], lon: c[0], kind: "country", orientation: computeOrientation(cPos), isInfoLabel });
       }
     }
 
@@ -564,7 +586,7 @@ function GeoLabels({ countries, states, zoomLevel }: {
         const sPos = geoPos(c[1], c[0], R * 1.019);
         // States with no city label in their bounding box become interactive info labels
         const hasCity = CITIES.some(city => city.lat >= minLat && city.lat <= maxLat && city.lon >= minLon && city.lon <= maxLon);
-        result.push({ key: `s-${admin}-${name}`, name, pos: sPos, kind: "state", orientation: computeOrientation(sPos), isInfoLabel: !hasCity });
+        result.push({ key: `s-${admin}-${name}`, name, pos: sPos, lat: c[1], lon: c[0], kind: "state", orientation: computeOrientation(sPos), isInfoLabel: !hasCity });
       }
     }
     return result;
@@ -599,9 +621,9 @@ function GeoLabels({ countries, states, zoomLevel }: {
 
   return (
     <>
-      {visibleWithSize.map(({ key, name, pos, kind, orientation, fontSize, isInfoLabel }) => (
+      {visibleWithSize.map(({ key, name, pos, lat, lon, kind, orientation, fontSize, isInfoLabel }) => (
         isInfoLabel
-          ? <GeoInfoLabel key={key} name={name} pos={pos} orientation={orientation} fontSize={fontSize} kind={kind} />
+          ? <GeoInfoLabel key={key} name={name} pos={pos} lat={lat} lon={lon} orientation={orientation} fontSize={fontSize} kind={kind} />
           : (
             <Text
               key={key}
@@ -1985,9 +2007,8 @@ function GlobeScene() {
   const zoomLevelRef = useRef(0);
   const [camDist, setCamDist] = useState(30);
   const camDistRef = useRef(30);
-  // Arms once the camera zooms below OPEN_DIST; disarms after pulling back past
-  // CLOSE_DIST, so re-opening Mapbox requires an actual zoom-out then zoom-in.
-  const cityMapArmedRef = useRef(false);
+  // (Mapbox auto-zoom hysteresis ref deleted — entry is now an explicit
+  // two-tap on the city card's "Open map" button.)
 
   // Signal LocationPage when border data AND canvas texture are ready — prevents spinner
   // disappearing before borders are actually painted on the globe surface
@@ -2184,32 +2205,9 @@ function GlobeScene() {
       setCamDist(rounded);
     }
 
-    // Auto-transition to Mapbox city view when zoomed close.
-    // Open below OPEN_DIST, stay silent between OPEN_DIST and CLOSE_DIST (hysteresis),
-    // arm to re-open once the camera pulls back past CLOSE_DIST.
-    const OPEN_DIST = 12.5;
-    const CLOSE_DIST = 14;
-    if (dist < OPEN_DIST && !cityMapArmedRef.current && globeRef.current) {
-      cityMapArmedRef.current = true;
-      // World-space point on globe surface at screen center is the radial projection of camera.position
-      const worldCenter = camera.position.clone().normalize().multiplyScalar(R);
-      const local = globeRef.current.worldToLocal(worldCenter.clone());
-      const lat = Math.asin(Math.max(-1, Math.min(1, local.y / R))) * (180 / Math.PI);
-      const lon = Math.atan2(-local.z, local.x) * (180 / Math.PI);
-      // Find nearest known city (nicer label than raw coords). Searches both
-      // the curated CITIES and the GeoNames extras, so close-zoom city
-      // resolution gets the long tail too.
-      let best = { n: `${lat.toFixed(2)}°, ${lon.toFixed(2)}°`, lat, lon, d: Infinity };
-      const all: { n: string; lat: number; lon: number }[] = [...CITIES, ...getExtraCities()];
-      for (const c of all) {
-        const dLat = c.lat - lat, dLon = c.lon - lon;
-        const d = dLat * dLat + dLon * dLon;
-        if (d < best.d) best = { n: c.n, lat: c.lat, lon: c.lon, d };
-      }
-      window.dispatchEvent(new CustomEvent('geknee:opencitymap', { detail: { name: best.n, lat: best.lat, lon: best.lon } }));
-    } else if (dist > CLOSE_DIST && cityMapArmedRef.current) {
-      cityMapArmedRef.current = false;
-    }
+    // Mapbox entry is now an explicit two-tap on the city card (Open map button)
+    // rather than a zoom-distance trigger — the implicit zoom kept firing when
+    // users were just exploring close-up. See memory: project_planner_mapbox_entry.
   });
 
   // Key encodes loaded assets so Three.js recreates the material on each upgrade
