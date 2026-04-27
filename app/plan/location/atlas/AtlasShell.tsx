@@ -1394,31 +1394,92 @@ function StepReview({ trip, onBack }: { trip: Trip; onBack: () => void }) {
     }
   };
 
+  // Rough per-person estimate so the summary stat isn't blank. Real numbers
+  // come from the backend itinerary endpoint once that's wired.
+  const perDay = trip.budget === "$" ? 60
+              : trip.budget === "$$" ? 150
+              : trip.budget === "$$$" ? 300
+              : trip.budget === "$$$$" ? 600
+              : 0;
+  const estTotal = perDay * trip.nights;
+  const dateRange = trip.startDate && trip.endDate ? `${trip.startDate} → ${trip.endDate}`
+                  : trip.startDate ? `${trip.startDate} → ${endDate}`
+                  : trip.flexibleMonth ? `Flexible · ${trip.flexibleMonth}`
+                  : "Dates flexible";
+
   return (
     <div>
-      <StepHeader title="Review" hint="Last look before we save the plan." />
+      {/* Eyebrow */}
+      <div style={{
+        fontSize: 10, color: "var(--brand-accent)", letterSpacing: "0.16em",
+        fontWeight: 600, marginBottom: 6,
+      }}>
+        ✦ YOUR ITINERARY
+      </div>
 
-      <dl
-        style={{
-          marginTop: 18,
-          display: "grid",
-          gridTemplateColumns: "120px 1fr",
-          rowGap: 10,
-          columnGap: 14,
-          fontFamily: "var(--font-ui), system-ui, sans-serif",
-          fontSize: 14,
-        }}
-      >
-        <DT>Destination</DT><DD>{trip.destination || "—"}</DD>
-        <DT>Dates</DT>
-        <DD>
-          {trip.startDate
-            ? `${trip.startDate} → ${endDate} (${trip.nights} night${trip.nights === 1 ? "" : "s"})`
-            : "—"}
-        </DD>
-        <DT>Style</DT><DD>{trip.style ? capitalize(trip.style) : "—"}</DD>
-        {trip.mk && <><DT>Pin</DT><DD>{trip.mk}</DD></>}
-      </dl>
+      {/* Title */}
+      <h2 style={{
+        margin: 0,
+        fontFamily: "var(--font-display), Georgia, serif",
+        fontSize: 30, fontWeight: 400,
+        letterSpacing: "-0.02em", lineHeight: 1.05,
+        color: "var(--brand-ink)",
+      }}>
+        {trip.destination || "Your trip"}{" "}
+        {trip.style && (
+          <em style={{ fontStyle: "italic", color: "var(--brand-accent)" }}>
+            {trip.style}
+          </em>
+        )}
+      </h2>
+      <div style={{ marginTop: 6, color: "var(--brand-ink-dim)", fontSize: 13 }}>
+        {dateRange} · {trip.nights} night{trip.nights === 1 ? "" : "s"}
+        {trip.budget ? ` · ${trip.budget}` : ""}
+      </div>
+
+      {/* Stat grid */}
+      <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <SummaryStat
+          k="Est. total"
+          v={estTotal > 0 ? `$${estTotal.toLocaleString()}` : "—"}
+          sub={estTotal > 0 ? "per person" : "set a budget"}
+        />
+        <SummaryStat
+          k="Style"
+          v={trip.style ? capitalize(trip.style) : "—"}
+          sub={trip.budget ? `Budget ${trip.budget}` : "no budget yet"}
+        />
+        <SummaryStat
+          k="Trip pin"
+          v={trip.mk ? trip.mk : trip.lat && trip.lon ? `${trip.lat.toFixed(1)}°, ${trip.lon.toFixed(1)}°` : "—"}
+          sub={trip.mk ? "matched landmark" : trip.lat ? "free-text destination" : "no pin yet"}
+        />
+        <SummaryStat
+          k="Saved"
+          v={savedTripId ? "Yes" : "No"}
+          sub={savedTripId ? "in your trips" : "tap Save plan"}
+        />
+      </div>
+
+      {/* Genie footer card */}
+      <div style={{
+        marginTop: 18,
+        padding: 14,
+        borderRadius: 12,
+        background: "linear-gradient(135deg, rgba(167,139,250,0.18), rgba(125,211,252,0.10))",
+        border: "1px solid var(--brand-border-hi)",
+      }}>
+        <div style={{
+          fontSize: 10, letterSpacing: "0.12em", textTransform: "uppercase",
+          color: "var(--brand-accent)", fontWeight: 700, marginBottom: 4,
+        }}>
+          ✦ Your genie says
+        </div>
+        <div style={{ fontSize: 13, lineHeight: 1.5, color: "var(--brand-ink)" }}>
+          Based on a {trip.style || "relaxed"} trip to {trip.destination || "your destination"},
+          I&apos;ll draft a {trip.nights}-night itinerary. Should take about 20 seconds.
+        </div>
+      </div>
 
       {error && (
         <div
@@ -1506,4 +1567,31 @@ function DD({ children }: { children: React.ReactNode }) {
 }
 function capitalize(s: string) {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function SummaryStat({ k, v, sub }: { k: string; v: string; sub?: string }) {
+  return (
+    <div style={{
+      padding: "10px 12px",
+      background: "rgba(255,255,255,0.03)",
+      borderRadius: 10,
+      border: "1px solid var(--brand-border)",
+    }}>
+      <div style={{
+        fontSize: 10, color: "var(--brand-ink-mute)",
+        letterSpacing: "0.12em", fontWeight: 600,
+        textTransform: "uppercase",
+      }}>{k}</div>
+      <div style={{
+        fontFamily: "var(--font-display, Georgia, serif)",
+        fontSize: 20, fontWeight: 500, marginTop: 3,
+        letterSpacing: "-0.01em",
+        color: "var(--brand-ink)",
+        whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+      }}>{v}</div>
+      {sub && (
+        <div style={{ fontSize: 10, color: "var(--brand-ink-mute)", marginTop: 2 }}>{sub}</div>
+      )}
+    </div>
+  );
 }
