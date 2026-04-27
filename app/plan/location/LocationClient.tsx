@@ -1621,73 +1621,86 @@ function CityLabel({ n, lat, lon, pos, orientation, fontSize }: {
       </Text>
 
       {showCard && (
-        <Html
-          center
-          position={[0, 0.75, 0]}
-          distanceFactor={14}
-          zIndexRange={[300, 200]}
-          style={{ pointerEvents: mobileActive ? "auto" : "none" }}
-        >
-          <div style={{
-            position: "relative",
-            background: "linear-gradient(150deg, #0e2a6e 0%, #061840 100%)",
-            border: "1.5px solid #50c8ff",
-            borderRadius: "10px",
-            overflow: "hidden",
-            width: "200px",
-            boxShadow: "0 0 8px rgba(60,180,255,0.4), 0 2px 8px rgba(0,0,0,0.5)",
-            fontFamily: '"Segoe UI", system-ui, -apple-system, sans-serif',
-            pointerEvents: mobileActive ? "auto" : "none",
-          }}>
-            {imgUrl && (
-              <img src={imgUrl} alt={n} style={{
-                display: "block", width: "100%", height: "110px",
-                objectFit: "cover", borderBottom: "1px solid #50c8ff",
-              }} />
-            )}
-            <div style={{ padding: "8px 10px 10px", textAlign: "center" }}>
-              <div style={{
-                fontSize: "13px", fontWeight: 800, color: "#ffffff",
-                letterSpacing: "0.02em", marginBottom: "4px",
-                textShadow: "0 0 8px rgba(100,210,255,0.9)",
-              }}>{n}</div>
-              <div style={{
-                fontSize: "11px", color: "#c0ecff", lineHeight: 1.5,
-                borderTop: imgUrl ? "1px solid rgba(80,200,255,0.2)" : "none",
-                paddingTop: imgUrl ? "4px" : 0,
-                textAlign: "left",
-              }}>
-                {fact || "Tap to explore!"}
+        <Html as="div" zIndexRange={[0, 0]} style={{ pointerEvents: "none", width: 0, height: 0 }}>
+          {typeof document !== "undefined" && createPortal(
+            <div style={{
+              position: "fixed",
+              top: "calc(64px + 1vh)",
+              left: "calc(8px + 1vw)",
+              width: "clamp(140px, 16vw, 220px)",
+              zIndex: 200,
+              pointerEvents: mobileActive ? "auto" : "none",
+              background: "rgba(13,13,36,0.96)",
+              backdropFilter: "blur(18px)",
+              border: "1px solid rgba(167,139,250,0.35)",
+              borderRadius: 12,
+              overflow: "hidden",
+              boxShadow: "0 12px 40px rgba(0,0,0,0.55)",
+              fontFamily: "var(--font-ui), Inter, system-ui, sans-serif",
+              transform: "translateZ(0)",
+            }}>
+              <div style={{ padding: "8px 10px 10px" }}>
+                <div style={{
+                  fontSize: "clamp(11px, 1.05vw, 13px)", fontWeight: 600,
+                  fontFamily: "var(--font-display, Georgia, serif)",
+                  color: "#f2f2f8",
+                  letterSpacing: "-0.01em",
+                  marginBottom: 3,
+                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                }}>{n}</div>
+                {fact && (
+                  <div style={{
+                    fontSize: "clamp(9px, 0.85vw, 10px)",
+                    color: "#a8a8c0", lineHeight: 1.4,
+                    display: "-webkit-box",
+                    WebkitLineClamp: 3,
+                    WebkitBoxOrient: "vertical",
+                    overflow: "hidden",
+                  }}>
+                    {fact}
+                  </div>
+                )}
+                {mobileActive && (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, marginTop: 7 }}>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        window.dispatchEvent(new CustomEvent("geknee:opencitymap", {
+                          detail: { name: n, lat, lon },
+                        }));
+                      }}
+                      style={{
+                        padding: "4px 0", borderRadius: 7,
+                        background: "rgba(167,139,250,0.14)",
+                        border: "1px solid rgba(167,139,250,0.35)",
+                        color: "#c7d2fe",
+                        fontSize: "clamp(9px, 0.85vw, 10px)",
+                        fontWeight: 700,
+                        cursor: "pointer", fontFamily: "inherit",
+                      }}
+                    >
+                      Open map
+                    </button>
+                    <a
+                      href={`/plan/style?location=${encodeURIComponent(n)}`}
+                      style={{
+                        display: "block",
+                        padding: "4px 0", borderRadius: 7,
+                        background: "linear-gradient(135deg,#a78bfa,#7dd3fc)",
+                        color: "#0a0a1f",
+                        fontSize: "clamp(9px, 0.85vw, 10px)",
+                        fontWeight: 700,
+                        textAlign: "center", textDecoration: "none",
+                      }}
+                    >
+                      Plan trip →
+                    </a>
+                  </div>
+                )}
               </div>
-              {mobileActive && (
-                <a
-                  href={`/plan/style?location=${encodeURIComponent(n)}`}
-                  style={{
-                    display: "block", marginTop: "3px",
-                    padding: "7px 0", borderRadius: "6px",
-                    background: "linear-gradient(135deg,#06b6d4,#a78bfa)",
-                    color: "#fff", fontSize: "11px", fontWeight: 700,
-                    textAlign: "center", textDecoration: "none",
-                    cursor: "pointer",
-                  }}
-                >
-                  Plan my trip {String.fromCodePoint(0x27A4)}
-                </a>
-              )}
-            </div>
-            <div style={{
-              position: "absolute", bottom: "-7px", left: "50%", transform: "translateX(-50%)",
-              width: 0, height: 0,
-              borderLeft: "5px solid transparent", borderRight: "5px solid transparent",
-              borderTop: "7px solid #50c8ff",
-            }} />
-            <div style={{
-              position: "absolute", bottom: "-5px", left: "50%", transform: "translateX(-50%)",
-              width: 0, height: 0,
-              borderLeft: "4px solid transparent", borderRight: "4px solid transparent",
-              borderTop: "6px solid #061840",
-            }} />
-          </div>
+            </div>,
+            document.body,
+          )}
         </Html>
       )}
 
