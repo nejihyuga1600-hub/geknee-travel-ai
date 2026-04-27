@@ -441,8 +441,10 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind, lat: latProp, lo
           {typeof document !== "undefined" && createPortal(
             <div style={{
               position: "fixed",
-              top: 84, left: 24,
-              width: 180,
+              top: "calc(64px + 1vh)",
+              left: "calc(8px + 1vw)",
+              // Always small relative to the viewport; never grows past 220px.
+              width: "clamp(140px, 16vw, 220px)",
               zIndex: 200,
               pointerEvents: mobileActive ? "auto" : "none",
               background: "rgba(13,13,36,0.96)",
@@ -452,18 +454,26 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind, lat: latProp, lo
               overflow: "hidden",
               boxShadow: "0 12px 40px rgba(0,0,0,0.55)",
               fontFamily: "var(--font-ui), Inter, system-ui, sans-serif",
+              // Belt-and-suspenders: a fixed-position element shouldn't scale
+              // with globe zoom, but if anything in the parent stack ever
+              // applies a transform, this wrapper isolates from it.
+              transform: "translateZ(0)",
             }}>
-              <div style={{ padding: "8px 12px 10px" }}>
+              <div style={{ padding: "8px 10px 10px" }}>
                 <div style={{
-                  fontSize: 13, fontWeight: 600,
+                  fontSize: "clamp(11px, 1.05vw, 13px)", fontWeight: 600,
                   fontFamily: "var(--font-display, Georgia, serif)",
                   color: "#f2f2f8",
                   letterSpacing: "-0.01em",
-                  marginBottom: 4,
+                  marginBottom: 3,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
                 }}>{name}</div>
                 {fact && (
                   <div style={{
-                    fontSize: 10, color: "#a8a8c0", lineHeight: 1.45,
+                    fontSize: "clamp(9px, 0.85vw, 10px)",
+                    color: "#a8a8c0", lineHeight: 1.4,
                     display: "-webkit-box",
                     WebkitLineClamp: 3,
                     WebkitBoxOrient: "vertical",
@@ -473,7 +483,7 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind, lat: latProp, lo
                   </div>
                 )}
                 {mobileActive && (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 8 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 5, marginTop: 7 }}>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
@@ -482,10 +492,12 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind, lat: latProp, lo
                         }));
                       }}
                       style={{
-                        padding: "5px 0", borderRadius: 8,
+                        padding: "4px 0", borderRadius: 7,
                         background: "rgba(167,139,250,0.14)",
                         border: "1px solid rgba(167,139,250,0.35)",
-                        color: "#c7d2fe", fontSize: 10, fontWeight: 700,
+                        color: "#c7d2fe",
+                        fontSize: "clamp(9px, 0.85vw, 10px)",
+                        fontWeight: 700,
                         cursor: "pointer", fontFamily: "inherit",
                       }}
                     >
@@ -495,9 +507,11 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind, lat: latProp, lo
                       href={`/plan/style?location=${encodeURIComponent(name)}`}
                       style={{
                         display: "block",
-                        padding: "5px 0", borderRadius: 8,
+                        padding: "4px 0", borderRadius: 7,
                         background: "linear-gradient(135deg,#a78bfa,#7dd3fc)",
-                        color: "#0a0a1f", fontSize: 10, fontWeight: 700,
+                        color: "#0a0a1f",
+                        fontSize: "clamp(9px, 0.85vw, 10px)",
+                        fontWeight: 700,
                         textAlign: "center", textDecoration: "none",
                       }}
                     >
