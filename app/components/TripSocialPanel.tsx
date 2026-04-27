@@ -568,25 +568,30 @@ export default function TripSocialPanel({
                       ) : (
                         <div style={{ flex: 1 }}>
                           <div
-                            style={{ fontSize: 14, fontWeight: 700, color: '#e0e7ff', lineHeight: 1.3, cursor: 'pointer' }}
+                            style={{
+                              fontFamily: 'var(--font-display, Georgia, serif)',
+                              fontSize: 15, fontWeight: 500, color: '#f2f2f8',
+                              letterSpacing: '-0.01em', lineHeight: 1.25,
+                              cursor: 'pointer',
+                            }}
                             title="Click to rename"
                             onClick={() => { setRenamingId(trip.id); setRenameValue(trip.title); }}
                           >
                             {trip.title}
                           </div>
-                          <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginTop: 1 }}>
-                            {String.fromCodePoint(0x1F4CD)} {trip.location}
+                          <div style={{ fontSize: 12, color: '#a8a8c0', marginTop: 2 }}>
+                            {trip.location}
                           </div>
                         </div>
                       )}
                       <button onClick={() => deleteTrip(trip.id)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.25)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 0 0 8px', flexShrink: 0 }}>&#x00D7;</button>
                     </div>
                     {trip.startDate && (
-                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginBottom: 8 }}>
+                      <div style={{ fontSize: 11, color: '#6b6b85', marginTop: 6, marginBottom: 10, letterSpacing: '0.02em' }}>
                         {fmtDate(trip.startDate)}{trip.endDate ? ` \u2013 ${fmtDate(trip.endDate)}` : ''}{trip.nights ? ` \u00B7 ${trip.nights} nights` : ''}
                       </div>
                     )}
-                    <button onClick={() => continueTrip(trip)} style={{ ...BTN('#0891b2'), fontSize: 12, padding: '5px 12px' }}>Continue Planning &#x2192;</button>
+                    <button onClick={() => continueTrip(trip)} style={{ ...BTN(), fontSize: 12, padding: '7px 14px' }}>Continue planning &#x2192;</button>
                   </div>
                 ))}
 

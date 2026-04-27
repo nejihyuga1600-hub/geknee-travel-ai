@@ -959,88 +959,88 @@ export default function MonumentShop({ open, onClose }: Props) {
               </div>
 
               {/* Grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: 10 }}>
                 {displayed.map(item => {
                   const unlocked = isCollected(item.id);
                   const eligible = canUnlock(item);
                   const skinsEarned = item.missions.filter(ms => collected.some(c => c.monumentId === item.id && c.skin === ms.skin.id)).length;
+                  const rColor = RARITY_COLOR[item.rarity];
                   return (
                     <div key={item.id}
                       onClick={() => setSelected(item)}
                       style={{
+                        position: 'relative',
                         background: unlocked
-                          ? 'linear-gradient(135deg,rgba(167, 139, 250,0.1),rgba(236,72,153,0.06))'
-                          : 'rgba(255,255,255,0.03)',
-                        border: `1px solid ${unlocked ? 'rgba(167, 139, 250,0.3)' : eligible ? 'rgba(167, 139, 250,0.15)' : 'rgba(255,255,255,0.06)'}`,
-                        borderRadius: 14, padding: '14px 12px', cursor: 'pointer',
-                        transition: 'all 0.2s',
-                        boxShadow: unlocked ? '0 4px 20px rgba(167, 139, 250,0.1)' : 'none',
+                          ? `linear-gradient(165deg, ${rColor}1f, rgba(255,255,255,0.03))`
+                          : 'rgba(255,255,255,0.02)',
+                        border: `1px solid ${unlocked ? `${rColor}66` : eligible ? 'rgba(167, 139, 250, 0.25)' : 'rgba(148,163,208,0.18)'}`,
+                        borderRadius: 14, padding: 14, cursor: 'pointer',
+                        opacity: unlocked ? 1 : 0.65,
+                        transition: 'transform 150ms ease, opacity 150ms ease',
                       }}>
 
-                      {/* Emoji / silhouette */}
+                      {/* Glyph circle (replaces raw emoji) */}
                       <div style={{
-                        fontSize: 36, textAlign: 'center', marginBottom: 8,
-                        filter: unlocked ? 'none' : 'brightness(0) drop-shadow(0 0 8px rgba(167, 139, 250,0.45))',
-                        userSelect: 'none',
+                        width: 56, height: 56, borderRadius: 12,
+                        background: unlocked
+                          ? `radial-gradient(circle, ${rColor}40, transparent 70%)`
+                          : 'rgba(255,255,255,0.04)',
+                        display: 'grid', placeItems: 'center',
+                        marginBottom: 10,
+                        fontSize: 28,
+                        color: unlocked ? rColor : '#6b6b85',
+                        fontFamily: 'var(--font-display, Georgia, serif)',
+                        lineHeight: 1,
                       }}>
-                        {item.emoji}
-                      </div>
-
-                      {/* Rarity badge */}
-                      <div style={{
-                        display: 'inline-block', padding: '2px 8px', borderRadius: 99, marginBottom: 5,
-                        background: `${RARITY_COLOR[item.rarity]}18`,
-                        border: `1px solid ${RARITY_COLOR[item.rarity]}45`,
-                        color: RARITY_COLOR[item.rarity], fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
-                      }}>
-                        {item.rarity.toUpperCase()}
+                        {unlocked ? item.emoji : String.fromCodePoint(0x25CC) /* ◌ */}
                       </div>
 
                       {/* Name */}
                       <div style={{
-                        fontSize: 12, fontWeight: 700, color: '#e0e7ff',
-                        filter: unlocked ? 'none' : 'blur(4px)',
-                        userSelect: unlocked ? 'auto' : 'none',
-                        lineHeight: 1.3, marginBottom: 2,
+                        fontSize: 14, fontWeight: 500,
+                        fontFamily: 'var(--font-display, Georgia, serif)',
+                        color: unlocked ? '#f2f2f8' : '#a8a8c0',
+                        letterSpacing: '-0.01em',
+                        marginBottom: 2,
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                       }}>
-                        {item.name}
+                        {unlocked ? item.name : String.fromCodePoint(0x003F).repeat(3)}
                       </div>
-                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', marginBottom: 10 }}>
-                        {unlocked ? item.location : '??? Unknown'}
+                      <div style={{
+                        fontSize: 10, color: '#6b6b85',
+                        letterSpacing: '0.08em', textTransform: 'uppercase',
+                      }}>
+                        {unlocked ? item.location : 'Visit to reveal'}
                       </div>
 
-                      {/* Skin dots */}
-                      {unlocked && (
-                        <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
-                          {item.missions.map(ms => (
-                            <div key={ms.id} title={`${ms.skin.name} skin`} style={{
-                              width: 12, height: 12, borderRadius: '50%',
-                              background: collected.some(c => c.monumentId === item.id && c.skin === ms.skin.id)
-                                ? ms.skin.color : 'rgba(255,255,255,0.1)',
-                              border: `1px solid rgba(255,255,255,0.12)`,
-                            }} />
-                          ))}
-                          {skinsEarned > 0 && (
-                            <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', marginLeft: 2, alignSelf: 'center' }}>
-                              {skinsEarned}/{item.missions.length}
-                            </span>
-                          )}
-                        </div>
-                      )}
-
-                      {/* CTA */}
-                      {!unlocked && eligible && (
-                        <div style={{
-                          width: '100%', padding: '5px 0', borderRadius: 8,
-                          background: 'rgba(167, 139, 250,0.2)', border: '1px solid rgba(167, 139, 250,0.35)',
-                          color: '#c4b5fd', fontSize: 10, fontWeight: 700, textAlign: 'center',
+                      {/* Bottom strip: rarity tag + skins counter */}
+                      <div style={{
+                        marginTop: 10,
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      }}>
+                        <span style={{
+                          fontSize: 9, fontWeight: 700,
+                          letterSpacing: '0.14em', textTransform: 'uppercase',
+                          color: rColor,
                         }}>
-                          {String.fromCodePoint(0x1F513)} Ready to collect
-                        </div>
-                      )}
-                      {!unlocked && !eligible && (
-                        <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.18)', textAlign: 'center' }}>
-                          {String.fromCodePoint(0x1F512)} Visit to unlock
+                          {item.rarity}
+                        </span>
+                        <span style={{
+                          fontSize: 10, color: '#a8a8c0',
+                          fontFamily: 'var(--font-mono, ui-monospace, monospace)',
+                        }}>
+                          {skinsEarned}/{item.missions.length}
+                        </span>
+                      </div>
+
+                      {/* Top-right marker */}
+                      {!unlocked && (
+                        <div style={{
+                          position: 'absolute', top: 8, right: 10,
+                          fontSize: 9, color: eligible ? '#a78bfa' : '#6b6b85',
+                          letterSpacing: '0.1em',
+                        }}>
+                          {eligible ? '⌕ READY' : '⌕ VISIT'}
                         </div>
                       )}
                     </div>
