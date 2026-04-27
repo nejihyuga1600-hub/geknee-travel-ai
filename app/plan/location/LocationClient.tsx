@@ -459,6 +459,13 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind, lat: latProp, lo
               // applies a transform, this wrapper isolates from it.
               transform: "translateZ(0)",
             }}>
+              {imgUrl && (
+                <img src={imgUrl} alt="" style={{
+                  display: "block", width: "100%", height: 84,
+                  objectFit: "cover",
+                  borderBottom: "1px solid rgba(167,139,250,0.25)",
+                }} />
+              )}
               <div style={{ padding: "8px 10px 10px" }}>
                 <div style={{
                   fontSize: "clamp(11px, 1.05vw, 13px)", fontWeight: 600,
@@ -1639,6 +1646,13 @@ function CityLabel({ n, lat, lon, pos, orientation, fontSize }: {
               fontFamily: "var(--font-ui), Inter, system-ui, sans-serif",
               transform: "translateZ(0)",
             }}>
+              {imgUrl && (
+                <img src={imgUrl} alt="" style={{
+                  display: "block", width: "100%", height: 84,
+                  objectFit: "cover",
+                  borderBottom: "1px solid rgba(167,139,250,0.25)",
+                }} />
+              )}
               <div style={{ padding: "8px 10px 10px" }}>
                 <div style={{
                   fontSize: "clamp(11px, 1.05vw, 13px)", fontWeight: 600,
