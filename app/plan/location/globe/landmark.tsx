@@ -128,6 +128,15 @@ export function GlbModel({ path, scale }: { path: string; scale: number }) {
 }
 
 // ─── Hover label ──────────────────────────────────────────────────────────────
+
+// Wikipedia returns the article's "lead image" which for obscure cities is
+// often a locator map / coat of arms / flag rather than a photo. Reject those
+// by URL pattern so the caller can fall back instead of showing a map.
+function looksLikeMapOrCrest(url: string): boolean {
+  const lower = url.toLowerCase();
+  return /(coat[_-]of[_-]arms|brasao|brasão|escudo|wappen|blason|flag[_-]of|bandeira|bandera|location[_-]of|localizacao|localización|locator|locality|map[_-]of|mapa[_-]de|_mun_|municipio[_-]|locator-map)/.test(lower);
+}
+
 export async function wikiSummary(title: string, thumbPx = 800): Promise<{ img: string | null; extract: string; description: string }> {
   const t = encodeURIComponent(title.replace(/ /g, "_"));
   const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${t}&redirects&prop=pageimages|extracts|description&pithumbsize=${thumbPx}&exintro&explaintext&format=json&origin=*`;
@@ -135,7 +144,10 @@ export async function wikiSummary(title: string, thumbPx = 800): Promise<{ img: 
   if (!r.ok) return { img: null, extract: "", description: "" };
   const d = await r.json();
   const page: any = Object.values(d.query.pages)[0];
-  return { img: page?.thumbnail?.source ?? null, extract: page?.extract ?? "", description: page?.description ?? "" };
+  const raw: string | null = page?.thumbnail?.source ?? null;
+  // Hide map / crest / flag images — caller renders nothing rather than a map.
+  const img = raw && !looksLikeMapOrCrest(raw) ? raw : null;
+  return { img, extract: page?.extract ?? "", description: page?.description ?? "" };
 }
 
 export function LandmarkLabel({ info, planUrl, floating }: { info: LmInfo; planUrl?: string; floating?: boolean }) {
