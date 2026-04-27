@@ -31,6 +31,17 @@ const SKINS: { id: string; label: string; color: string }[] = [
   { id: 'celestial', label: 'Celestial', color: '#c4a7ff' },
 ];
 
+// Drop-rate copy for the rarity grid — illustrative, not a binding spec.
+const SKIN_DROP: Record<string, string> = {
+  stone:     '70%',
+  bronze:    '38%',
+  silver:    '18%',
+  gold:      '7%',
+  diamond:   '2.4%',
+  aurora:    '0.6%',
+  celestial: '0.1%',
+};
+
 export default function Home() {
   return (
     <>
@@ -164,45 +175,68 @@ export default function Home() {
         </section>
 
         {/* ── Rarity gallery ──────────────────────────────────────────────── */}
-        <section style={{ maxWidth: 1180, margin: '0 auto', padding: '64px 28px 48px' }}>
+        <section style={{ maxWidth: 1180, margin: '0 auto', padding: '72px 28px 56px' }}>
+          <div style={{
+            fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase',
+            color: 'var(--brand-accent)', fontWeight: 600, marginBottom: 12,
+          }}>
+            § Seven tiers
+          </div>
           <h2 style={{
-            fontSize: 32, fontWeight: 500, letterSpacing: -0.6, marginBottom: 8,
             fontFamily: 'var(--font-display), Georgia, serif',
+            fontWeight: 400, fontSize: 'clamp(28px, 4vw, 52px)', margin: 0,
+            letterSpacing: '-0.02em', lineHeight: 1.1,
             color: 'var(--brand-ink)',
           }}>
-            Seven rarity tiers per monument.
+            The rarer the skin,{' '}
+            <em style={{ fontStyle: 'italic', color: 'var(--brand-accent)' }}>
+              the harder the trip.
+            </em>
           </h2>
-          <p style={{ color: '#94a3b8', marginBottom: 28, fontSize: 14 }}>
-            Unlock the common by visiting. Chase the rare by returning. Collect them all.
-          </p>
           <div style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-            gap: 14,
+            gap: 14, marginTop: 36,
           }}>
             {SKINS.map((s, i) => (
               <div
                 key={s.id}
                 style={{
-                  background: `radial-gradient(circle at 50% 35%, ${s.color}22, transparent 70%), rgba(15,23,42,0.6)`,
+                  aspectRatio: '1',
+                  background: `radial-gradient(circle at 50% 35%, ${s.color}22, transparent 70%), rgba(13,13,36,0.6)`,
                   border: `1px solid ${s.color}55`,
-                  borderRadius: 14, padding: '22px 16px',
-                  textAlign: 'center',
+                  borderRadius: 14, padding: 14,
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
                   animation: `float 3.5s ease-in-out ${i * 0.25}s infinite`,
                 }}
               >
                 <div style={{
-                  width: 56, height: 56, margin: '0 auto 12px',
+                  width: 44, height: 44, marginBottom: 10,
                   borderRadius: '50%',
-                  border: `3px solid ${s.color}`,
-                  boxShadow: `0 0 24px ${s.color}66`,
+                  border: `2px solid ${s.color}`,
+                  boxShadow: `0 0 20px ${s.color}66`,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: `radial-gradient(circle, ${s.color}33, transparent)`,
+                  background: `${s.color}15`,
                 }}>
-                  <span style={{ fontSize: 22 }}>{String.fromCodePoint(0x1F3DB)}</span>
+                  <span style={{
+                    fontFamily: 'var(--font-display, Georgia, serif)',
+                    fontSize: 14, fontStyle: 'italic', color: s.color,
+                  }}>
+                    {s.label[0]}
+                  </span>
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: s.color, letterSpacing: 1.2, textTransform: 'uppercase' }}>
+                <div style={{
+                  fontFamily: 'var(--font-display, Georgia, serif)',
+                  fontSize: 13, fontStyle: 'italic',
+                  color: 'var(--brand-ink)',
+                }}>
                   {s.label}
+                </div>
+                <div style={{
+                  fontFamily: 'var(--font-mono, ui-monospace, monospace)',
+                  fontSize: 10, color: 'var(--brand-ink-mute)', marginTop: 4,
+                }}>
+                  drop {SKIN_DROP[s.id] ?? '—'}
                 </div>
               </div>
             ))}
