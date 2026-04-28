@@ -1249,8 +1249,15 @@ function SectionCard({
             {renderLines(section.lines)}
             <DayImages heading={section.heading} location={mapLocation} />
           </div>
-          {/* Right: map always visible; image overlays it on hover if one is found */}
-          <div style={{ position: 'relative', top: 0 }}>
+          {/* Right: sticky day map — stays visible while reading the activities.
+              Per design handoff: smaller per-day map in a sticky right column. */}
+          <div style={{
+            position: 'sticky', top: 24,
+            alignSelf: 'start',
+            borderRadius: 12,
+            overflow: 'hidden',
+            border: '1px solid var(--brand-border)',
+          }}>
             <DayMap
               heading={section.heading}
               lines={section.lines}
