@@ -239,9 +239,22 @@ export default function DayMap({ heading, lines, location, height = 220, namedPl
       placesRef.current   = new google.maps.places.PlacesService(map);
       dirSvcRef.current   = new google.maps.DirectionsService();
 
+      // Lavender dashed route per design handoff. The polyline itself is
+      // hidden (opacity 0) and we paint short vertical dash icons along it.
+      const ROUTE_COLOR = '#a78bfa';
+      const dashedRouteOptions: google.maps.PolylineOptions = {
+        strokeColor: ROUTE_COLOR,
+        strokeOpacity: 0,
+        strokeWeight: 4,
+        icons: [{
+          icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, strokeColor: ROUTE_COLOR, scale: 3 },
+          offset: '0',
+          repeat: '14px',
+        }],
+      };
       const rdr = new google.maps.DirectionsRenderer({
         suppressMarkers: true,
-        polylineOptions: { strokeColor: '#4f46e5', strokeWeight: 4, strokeOpacity: 0.85 },
+        polylineOptions: dashedRouteOptions,
       });
       rdr.setMap(map);
       dirRdrRef.current  = rdr;
@@ -381,15 +394,18 @@ export default function DayMap({ heading, lines, location, height = 220, namedPl
 
       const ms = MODE_STYLE[detectedMode];
 
-      // Add numbered place markers
+      // Add numbered place markers — lavender to match the day-card pins;
+      // monument-quest places get the gold variant per the design.
+      const isMonumentPlace = (name: string) => /monument|quest|temple|shrine|cathedral|landmark|tower|palace|castle|⏚/i.test(name);
       resolved.forEach((place, i) => {
         const large = i === 0;
         const size = large ? 36 : 28;
+        const pinColor = isMonumentPlace(place.name) ? '#fbbf24' : '#a78bfa';
         const marker = new google.maps.Marker({
           position: place.coords,
           map: mapRef.current!,
           icon: {
-            url: pinSvgUrl(i, ms.color, large),
+            url: pinSvgUrl(i, pinColor, large),
             scaledSize: new google.maps.Size(size, size + 12),
             anchor: new google.maps.Point(size / 2, size + 12),
           },
@@ -399,7 +415,7 @@ export default function DayMap({ heading, lines, location, height = 220, namedPl
         marker.addListener('click', async () => {
           const iw = infoWinRef.current!;
           const cached = photoCacheRef.current.get(place.name);
-          iw.setContent(infoHtml(place.name, place.snippet, ms.color, cached));
+          iw.setContent(infoHtml(place.name, place.snippet, pinColor, cached));
           iw.open(mapRef.current!, marker);
 
           if (!cached && placesRef.current) {
@@ -409,7 +425,7 @@ export default function DayMap({ heading, lines, location, height = 220, namedPl
                 if (status === google.maps.places.PlacesServiceStatus.OK && results?.[0]?.photos?.[0]) {
                   const url = results[0].photos[0].getUrl({ maxWidth: 300, maxHeight: 200 });
                   photoCacheRef.current.set(place.name, url);
-                  iw.setContent(infoHtml(place.name, place.snippet, ms.color, url));
+                  iw.setContent(infoHtml(place.name, place.snippet, pinColor, url));
                 }
               }
             );
@@ -427,11 +443,11 @@ export default function DayMap({ heading, lines, location, height = 220, namedPl
           const poly = new google.maps.Polyline({
             path,
             geodesic: true,
-            strokeColor: ms.color,
+            strokeColor: '#a78bfa',
             strokeOpacity: 0,
             strokeWeight: 2,
             icons: [{
-              icon: { path: 'M 0,-1 0,1', strokeOpacity: 0.85, scale: 3, strokeColor: ms.color },
+              icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 3, strokeColor: '#a78bfa' },
               offset: '0', repeat: '14px',
             }],
           });
@@ -459,8 +475,21 @@ export default function DayMap({ heading, lines, location, height = 220, namedPl
             }
             dirSvcRef.current.route(req, (result, status) => {
               if (status === 'OK' && result && dirRdrRef.current) {
+                // Re-apply the lavender dashed style (color is unused now,
+                // kept as a parameter so the signature stays compatible).
+                void color;
+                const ROUTE_COLOR = '#a78bfa';
                 dirRdrRef.current.setOptions({
-                  polylineOptions: { strokeColor: color, strokeWeight: 4, strokeOpacity: 0.85 },
+                  polylineOptions: {
+                    strokeColor: ROUTE_COLOR,
+                    strokeOpacity: 0,
+                    strokeWeight: 4,
+                    icons: [{
+                      icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, strokeColor: ROUTE_COLOR, scale: 3 },
+                      offset: '0',
+                      repeat: '14px',
+                    }],
+                  },
                 });
                 dirRdrRef.current.setDirections(result);
                 addPlaceModeIcons(resolved, travelMode as unknown as string);
