@@ -137,17 +137,86 @@ function looksLikeMapOrCrest(url: string): boolean {
   return /(coat[_-]of[_-]arms|brasao|brasão|escudo|wappen|blason|flag[_-]of|bandeira|bandera|location[_-]of|localizacao|localización|locator|locality|map[_-]of|mapa[_-]de|_mun_|municipio[_-]|locator-map)/.test(lower);
 }
 
-export async function wikiSummary(title: string, thumbPx = 800): Promise<{ img: string | null; extract: string; description: string }> {
+type WikiResult = { img: string | null; extract: string; description: string };
+
+// Common ISO-2 → English country names for Wikipedia disambig queries.
+// Only the noisy long-tail entries — Wikipedia handles most direct names fine.
+const COUNTRY_NAME: Record<string, string> = {
+  BR: "Brazil", AR: "Argentina", CL: "Chile", PE: "Peru", CO: "Colombia",
+  VE: "Venezuela", BO: "Bolivia", EC: "Ecuador", PY: "Paraguay", UY: "Uruguay",
+  MX: "Mexico", US: "United States", CA: "Canada",
+  IN: "India", CN: "China", JP: "Japan", ID: "Indonesia", PH: "Philippines",
+  RU: "Russia", DE: "Germany", FR: "France", IT: "Italy", ES: "Spain",
+  GB: "United Kingdom", NG: "Nigeria", EG: "Egypt", ZA: "South Africa",
+};
+
+async function rawWikiSummary(title: string, thumbPx: number): Promise<WikiResult & { isDisambig: boolean }> {
   const t = encodeURIComponent(title.replace(/ /g, "_"));
   const url = `https://en.wikipedia.org/w/api.php?action=query&titles=${t}&redirects&prop=pageimages|extracts|description&pithumbsize=${thumbPx}&exintro&explaintext&format=json&origin=*`;
-  const r = await fetch(url);
-  if (!r.ok) return { img: null, extract: "", description: "" };
-  const d = await r.json();
-  const page: any = Object.values(d.query.pages)[0];
-  const raw: string | null = page?.thumbnail?.source ?? null;
-  // Hide map / crest / flag images — caller renders nothing rather than a map.
-  const img = raw && !looksLikeMapOrCrest(raw) ? raw : null;
-  return { img, extract: page?.extract ?? "", description: page?.description ?? "" };
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return { img: null, extract: "", description: "", isDisambig: false };
+    const d = await r.json();
+    const page: any = Object.values(d.query.pages)[0];
+    const raw: string | null = page?.thumbnail?.source ?? null;
+    const img = raw && !looksLikeMapOrCrest(raw) ? raw : null;
+    const extract: string = page?.extract ?? "";
+    // Wikipedia disambiguation pages start with "<title> may refer to:".
+    const isDisambig = /\bmay refer to:?\s*$/i.test(extract.split("\n")[0]?.trim() ?? "");
+    return { img, extract, description: page?.description ?? "", isDisambig };
+  } catch {
+    return { img: null, extract: "", description: "", isDisambig: false };
+  }
+}
+
+// Find the closest Wikipedia article to (lat, lon) within `radiusM` meters
+// that has a thumbnail. Returns its title or null.
+async function geosearchTitle(lat: number, lon: number, radiusM = 10000): Promise<string | null> {
+  const url = `https://en.wikipedia.org/w/api.php?action=query&list=geosearch&gscoord=${lat}%7C${lon}&gsradius=${radiusM}&gslimit=10&format=json&origin=*`;
+  try {
+    const r = await fetch(url);
+    if (!r.ok) return null;
+    const d = await r.json();
+    const hits: { title: string; dist: number }[] = (d?.query?.geosearch ?? []).map((h: any) => ({ title: h.title, dist: h.dist }));
+    return hits[0]?.title ?? null;
+  } catch {
+    return null;
+  }
+}
+
+// Tries the bare name → "name, Country" → geosearch by lat/lon, returning the
+// first non-disambig hit. Pure, no module-level cache (callers cache).
+export async function wikiSummary(
+  title: string,
+  thumbPx = 800,
+  geo?: { lat?: number; lon?: number; country?: string },
+): Promise<WikiResult> {
+  // 1. Bare name.
+  const first = await rawWikiSummary(title, thumbPx);
+  if (first.extract && !first.isDisambig) {
+    return { img: first.img, extract: first.extract, description: first.description };
+  }
+  // 2. "name, Country" if we have a country code we recognize.
+  const countryName = geo?.country ? COUNTRY_NAME[geo.country] : undefined;
+  if (countryName) {
+    const second = await rawWikiSummary(`${title}, ${countryName}`, thumbPx);
+    if (second.extract && !second.isDisambig) {
+      return { img: second.img, extract: second.extract, description: second.description };
+    }
+  }
+  // 3. Geosearch by coordinates → closest article with a real summary.
+  if (typeof geo?.lat === "number" && typeof geo?.lon === "number") {
+    const nearTitle = await geosearchTitle(geo.lat, geo.lon, 10000);
+    if (nearTitle && nearTitle.toLowerCase() !== title.toLowerCase()) {
+      const third = await rawWikiSummary(nearTitle, thumbPx);
+      if (third.extract && !third.isDisambig) {
+        return { img: third.img, extract: third.extract, description: third.description };
+      }
+    }
+  }
+  // Nothing useful — return the disambig/empty result so callers can fall
+  // back to local copy.
+  return { img: first.img, extract: first.isDisambig ? "" : first.extract, description: first.description };
 }
 
 export function LandmarkLabel({ info, planUrl, floating }: { info: LmInfo; planUrl?: string; floating?: boolean }) {

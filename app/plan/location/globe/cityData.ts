@@ -6,7 +6,7 @@
 
 import { useEffect, useState } from "react";
 
-export type City = { n: string; lat: number; lon: number; p?: number };
+export type City = { n: string; lat: number; lon: number; p?: number; c?: string };
 
 let _extra: City[] = [];
 let _loadPromise: Promise<void> | null = null;
@@ -41,7 +41,7 @@ export function loadExtraCities(seenNames: Set<string>): Promise<void> {
       const lower = new Set(Array.from(seenNames).map((s) => s.toLowerCase()));
       _extra = raw
         .filter((c) => c.n && !lower.has(c.n.toLowerCase()))
-        .map((c) => ({ n: c.n, lat: c.lat, lon: c.lon, p: c.p }));
+        .map((c) => ({ n: c.n, lat: c.lat, lon: c.lon, p: c.p, c: c.c }));
       _version += 1;
       subscribers.forEach((fn) => fn());
     } catch {

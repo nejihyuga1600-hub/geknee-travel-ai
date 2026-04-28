@@ -1600,7 +1600,13 @@ function CityLabel({ n, lat, lon, pos, orientation, fontSize }: {
       return;
     }
     fetchedRef.current = true; // mark so we don't re-fetch on re-hover
-    wikiSummary(n).then(({ img, extract, description }) => {
+    // Look up country code from GeoNames extras so wikiSummary can
+    // disambiguate small-city titles (Santana → Santana, Brazil) and
+    // geosearch by lat/lon if Wikipedia returns "may refer to:".
+    const extra = getExtraCities().find((c) => c.n === n && Math.abs(c.lat - lat) < 0.01 && Math.abs(c.lon - lon) < 0.01) as
+      | { c?: string }
+      | undefined;
+    wikiSummary(n, 800, { lat, lon, country: extra?.c }).then(({ img, extract, description }) => {
       const wikiF = extract ? pickBestFact(extract) : "";
       const resolved = wikiF || CITY_FACTS[n] || description || "";
       _cityCardCache.set(n, { imgUrl: img, fact: resolved });
