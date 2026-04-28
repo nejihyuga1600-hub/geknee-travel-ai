@@ -17,6 +17,8 @@ import {
   type Section, type ActivityGroup,
 } from './lib/itinerary-parse';
 import { extractPlace, fetchPlaceImage, imgCache } from './lib/places';
+import { MarkdownLine, renderInline } from './components/MarkdownLine';
+import { WeatherBar, type DayWeather } from './components/WeatherBar';
 
 const DayMap = dynamic(() => import('./DayMap'), {
   ssr: false,
@@ -53,15 +55,7 @@ interface RouteStop {
   endDate?: string;
 }
 
-interface DayWeather {
-  date:      string;
-  tempMin:   number;
-  tempMax:   number;
-  condition: string;
-  icon:      string;
-  iconUrl:   string;
-  pop:       number;
-}
+// DayWeather — moved to components/WeatherBar.tsx (re-exported via the import above).
 
 type BookmarkCategory = 'food' | 'activities' | 'hotels' | 'shopping' | 'other';
 interface Bookmark {
@@ -75,59 +69,7 @@ interface Bookmark {
 // ── parseLines ─────────────────────────────────────────────────────────────────
 // parseLines — moved to lib/itinerary-parse.ts
 
-// ── Inline markdown renderer ───────────────────────────────────────────────────
-function renderInline(text: string): ReactNode {
-  const parts: ReactNode[] = [];
-  let remaining = text;
-  let key = 0;
-
-  while (remaining.length > 0) {
-    const bold = remaining.match(/^(.*?)\*\*(.+?)\*\*(.*)/);
-    if (bold) {
-      if (bold[1]) parts.push(<span key={key++}>{bold[1]}</span>);
-      parts.push(<strong key={key++} style={{ color: '#e2e8f0' }}>{bold[2]}</strong>);
-      remaining = bold[3];
-      continue;
-    }
-    const italic = remaining.match(/^(.*?)\*(.+?)\*(.*)/);
-    if (italic) {
-      if (italic[1]) parts.push(<span key={key++}>{italic[1]}</span>);
-      parts.push(<em key={key++} style={{ color: '#cbd5e1' }}>{italic[2]}</em>);
-      remaining = italic[3];
-      continue;
-    }
-    parts.push(<span key={key++}>{remaining}</span>);
-    break;
-  }
-  return parts.length === 1 ? parts[0] : <>{parts}</>;
-}
-
-function MarkdownLine({ line }: { line: string }) {
-  if (line.startsWith('### ')) return (
-    <h3 style={{ color: '#a5b4fc', fontSize: 15, fontWeight: 600, marginTop: 14, marginBottom: 4 }}>
-      {line.slice(4)}
-    </h3>
-  );
-  if (line.startsWith('# ')) return (
-    <h1 style={{ color: '#fff', fontSize: 26, fontWeight: 800, marginBottom: 12 }}>{line.slice(2)}</h1>
-  );
-  if (line.startsWith('- ') || line.startsWith('* ')) return (
-    <li style={{ color: 'rgba(255,255,255,0.82)', marginBottom: 4, marginLeft: 16, listStyle: 'disc' }}>
-      {renderInline(line.slice(2))}
-    </li>
-  );
-  if (/^\d+\.\s/.test(line)) return (
-    <li style={{ color: 'rgba(255,255,255,0.82)', marginBottom: 4, marginLeft: 16 }}>
-      {renderInline(line.replace(/^\d+\.\s/, ''))}
-    </li>
-  );
-  if (!line.trim()) return <div style={{ height: 8 }} />;
-  return (
-    <p style={{ color: 'rgba(255,255,255,0.82)', lineHeight: 1.75, marginBottom: 4 }}>
-      {renderInline(line)}
-    </p>
-  );
-}
+// renderInline, MarkdownLine — moved to components/MarkdownLine.tsx
 
 
 // ── Genie character (pure CSS, 64 × 118 px) ───────────────────────────────────
@@ -632,43 +574,7 @@ function DayImages({ heading, location }: { heading: string; location: string })
 }
 
 // ── Weather bar ────────────────────────────────────────────────────────────────
-function WeatherBar({ days, unit }: { days: DayWeather[]; unit: 'C' | 'F' }) {
-  function toDisplay(c: number) {
-    return unit === 'F' ? Math.round(c * 9 / 5 + 32) : c;
-  }
-  return (
-    <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, marginBottom: 12, marginTop: 4 }}>
-      {days.slice(0, 7).map(d => (
-        <div key={d.date} style={{
-          flexShrink: 0, display: 'flex', flexDirection: 'column', alignItems: 'center',
-          background: 'rgba(56,189,248,0.06)', border: '1px solid rgba(56,189,248,0.15)',
-          borderRadius: 10, padding: '6px 10px', minWidth: 72,
-        }}>
-          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', marginBottom: 1, whiteSpace: 'nowrap' }}>
-            {new Date(d.date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-          </span>
-          <img src={d.iconUrl} alt={d.condition} style={{ width: 34, height: 34 }} />
-          <span style={{ fontSize: 11, fontWeight: 700, color: '#7dd3fc', whiteSpace: 'nowrap' }}>
-            {toDisplay(d.tempMax)}&deg;&thinsp;/&thinsp;{toDisplay(d.tempMin)}&deg;{unit}
-          </span>
-          <span style={{ fontSize: 9, color: 'rgba(255,255,255,0.45)', textAlign: 'center', marginTop: 1, lineHeight: 1.3 }}>
-            {d.condition}
-          </span>
-          {d.pop > 0.2 && (
-            <span style={{ fontSize: 9, color: '#93c5fd', marginTop: 2 }}>
-              {String.fromCodePoint(0x1F4A7)} {Math.round(d.pop * 100)}%
-            </span>
-          )}
-        </div>
-      ))}
-      {days.length === 0 && (
-        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.25)', padding: '8px 0' }}>
-          Weather unavailable
-        </span>
-      )}
-    </div>
-  );
-}
+// WeatherBar, DayWeather — moved to components/WeatherBar.tsx
 
 // isTimeLine, groupLines, ActivityGroup — moved to lib/itinerary-parse.ts
 
