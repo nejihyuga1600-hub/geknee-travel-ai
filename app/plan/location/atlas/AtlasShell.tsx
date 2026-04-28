@@ -1112,13 +1112,15 @@ function StepDestination({
       <div
         style={{
           marginTop: 20,
-          fontSize: 11,
+          fontFamily: "var(--font-mono-display), ui-monospace, monospace",
+          fontSize: 10,
           color: "var(--brand-ink-mute)",
-          letterSpacing: "0.08em",
+          letterSpacing: "0.18em",
           textTransform: "uppercase",
+          fontWeight: 600,
         }}
       >
-        Popular
+        Trending
       </div>
       <div
         style={{
@@ -1574,6 +1576,7 @@ function StepStyle({
 }
 
 function StepReview({ trip, onBack }: { trip: Trip; onBack: () => void }) {
+  const reviewRouter = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [savedTripId, setSavedTripId] = useState<string | null>(null);
@@ -1598,12 +1601,20 @@ function StepReview({ trip, onBack }: { trip: Trip; onBack: () => void }) {
       const data = await res.json();
       if (!res.ok) {
         setError(data?.error ?? "Couldn't save the trip — try again.");
+        setBusy(false);
+        return;
+      }
+      const id = data?.trip?.id ?? data?.id ?? "";
+      setSavedTripId(id);
+      // Hand off to /plan/summary so the AI itinerary kicks off immediately
+      // rather than parking the user on a "Saved." confirmation.
+      if (id) {
+        reviewRouter.push(`/plan/summary?tripId=${encodeURIComponent(id)}`);
       } else {
-        setSavedTripId(data?.trip?.id ?? data?.id ?? "");
+        setBusy(false);
       }
     } catch {
       setError("Network error — try again.");
-    } finally {
       setBusy(false);
     }
   };
@@ -1750,7 +1761,7 @@ function StepReview({ trip, onBack }: { trip: Trip; onBack: () => void }) {
         <StepNav
           onBack={onBack}
           onNext={save}
-          nextLabel="Save plan"
+          nextLabel={`Build itinerary ${String.fromCodePoint(0x2728)}`}
           busy={busy}
           nextDisabled={!trip.destination || !trip.startDate || !trip.style}
         />
