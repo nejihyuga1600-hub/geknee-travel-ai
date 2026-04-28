@@ -933,18 +933,23 @@ function ActivityBlock({
       onMouseLeave={() => { setHovered(false); onHoverPlace(null); }}
     >
       {/* Headline row */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 6 }}>
-        {activityNumber !== undefined ? (
-          <div style={{
-            flexShrink: 0, marginTop: 4,
-            width: 20, height: 20, borderRadius: '50%',
-            background: 'rgba(56,189,248,0.15)',
-            border: '1.5px solid rgba(56,189,248,0.45)',
-            color: '#38bdf8', fontSize: 10, fontWeight: 700,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>{activityNumber}</div>
-        ) : (
-          <div style={{ width: 20, flexShrink: 0 }} />
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+        {activityNumber !== undefined ? (() => {
+          const isMonument = /monument|quest|⏚|temple|shrine|cathedral|landmark|tower|palace|castle/i.test(group.headline);
+          return (
+            <div style={{
+              flexShrink: 0, marginTop: 3,
+              width: 22, height: 22, borderRadius: '50%',
+              background: isMonument ? 'var(--brand-gold)' : 'rgba(167,139,250,0.15)',
+              border: `1.5px solid ${isMonument ? 'var(--brand-bg)' : 'rgba(167,139,250,0.45)'}`,
+              color: isMonument ? 'var(--brand-bg)' : 'var(--brand-accent)',
+              fontSize: 10, fontWeight: 700,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontFamily: 'var(--font-mono-display), ui-monospace, monospace',
+            }}>{activityNumber}</div>
+          );
+        })() : (
+          <div style={{ width: 22, flexShrink: 0 }} />
         )}
         <div style={{ flex: 1, minWidth: 0 }}>
           <EditableLine
@@ -1024,12 +1029,34 @@ interface SectionCardProps {
   onReplan: () => void;
 }
 
+// Pull the day index out of headings like "Day 1", "Day 2: Arrival", "Day Three".
+function extractDayNumber(heading: string): number | null {
+  const m1 = heading.match(/day[\s\-]*(\d+)/i);
+  if (m1) return parseInt(m1[1], 10);
+  const wordToNum: Record<string, number> = {
+    one: 1, two: 2, three: 3, four: 4, five: 5,
+    six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
+  };
+  const m2 = heading.match(/day\s+(one|two|three|four|five|six|seven|eight|nine|ten)/i);
+  if (m2) return wordToNum[m2[1].toLowerCase()];
+  return null;
+}
+
+// Strip the "Day N" prefix so the title can sit beside the giant numeral.
+function stripDayPrefix(heading: string): string {
+  return heading
+    .replace(/^day[\s\-]*\d+[:\s\-–—]*/i, '')
+    .replace(/^day\s+(one|two|three|four|five|six|seven|eight|nine|ten)[:\s\-–—]*/i, '')
+    .trim();
+}
+
 function SectionCard({
   section, sectionIdx, editTarget, editValue,
   onStartEdit, onEditChange, onCommit, onCancel, onAskGenie, location, allStops,
   weatherDays, weatherUnit, replanning, onReplan,
 }: SectionCardProps) {
-  const isDay  = /day[\s\-]*\d|day\s+(one|two|three|four|five|six|seven|eight|nine|ten)/i.test(section.heading);
+  const dayNum = extractDayNumber(section.heading);
+  const isDay  = dayNum !== null;
   const isCity = !isDay && (allStops ?? []).some(
     s => section.heading.trim().toLowerCase().includes(s.city.toLowerCase())
   );
@@ -1124,45 +1151,85 @@ function SectionCard({
     );
   }
 
+  // Pretty-printed day title beside the giant numeral. Falls back to the
+  // raw heading for city / tips sections that don't follow the Day-N pattern.
+  const dayTitle = isDay ? (stripDayPrefix(section.heading) || section.heading) : section.heading;
+  // Mono sub-line built from the section's first weather day, when available.
+  const weatherSubLabel = (() => {
+    if (!weatherDays || weatherDays.length === 0) return '';
+    const w = weatherDays[0];
+    const toDisplay = (c: number) => weatherUnit === 'F' ? Math.round(c * 9 / 5 + 32) : Math.round(c);
+    const cond = (w.condition ?? '').toUpperCase();
+    return ` · ${toDisplay(w.tempMax)}°/${toDisplay(w.tempMin)}°${cond ? ' · ' + cond : ''}`;
+  })();
+
   return (
     <div id={section.id} style={{
-      background: isDayOrCity ? 'rgba(56,189,248,0.04)' : 'rgba(255,255,255,0.03)',
-      border: `1px solid ${isDayOrCity ? 'rgba(56,189,248,0.18)' : 'rgba(255,255,255,0.08)'}`,
-      borderRadius: 16, padding: '22px 28px 18px', marginBottom: 18,
+      background: isDayOrCity ? 'rgba(125,211,252,0.04)' : 'rgba(255,255,255,0.03)',
+      border: `1px solid ${isDayOrCity ? 'rgba(125,211,252,0.18)' : 'var(--brand-border)'}`,
+      borderRadius: 16, padding: '24px 28px 20px', marginBottom: 18,
       animation: `cardFadeIn 250ms var(--ease-out) both`,
       animationDelay: `${sectionIdx * 60}ms`,
     }}>
       {section.heading && (
         <div style={{
-          display: 'flex', alignItems: 'center', gap: 10,
-          marginBottom: weatherDays ? 8 : 14, paddingBottom: 8,
-          borderBottom: `1px solid ${isDayOrCity ? 'rgba(56,189,248,0.2)' : 'rgba(165,180,252,0.18)'}`,
+          display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+          gap: 12, marginBottom: weatherDays ? 10 : 16, paddingBottom: 10,
+          borderBottom: `1px solid ${isDayOrCity ? 'rgba(125,211,252,0.2)' : 'var(--brand-border)'}`,
         }}>
-          <h2 style={{
-            flex: 1, margin: 0,
-            color: isDayOrCity ? '#38bdf8' : '#a5b4fc',
-            fontSize: isDayOrCity ? 20 : 17, fontWeight: 700,
-          }}>
-            {section.heading}
-          </h2>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, minWidth: 0, flex: 1 }}>
+            {isDay && dayNum !== null && (
+              <div style={{
+                fontFamily: 'var(--font-display), Georgia, serif',
+                fontSize: 'clamp(36px, 6vw, 48px)', fontWeight: 400,
+                fontStyle: 'italic', letterSpacing: '-0.025em',
+                color: 'var(--brand-accent)', lineHeight: 1, flexShrink: 0,
+              }}>
+                {dayNum < 10 ? `0${dayNum}` : dayNum}
+              </div>
+            )}
+            <div style={{ minWidth: 0 }}>
+              {isDay && (
+                <div style={{
+                  fontFamily: 'var(--font-mono-display), ui-monospace, monospace',
+                  fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase',
+                  color: 'var(--brand-accent-2)', marginBottom: 4, fontWeight: 600,
+                }}>
+                  DAY {dayNum}{weatherSubLabel}
+                </div>
+              )}
+              <h2 style={{
+                margin: 0,
+                fontFamily: 'var(--font-display), Georgia, serif',
+                fontSize: isDay ? 'clamp(20px, 3vw, 26px)' : 17,
+                fontWeight: isDay ? 400 : 700,
+                letterSpacing: '-0.01em',
+                color: 'var(--brand-ink)',
+              }}>
+                {dayTitle}
+              </h2>
+            </div>
+          </div>
           <button
             onClick={onReplan}
             disabled={replanning}
             title="Replan this section with AI"
             style={{
-              flexShrink: 0, padding: '4px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600,
-              border: '1px solid rgba(167,139,250,0.35)',
-              background: replanning ? 'rgba(167,139,250,0.08)' : 'rgba(167,139,250,0.12)',
-              color: replanning ? 'rgba(167,139,250,0.4)' : '#a78bfa',
+              flexShrink: 0, padding: '5px 12px', borderRadius: 999,
+              fontSize: 10, fontWeight: 600, letterSpacing: '0.02em',
+              border: '1px solid rgba(167,139,250,0.3)',
+              background: replanning ? 'rgba(167,139,250,0.06)' : 'transparent',
+              color: replanning ? 'rgba(167,139,250,0.4)' : 'var(--brand-accent)',
               cursor: replanning ? 'not-allowed' : 'pointer',
-              display: 'flex', alignItems: 'center', gap: 5,
+              display: 'inline-flex', alignItems: 'center', gap: 5,
+              fontFamily: 'inherit', whiteSpace: 'nowrap',
             }}
           >
             {replanning ? (
               <>
                 <span style={{
-                  display: 'inline-block', width: 10, height: 10,
-                  border: '1.5px solid rgba(167,139,250,0.4)', borderTopColor: '#a78bfa',
+                  display: 'inline-block', width: 9, height: 9,
+                  border: '1.5px solid rgba(167,139,250,0.4)', borderTopColor: 'var(--brand-accent)',
                   borderRadius: '50%', animation: 'spin 0.8s linear infinite',
                 }} />
                 Replanning&hellip;
