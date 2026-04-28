@@ -75,6 +75,31 @@ function addDays(yyyymmdd: string, n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+function diffDays(start: string, end: string): number {
+  if (!start || !end) return 0;
+  const s = new Date(start + "T00:00:00").getTime();
+  const e = new Date(end + "T00:00:00").getTime();
+  return Math.round((e - s) / 86400000);
+}
+
+function clampNights(n: number): number {
+  if (Number.isNaN(n)) return 7;
+  return Math.max(2, Math.min(21, n));
+}
+
+// First-of-month date in the next future occurrence of the given month index (0–11).
+function nextMonthStart(monthIdx: number): string {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const y = today.getFullYear();
+  let target = new Date(y, monthIdx, 1);
+  if (target.getTime() <= today.getTime()) target = new Date(y + 1, monthIdx, 1);
+  const yy = target.getFullYear();
+  const mm = String(target.getMonth() + 1).padStart(2, "0");
+  const dd = String(target.getDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}
+
 export default function AtlasShell() {
   const [sheet, setSheet] = useState<SheetState>("peek");
   const [step, setStep] = useState(0);
@@ -1342,13 +1367,43 @@ function StepDates({
         <label>
           <span style={labelText}>Depart</span>
           <input type="date" value={trip.startDate}
-            onChange={(e) => setTrip({ ...trip, startDate: e.target.value })}
+            onChange={(e) => {
+              const startDate = e.target.value;
+              if (!startDate) { setTrip({ ...trip, startDate: "" }); return; }
+              // Lock nights, recompute return; clear flexible month since dates were set.
+              setTrip({
+                ...trip,
+                startDate,
+                endDate: addDays(startDate, trip.nights),
+                flexibleMonth: null,
+              });
+            }}
             style={dateInput} />
         </label>
         <label>
           <span style={labelText}>Return</span>
           <input type="date" value={trip.endDate}
-            onChange={(e) => setTrip({ ...trip, endDate: e.target.value })}
+            onChange={(e) => {
+              const endDate = e.target.value;
+              if (!endDate) { setTrip({ ...trip, endDate: "" }); return; }
+              if (trip.startDate) {
+                const nights = clampNights(diffDays(trip.startDate, endDate));
+                setTrip({
+                  ...trip,
+                  endDate: addDays(trip.startDate, nights),
+                  nights,
+                  flexibleMonth: null,
+                });
+              } else {
+                // No start yet — derive it backwards from the chosen return.
+                setTrip({
+                  ...trip,
+                  startDate: addDays(endDate, -trip.nights),
+                  endDate,
+                  flexibleMonth: null,
+                });
+              }
+            }}
             style={dateInput} />
         </label>
       </div>
@@ -1356,11 +1411,23 @@ function StepDates({
       <div style={{ marginTop: 22 }}>
         <div style={labelText}>Flexible? Pick a month</div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {MONTHS.map((m) => {
+          {MONTHS.map((m, idx) => {
             const active = trip.flexibleMonth === m;
             return (
               <button key={m}
-                onClick={() => setTrip({ ...trip, flexibleMonth: active ? null : m })}
+                onClick={() => {
+                  if (active) {
+                    setTrip({ ...trip, flexibleMonth: null });
+                    return;
+                  }
+                  const startDate = nextMonthStart(idx);
+                  setTrip({
+                    ...trip,
+                    flexibleMonth: m,
+                    startDate,
+                    endDate: addDays(startDate, trip.nights),
+                  });
+                }}
                 style={{
                   display: "inline-flex", alignItems: "center",
                   padding: "5px 10px",
@@ -1381,7 +1448,12 @@ function StepDates({
       <div style={{ marginTop: 22 }}>
         <div style={labelText}>Trip length · {trip.nights} nights</div>
         <input type="range" min={2} max={21} value={trip.nights}
-          onChange={(e) => setTrip({ ...trip, nights: parseInt(e.target.value, 10) })}
+          onChange={(e) => {
+            const nights = clampNights(parseInt(e.target.value, 10));
+            // If a start date exists, slide the return alongside.
+            const endDate = trip.startDate ? addDays(trip.startDate, nights) : trip.endDate;
+            setTrip({ ...trip, nights, endDate });
+          }}
           style={{ width: "100%", accentColor: "var(--brand-accent)" }} />
       </div>
 
