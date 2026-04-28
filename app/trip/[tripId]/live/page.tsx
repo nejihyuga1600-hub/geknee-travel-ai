@@ -312,7 +312,7 @@ export default function LiveTripPage() {
       }}>
         <NextStopCard next={activities[nextIdx + 1] ?? null} />
         <WeatherAlertCard weather={weather?.[0] ?? null} />
-        <CrowdsCard />
+        <CrowdsCard placeName={nextActivity?.place ?? null} placeCoords={nextCoords ?? geo} />
       </div>
 
       {/* ── Day timeline strip ─────────────────────────────────────────── */}
@@ -703,16 +703,55 @@ function WeatherAlertCard({ weather }: { weather: DayWeather | null }) {
   );
 }
 
-function CrowdsCard() {
-  // 24-bar histogram, current hour highlighted green
-  const hours = Array.from({ length: 24 }, (_, i) => {
-    // Plausible "popular times" curve peaking around midday + dinner
-    const base = Math.max(0, Math.sin(((i - 6) / 24) * Math.PI * 2) * 0.5 + 0.5);
-    return Math.round(base * 100);
-  });
+function CrowdsCard({ placeName, placeCoords }: { placeName: string | null; placeCoords: Geo | null }) {
+  const [hours, setHours] = useState<number[] | null>(null);
+  const [resolvedName, setResolvedName] = useState<string | null>(null);
+  const [loaded, setLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!placeName) { setHours(null); setResolvedName(null); setLoaded(true); return; }
+    let cancelled = false;
+    setLoaded(false);
+    const params = new URLSearchParams({ place: placeName });
+    if (placeCoords) {
+      params.set('lat', String(placeCoords.lat));
+      params.set('lon', String(placeCoords.lon));
+    }
+    fetch(`/api/popular-times?${params.toString()}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (cancelled) return;
+        setHours(Array.isArray(d?.hours) && d.hours.some((h: number) => h > 0) ? d.hours : null);
+        setResolvedName(d?.name ?? placeName);
+      })
+      .catch(() => { /* silent */ })
+      .finally(() => { if (!cancelled) setLoaded(true); });
+    return () => { cancelled = true; };
+  }, [placeName, placeCoords?.lat, placeCoords?.lon]);
+
   const current = new Date().getHours();
+  const label = (resolvedName ?? placeName ?? 'NEXT STOP').toUpperCase();
+
+  if (!hours) {
+    // No place yet, no popular-times data, or fetch failed — show a quiet
+    // placeholder rather than the synthetic mock curve.
+    return (
+      <CardShell accent="var(--brand-warn)" label={`CROWDS · ${label.slice(0, 24)}`}>
+        <div style={{ fontFamily: DISPLAY, fontSize: 18, fontWeight: 400, color: 'var(--brand-ink)' }}>
+          {!placeName ? 'No next stop yet' : !loaded ? 'Reading busyness…' : 'No popular-times data'}
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--brand-ink-dim)', marginTop: 4 }}>
+          {!placeName
+            ? 'A crowd forecast appears here once your next stop is set.'
+            : !loaded
+              ? 'Pulling Google Maps popular times.'
+              : 'Google doesn’t publish hourly busyness for this place.'}
+        </div>
+      </CardShell>
+    );
+  }
   return (
-    <CardShell accent="var(--brand-warn)" label="CROWDS · NISHIKI MARKET">
+    <CardShell accent="var(--brand-warn)" label={`CROWDS · ${label.slice(0, 24)}`}>
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: 1.5, height: 36, marginTop: 4 }}>
         {hours.map((h, i) => (
           <div key={i} style={{
@@ -725,7 +764,14 @@ function CrowdsCard() {
         ))}
       </div>
       <div style={{ fontSize: 11, color: 'var(--brand-ink-dim)', marginTop: 6 }}>
-        Currently {hours[current]}% · usual peak around lunch
+        {hours[current] > 0 ? `Currently ${hours[current]}%` : 'Currently quiet'}
+        {' · '}
+        {(() => {
+          const peakHour = hours.indexOf(Math.max(...hours));
+          const ampm = peakHour >= 12 ? 'PM' : 'AM';
+          const display = ((peakHour + 11) % 12) + 1;
+          return `peak ${display} ${ampm}`;
+        })()}
       </div>
     </CardShell>
   );
