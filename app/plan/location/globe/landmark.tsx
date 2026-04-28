@@ -134,7 +134,14 @@ export function GlbModel({ path, scale }: { path: string; scale: number }) {
 // by URL pattern so the caller can fall back instead of showing a map.
 function looksLikeMapOrCrest(url: string): boolean {
   const lower = url.toLowerCase();
-  return /(coat[_-]of[_-]arms|brasao|brasão|escudo|wappen|blason|flag[_-]of|bandeira|bandera|location[_-]of|localizacao|localización|locator|locality|map[_-]of|mapa[_-]de|_mun_|municipio[_-]|locator-map)/.test(lower);
+  // Wikipedia renders SVGs as PNGs with .svg.png suffix — those are almost
+  // always locator maps / crests / flags for city pages.
+  if (lower.endsWith(".svg.png")) return true;
+  if (/(coat[_-]of[_-]arms|brasao|brasão|escudo|wappen|blason|flag[_-]of|bandeira|bandera)/i.test(lower)) return true;
+  if (/(location[_-]of|localizacao|localización|locator|locality|map[_-]of|mapa[_-]de|locator-map)/i.test(lower)) return true;
+  if (/(_in_[a-z][a-z]_|realregion|_district_map|district_map_of|state_loc|_admin_)/i.test(lower)) return true;
+  if (/(_mun_|municipio[_-]|comuna[_-]|paroquia[_-])/i.test(lower)) return true;
+  return false;
 }
 
 type WikiResult = { img: string | null; extract: string; description: string };
