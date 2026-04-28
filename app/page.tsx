@@ -1,434 +1,474 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import HeroGlobeClient from './components/HeroGlobeClient';
+
+// ─── Landing · Passport-zine concept ─────────────────────────────────────────
+// Replaces the previous dark-gradient hero with the design handoff's
+// "Issue 001 · Spring '26" zine direction: cream paper with grain, scattered
+// ink stamps, chunky typography, lavender highlights, and a hand-set
+// editorial voice. The 3D globe lives inside /plan now — the front door is
+// a magazine spread.
 
 export const metadata: Metadata = {
-  title: 'geknee — plan trips, collect the world',
-  description: 'A collection game on a 3D globe — every monument is a collectable, every trip unlocks a rare skin. Trip planner inside. Free to start.',
+  title: 'geknee — go there. prove it.',
+  description: '60 monuments. 7 rarity tiers. Your phone checks you are actually there. No couch-unlocks. No loot boxes.',
   openGraph: {
-    title: 'geknee — plan trips, collect the world',
-    description: 'A collection game on a 3D globe — every monument is a collectable, every trip unlocks a rare skin. Trip planner inside.',
+    title: 'geknee — go there. prove it.',
+    description: 'A travel collection game. Real-world check-ins, rare skins, hand-built itineraries. Free to start.',
     type: 'website',
     siteName: 'geknee',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'geknee — plan trips, collect the world',
-    description: 'A collection game on a 3D globe — every monument is a collectable, every trip unlocks a rare skin. Trip planner inside.',
+    title: 'geknee — go there. prove it.',
+    description: 'A travel collection game. Real-world check-ins, rare skins, hand-built itineraries.',
   },
 };
 
-// Skins the globe ships with — used to render the monument-collection gallery
-// strip. Matches SKIN_RING_COLOR in LocationClient; kept inline to avoid the
-// landing page importing the ~7k-line client bundle.
-const SKINS: { id: string; label: string; color: string }[] = [
-  { id: 'stone',     label: 'Stone',     color: '#a8a8a8' },
-  { id: 'bronze',    label: 'Bronze',    color: '#cd7f32' },
-  { id: 'silver',    label: 'Silver',    color: '#e8e8e8' },
-  { id: 'gold',      label: 'Gold',      color: '#ffd700' },
-  { id: 'diamond',   label: 'Diamond',   color: '#b9f2ff' },
-  { id: 'aurora',    label: 'Aurora',    color: '#7cff97' },
-  { id: 'celestial', label: 'Celestial', color: '#c4a7ff' },
-];
+const PAPER = '#f5f1e8';
+const INK = '#0a0a1f';
+const ACCENT = '#a78bfa';
+const ACCENT2 = '#7dd3fc';
+const ACCENT3 = '#fb923c';
 
-// Drop-rate copy for the rarity grid — illustrative, not a binding spec.
-const SKIN_DROP: Record<string, string> = {
-  stone:     '70%',
-  bronze:    '38%',
-  silver:    '18%',
-  gold:      '7%',
-  diamond:   '2.4%',
-  aurora:    '0.6%',
-  celestial: '0.1%',
-};
+const MONO = "var(--font-mono-display), ui-monospace, monospace";
+const DISPLAY = "var(--font-display), Georgia, serif";
 
 export default function Home() {
   return (
-    <>
-      <style>{`
-        @keyframes spinGlobe { to { transform: rotate(360deg) } }
-        @keyframes float     { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-8px) } }
-        @keyframes pulseRing { 0%,100% { opacity: .4; transform: scale(1) } 50% { opacity: .75; transform: scale(1.04) } }
-      `}</style>
+    <main style={{
+      minHeight: '100svh',
+      background: PAPER,
+      color: INK,
+      fontFamily: 'var(--font-ui), system-ui, -apple-system, sans-serif',
+      position: 'relative',
+      overflow: 'hidden',
+    }}>
+      {/* Hot-orange sunburst wash, top right */}
+      <div style={{
+        position: 'absolute', top: 0, right: 0, width: '60%', height: '45%',
+        background: 'radial-gradient(ellipse at 80% 20%, rgba(251,146,60,0.22), transparent 55%)',
+        pointerEvents: 'none',
+      }} />
+      {/* Electric-blue wash, lower left */}
+      <div style={{
+        position: 'absolute', bottom: '35%', left: 0, width: '40%', height: '30%',
+        background: 'radial-gradient(ellipse at 10% 80%, rgba(125,211,252,0.18), transparent 60%)',
+        pointerEvents: 'none',
+      }} />
+      {/* Paper grain */}
+      <div style={{
+        position: 'absolute', inset: 0, opacity: 0.04,
+        backgroundImage: `radial-gradient(circle at 1px 1px, ${INK} 1px, transparent 0)`,
+        backgroundSize: '4px 4px',
+        pointerEvents: 'none',
+      }} />
 
-      <main style={{
-        minHeight: '100svh',
-        background: 'radial-gradient(ellipse at 35% 30%, rgba(30,70,200,0.45) 0%, rgba(6,8,22,0.97) 55%, #030510 100%)',
-        color: '#fff',
-        fontFamily: 'system-ui, -apple-system, sans-serif',
+      {/* ── Top nav ──────────────────────────────────────────────────────── */}
+      <nav style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        padding: '20px 32px', maxWidth: 1280, margin: '0 auto', position: 'relative', zIndex: 5,
       }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{
+            width: 28, height: 28, borderRadius: '50%',
+            background: INK, color: PAPER,
+            display: 'grid', placeItems: 'center',
+            fontFamily: MONO, fontSize: 14, fontWeight: 900,
+          }}>g</div>
+          <span style={{ fontSize: 18, fontWeight: 800, letterSpacing: '-0.02em' }}>geknee</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 22 }}>
+          <Link href="/leaderboard" style={navLink}>Leaderboard</Link>
+          <Link href="/pricing"     style={navLink}>Pricing</Link>
+          <Link href="/plan" style={{
+            padding: '10px 16px', background: INK, color: PAPER,
+            fontFamily: 'inherit', fontSize: 13, fontWeight: 700, letterSpacing: '0.04em',
+            textTransform: 'uppercase', textDecoration: 'none',
+            boxShadow: `4px 4px 0 ${ACCENT}`,
+            border: `2px solid ${INK}`,
+          }}>
+            Open the globe {String.fromCodePoint(0x2192)}
+          </Link>
+        </div>
+      </nav>
 
-        {/* ── Top nav ─────────────────────────────────────────────────────── */}
-        <nav style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '18px 28px', maxWidth: 1280, margin: '0 auto',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 20, fontWeight: 900 }}>
-            <span style={{ fontSize: 24 }}>{String.fromCodePoint(0x1F30D)}</span>
-            geknee
+      {/* ── Hero ─────────────────────────────────────────────────────────── */}
+      <section style={{
+        maxWidth: 1280, margin: '0 auto',
+        padding: '40px 32px 80px',
+        position: 'relative', zIndex: 4,
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+        gap: 60, alignItems: 'center',
+      }}>
+        {/* Decorative HANOI ink stamp */}
+        <div style={{
+          position: 'absolute', top: 30, right: '38%',
+          transform: 'rotate(-14deg)',
+          opacity: 0.5, pointerEvents: 'none',
+          display: 'none',
+        }} className="hide-mobile">
+          <InkStamp shape="circle" city="HANOI" code="HAN" date="04·18·26" glyph="✈" size={130} color="#dc2626" double />
+        </div>
+
+        <div style={{ position: 'relative', zIndex: 2 }}>
+          {/* Issue badge */}
+          <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: 10,
+            padding: '10px 18px',
+            background: INK, color: '#fde68a',
+            fontFamily: MONO, fontSize: 11, fontWeight: 700,
+            letterSpacing: '0.22em', textTransform: 'uppercase',
+            marginBottom: 24,
+            border: `2px solid ${INK}`,
+            boxShadow: `4px 4px 0 ${ACCENT}`,
+            transform: 'rotate(-0.8deg)',
+          }}>
+            <span style={{ color: ACCENT3 }}>{String.fromCodePoint(0x25CE)}</span>
+            <span>THE GEKNEE PASSPORT · ISSUE 001 · SPRING &apos;26</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-            <Link href="/leaderboard" style={navLinkStyle}>Leaderboard</Link>
-            <Link href="/pricing" style={navLinkStyle}>Pricing</Link>
-            <Link href="/plan/location" style={{
-              background: 'linear-gradient(135deg,#a78bfa,#7dd3fc)',
-              padding: '9px 16px', borderRadius: 10, color: '#fff',
-              fontSize: 13, fontWeight: 800, textDecoration: 'none',
-              boxShadow: '0 6px 18px rgba(167, 139, 250,0.35)',
+
+          <h1 style={{
+            fontFamily: 'var(--font-ui), system-ui, sans-serif', fontWeight: 900,
+            fontSize: 'clamp(64px, 11vw, 148px)', lineHeight: 0.86, margin: 0,
+            letterSpacing: '-0.05em',
+            color: INK, textTransform: 'uppercase',
+          }}>
+            GO<br />
+            <span style={{
+              background: ACCENT, padding: '0 0.1em',
+              display: 'inline-block', transform: 'rotate(-1deg)',
+              boxShadow: `5px 5px 0 ${INK}`,
+              border: `2px solid ${INK}`,
+            }}>THERE.</span><br />
+            PROVE<br />
+            <span style={{
+              fontFamily: DISPLAY, fontStyle: 'italic', fontWeight: 400,
+              color: INK, textTransform: 'lowercase',
+              letterSpacing: '-0.03em',
+            }}>it.</span>
+          </h1>
+
+          <p style={{
+            fontSize: 'clamp(16px, 1.5vw, 20px)', lineHeight: 1.4,
+            maxWidth: 480, marginTop: 32, color: '#3a3a30',
+            fontWeight: 500,
+          }}>
+            60 monuments. 7 rarity tiers. Your phone checks you&apos;re actually there.{' '}
+            <span style={{ background: '#fde68a', padding: '1px 4px' }}>
+              No couch-unlocks. No loot boxes.
+            </span>{' '}
+            Go do the thing.
+          </p>
+
+          <div style={{
+            display: 'flex', gap: 12, marginTop: 32, flexWrap: 'wrap', alignItems: 'center',
+          }}>
+            <Link href="/plan" style={{
+              padding: '16px 24px', background: INK, color: PAPER,
+              fontSize: 14, fontWeight: 700, letterSpacing: '0.04em',
+              textTransform: 'uppercase', textDecoration: 'none',
+              boxShadow: `4px 4px 0 ${ACCENT}`,
+              border: `2px solid ${INK}`,
+              transform: 'rotate(-0.5deg)',
+              fontFamily: 'inherit',
             }}>
-              Open the globe {String.fromCodePoint(0x27A4)}
+              Start collecting {String.fromCodePoint(0x2192)}
             </Link>
+            <Link href="#how" style={{
+              padding: '16px 24px', background: 'transparent', color: INK,
+              fontSize: 14, fontWeight: 600, letterSpacing: '0.04em',
+              textTransform: 'uppercase', textDecoration: 'none',
+              border: `2px solid ${INK}`,
+              fontFamily: 'inherit',
+            }}>
+              How it works
+            </Link>
+            <span style={{
+              fontFamily: DISPLAY, fontStyle: 'italic', fontSize: 14,
+              color: '#6b6b55', marginLeft: 12, transform: 'rotate(-3deg)',
+              display: 'inline-block',
+            }}>
+              {String.fromCodePoint(0x2191)} takes 40 seconds
+            </span>
           </div>
-        </nav>
+        </div>
 
-        {/* ── Hero ────────────────────────────────────────────────────────── */}
-        <section style={{
+        {/* Specimen card — passport page tilted */}
+        <div style={{
+          position: 'relative', zIndex: 2,
+          display: 'grid', placeItems: 'center',
+          minHeight: 460,
+        }}>
+          <SpecimenCard />
+        </div>
+      </section>
+
+      {/* ── Passport stamp strip ──────────────────────────────────────────── */}
+      <section style={{
+        maxWidth: 1280, margin: '0 auto', padding: '20px 32px 60px',
+        position: 'relative', zIndex: 4,
+      }}>
+        <div style={{
+          background: PAPER, border: `2px solid ${INK}`,
+          padding: '20px 24px',
+          boxShadow: `5px 5px 0 ${ACCENT}`,
+          transform: 'rotate(-0.4deg)',
+        }}>
+          <div style={{
+            fontFamily: MONO, fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase',
+            color: '#3a3a30', marginBottom: 14, fontWeight: 700,
+          }}>
+            ENTRIES &middot; SPRING &apos;26 &middot; SAMPLE LOG
+          </div>
+          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
+            <InkStamp shape="circle" city="HANOI"  code="HAN" date="04·18·26" glyph="✈" size={86} color="#dc2626" double />
+            <InkStamp shape="rect"   city="KYOTO"  code="ITM" date="04·15·26" glyph="◐" size={86} color="#1e40af" />
+            <InkStamp shape="oval"   city="LISBON" code="LIS" date="03·22·26" glyph="◬" size={86} color="#16a34a" />
+            <InkStamp shape="circle" city="MEXICO" code="MEX" date="02·11·26" glyph="✦" size={86} color="#d97706" double />
+            <InkStamp shape="rect"   city="REYKJAVIK" code="KEF" date="01·30·26" glyph="◷" size={86} color="#0284c7" />
+            <InkStamp shape="oval"   city="MARRAKECH" code="RAK" date="01·09·26" glyph="◉" size={86} color="#b91c1c" />
+          </div>
+        </div>
+      </section>
+
+      {/* ── Mechanic narrative · 01 / 02 / 03 ─────────────────────────────── */}
+      <section id="how" style={{
+        maxWidth: 1280, margin: '0 auto', padding: '40px 32px 80px',
+        position: 'relative', zIndex: 4,
+      }}>
+        <div style={{
+          fontFamily: MONO, fontSize: 11, letterSpacing: '0.22em',
+          color: '#3a3a30', textTransform: 'uppercase', fontWeight: 700,
+          marginBottom: 14,
+        }}>
+          {String.fromCodePoint(0x00A7)} How it works · in three moves
+        </div>
+        <h2 style={{
+          fontFamily: DISPLAY, fontSize: 'clamp(32px, 5vw, 56px)', fontWeight: 400,
+          letterSpacing: '-0.025em', lineHeight: 1.05, margin: '0 0 36px',
+          maxWidth: 720,
+        }}>
+          You don&apos;t <em style={{ color: ACCENT }}>collect</em> from your couch. You earn it on foot.
+        </h2>
+
+        <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
-          gap: 40, alignItems: 'center',
-          maxWidth: 1180, margin: '0 auto', padding: '64px 28px 48px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+          gap: 18,
+        }}>
+          <Step n="01" title="Plan it" body="Spin the globe, pick a destination, drop pins on a real map. Or let the genie draft an itinerary in 20 seconds." />
+          <Step n="02" title="Go there" body="Your phone confirms you're actually there — geo + a photo. No couch-unlocks. No grinding. No loot boxes." />
+          <Step n="03" title="Prove it"  body="Each visit drops a monument card. Stone is easy; Aurora and Celestial are hard. The board ranks the rare ones." />
+        </div>
+      </section>
+
+      {/* ── Pro band ──────────────────────────────────────────────────────── */}
+      <section style={{
+        maxWidth: 1280, margin: '0 auto', padding: '20px 32px 80px',
+        position: 'relative', zIndex: 4,
+      }}>
+        <div style={{
+          padding: 'clamp(28px, 4vw, 48px) clamp(28px, 4vw, 56px)',
+          background: INK, color: PAPER,
+          border: `2px solid ${INK}`,
+          boxShadow: `6px 6px 0 ${ACCENT}`,
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: 32, alignItems: 'center',
         }}>
           <div>
             <div style={{
-              display: 'inline-block',
-              fontSize: 10, fontWeight: 600,
-              letterSpacing: '0.22em', textTransform: 'uppercase',
-              color: 'var(--brand-accent)',
-              marginBottom: 24,
+              fontFamily: MONO, fontSize: 10, letterSpacing: '0.22em',
+              color: ACCENT2, fontWeight: 700, marginBottom: 12,
             }}>
-              {String.fromCodePoint(0x2726)} Collection game · Trip planner inside
+              {String.fromCodePoint(0x00A7)} GEKNEE PRO
             </div>
-            <h1 style={{
-              fontSize: 'clamp(52px, 8vw, 96px)', lineHeight: 0.98, margin: 0,
-              fontFamily: 'var(--font-display), Georgia, serif',
-              fontWeight: 400, letterSpacing: '-0.035em',
-              color: 'var(--brand-ink)',
+            <h3 style={{
+              fontFamily: DISPLAY, fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 400,
+              letterSpacing: '-0.02em', lineHeight: 1.05, margin: 0,
             }}>
-              Collect<br />
-              <em style={{ fontStyle: 'italic', color: 'var(--brand-accent)' }}>the world.</em>
-            </h1>
+              Unlimited trips. Deeper agents. <em style={{ color: ACCENT }}>One small fee.</em>
+            </h3>
             <p style={{
-              fontFamily: 'var(--font-display), Georgia, serif',
-              fontSize: 'clamp(17px, 1.5vw, 22px)', lineHeight: 1.45,
-              maxWidth: 520, marginTop: 28,
-              color: '#a8a8c0', fontWeight: 300,
+              fontSize: 14, lineHeight: 1.55, marginTop: 16, opacity: 0.78, maxWidth: 480,
             }}>
-              A 3D globe where every monument is a collectable. Visit in person,
-              complete the quest, unlock the rare skin. No shortcuts.
+              The free tier saves three trips at a time. Pro upgrades to unlimited trips,
+              priority itinerary generation, the live-trip companion, and the file vault.
             </p>
-
-            <div style={{ display: 'flex', gap: 12, marginTop: 32, flexWrap: 'wrap' }}>
-              <Link href="/plan/location" style={{
-                background: 'linear-gradient(135deg,#a78bfa,#7dd3fc)',
-                padding: '14px 22px', borderRadius: 12, color: '#fff',
-                fontSize: 14, fontWeight: 800, textDecoration: 'none',
-                boxShadow: '0 10px 30px rgba(167, 139, 250,0.4)',
-              }}>
-                Open the globe {String.fromCodePoint(0x27A4)}
-              </Link>
-              <Link href="/pricing" style={{
-                padding: '14px 22px', borderRadius: 12,
-                border: '1px solid rgba(148,163,184,0.35)',
-                color: '#e2e8f0', fontSize: 14, fontWeight: 700, textDecoration: 'none',
-              }}>
-                See pricing
-              </Link>
-            </div>
-
-            <div style={{ display: 'flex', gap: 22, marginTop: 36, fontSize: 12, color: '#94a3b8' }}>
-              <span>{String.fromCodePoint(0x2713)} Free forever</span>
-              <span>{String.fromCodePoint(0x2713)} No credit card to start</span>
-            </div>
           </div>
-
-          <HeroVisual />
-        </section>
-
-        {/* ── Feature tiles ───────────────────────────────────────────────── */}
-        <section style={{ maxWidth: 1180, margin: '0 auto', padding: '32px 28px 48px' }}>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-            gap: 18,
-          }}>
-            <Feature
-              emoji={String.fromCodePoint(0x1F3DB)}
-              title="Collect monuments"
-              body="60+ landmarks, seven rarity tiers each. The base tier drops the moment you complete the quest."
-            />
-            <Feature
-              emoji={String.fromCodePoint(0x2728)}
-              title="Earn rare skins"
-              body="Gold, Aurora, Celestial — only by visiting in person and completing harder quests. No way to buy them."
-            />
-            <Feature
-              emoji={String.fromCodePoint(0x1F30D)}
-              title="Share your globe"
-              body="Every unlock becomes a shareable card. Friends visit your spectator globe and start their own collection."
-            />
-            <Feature
-              emoji={String.fromCodePoint(0x1F5FA)}
-              title="Trip planner inside"
-              body="When you do want help routing the trip, geknee drafts itineraries with city-level detail. Optional, not the point."
-            />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <Link href="/pricing" style={{
+              padding: '16px 24px', background: ACCENT, color: INK,
+              fontSize: 14, fontWeight: 700, letterSpacing: '0.04em',
+              textTransform: 'uppercase', textDecoration: 'none',
+              border: `2px solid ${PAPER}`,
+              fontFamily: 'inherit',
+              textAlign: 'center',
+            }}>See pricing</Link>
+            <Link href="/plan" style={{
+              padding: '16px 24px', background: 'transparent', color: PAPER,
+              fontSize: 14, fontWeight: 600, letterSpacing: '0.04em',
+              textTransform: 'uppercase', textDecoration: 'none',
+              border: `2px solid ${PAPER}`, fontFamily: 'inherit',
+              textAlign: 'center',
+            }}>Start free</Link>
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* ── Rarity gallery ──────────────────────────────────────────────── */}
-        <section style={{ maxWidth: 1180, margin: '0 auto', padding: '72px 28px 56px' }}>
-          <div style={{
-            fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase',
-            color: 'var(--brand-accent)', fontWeight: 600, marginBottom: 12,
-          }}>
-            § Seven tiers
-          </div>
-          <h2 style={{
-            fontFamily: 'var(--font-display), Georgia, serif',
-            fontWeight: 400, fontSize: 'clamp(28px, 4vw, 52px)', margin: 0,
-            letterSpacing: '-0.02em', lineHeight: 1.1,
-            color: 'var(--brand-ink)',
-          }}>
-            The rarer the skin,{' '}
-            <em style={{ fontStyle: 'italic', color: 'var(--brand-accent)' }}>
-              the harder the trip.
-            </em>
-          </h2>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
-            gap: 14, marginTop: 36,
-          }}>
-            {SKINS.map((s, i) => (
-              <div
-                key={s.id}
-                style={{
-                  aspectRatio: '1',
-                  background: `radial-gradient(circle at 50% 35%, ${s.color}22, transparent 70%), rgba(13,13,36,0.6)`,
-                  border: `1px solid ${s.color}55`,
-                  borderRadius: 14, padding: 14,
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-                  animation: `float 3.5s ease-in-out ${i * 0.25}s infinite`,
-                }}
-              >
-                <div style={{
-                  width: 44, height: 44, marginBottom: 10,
-                  borderRadius: '50%',
-                  border: `2px solid ${s.color}`,
-                  boxShadow: `0 0 20px ${s.color}66`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: `${s.color}15`,
-                }}>
-                  <span style={{
-                    fontFamily: 'var(--font-display, Georgia, serif)',
-                    fontSize: 14, fontStyle: 'italic', color: s.color,
-                  }}>
-                    {s.label[0]}
-                  </span>
-                </div>
-                <div style={{
-                  fontFamily: 'var(--font-display, Georgia, serif)',
-                  fontSize: 13, fontStyle: 'italic',
-                  color: 'var(--brand-ink)',
-                }}>
-                  {s.label}
-                </div>
-                <div style={{
-                  fontFamily: 'var(--font-mono, ui-monospace, monospace)',
-                  fontSize: 10, color: 'var(--brand-ink-mute)', marginTop: 4,
-                }}>
-                  drop {SKIN_DROP[s.id] ?? '—'}
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ── Share-card preview gallery ──────────────────────────────────── */}
-        {/* Live <img>s pointing at /api/og/share — the actual route that
-            renders to OG meta when a user shares an unlock. Three monument
-            + skin combos picked for visual variety. The route falls back
-            to Wikipedia thumbs until per-skin Nano Banana heroes land. */}
-        <section style={{ maxWidth: 1180, margin: '0 auto', padding: '48px 28px 72px' }}>
-          <div style={{
-            fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase',
-            color: 'var(--brand-accent)', fontWeight: 600, marginBottom: 12,
-          }}>
-            § Every unlock is a share
-          </div>
-          <h2 style={{
-            fontFamily: 'var(--font-display), Georgia, serif',
-            fontWeight: 400, fontSize: 'clamp(28px, 4vw, 52px)', margin: 0,
-            letterSpacing: '-0.02em', lineHeight: 1.1,
-            color: 'var(--brand-ink)',
-          }}>
-            One tap. Your friends{' '}
-            <em style={{ fontStyle: 'italic', color: 'var(--brand-accent)' }}>
-              start collecting.
-            </em>
-          </h2>
-          <p style={{
-            color: 'var(--brand-ink-dim, #a8a8c0)',
-            marginTop: 16, marginBottom: 32,
-            fontSize: 14, maxWidth: 580, lineHeight: 1.55,
-          }}>
-            Each unlock turns into a share card. Friends land on your spectator
-            globe and see exactly what you collected.
-          </p>
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-            gap: 18,
-          }}>
-            {[
-              { mk: 'eiffelTower',   skin: 'gold',      label: 'Gold tier' },
-              { mk: 'statueLiberty', skin: 'aurora',    label: 'Aurora tier' },
-              { mk: 'pyramidGiza',   skin: 'celestial', label: 'Celestial tier' },
-            ].map((c) => (
-              <div
-                key={c.mk + c.skin}
-                style={{
-                  background: 'rgba(15,23,42,0.6)',
-                  border: '1px solid rgba(148,163,184,0.18)',
-                  borderRadius: 14, overflow: 'hidden',
-                }}
-              >
-                <img
-                  src={`/api/og/share?mk=${c.mk}&skin=${c.skin}&u=Nghia&h=nghia`}
-                  alt={`${c.label} share card preview`}
-                  width={1200}
-                  height={630}
-                  style={{ width: '100%', height: 'auto', display: 'block' }}
-                  loading="lazy"
-                />
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ── CTA band ────────────────────────────────────────────────────── */}
-        <section style={{
-          maxWidth: 1180, margin: '0 auto', padding: '64px 28px 96px',
-          textAlign: 'center',
-        }}>
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(167, 139, 250,0.25), rgba(167, 139, 250,0.25))',
-            border: '1px solid rgba(167, 139, 250,0.4)',
-            borderRadius: 20, padding: '48px 24px',
-          }}>
-            <h2 style={{
-              fontSize: 38, fontWeight: 500, margin: 0,
-              fontFamily: 'var(--font-display), Georgia, serif',
-              letterSpacing: -0.8,
-              color: 'var(--brand-ink)',
-            }}>
-              Start your collection.
-            </h2>
-            <p style={{ color: '#cbd5e1', marginTop: 12, fontSize: 15 }}>
-              The globe is one click away. No signup needed to look around.
-            </p>
-            <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 24, flexWrap: 'wrap' }}>
-              <Link href="/plan/location" style={{
-                background: 'linear-gradient(135deg,#a78bfa,#7dd3fc)',
-                padding: '14px 26px', borderRadius: 12, color: '#fff',
-                fontSize: 14, fontWeight: 800, textDecoration: 'none',
-                boxShadow: '0 10px 30px rgba(167, 139, 250,0.4)',
-              }}>
-                Open the globe {String.fromCodePoint(0x27A4)}
-              </Link>
-              <Link href="/pricing" style={{
-                padding: '14px 26px', borderRadius: 12,
-                border: '1px solid rgba(148,163,184,0.35)',
-                color: '#e2e8f0', fontSize: 14, fontWeight: 700, textDecoration: 'none',
-              }}>
-                See pricing
-              </Link>
-            </div>
-          </div>
-        </section>
-
-        {/* ── Footer ──────────────────────────────────────────────────────── */}
-        <footer style={{
-          borderTop: '1px solid rgba(148,163,184,0.1)',
-          padding: '24px 28px',
-          textAlign: 'center',
-          color: '#64748b', fontSize: 12,
-        }}>
-          {String.fromCodePoint(0x00A9)} {new Date().getFullYear()} geknee · built with Three.js, Next.js, and a lot of sleepless nights
-        </footer>
-      </main>
-    </>
-  );
-}
-
-// Pure-CSS hero visual — stylised "globe" made of concentric gradient rings.
-// Replace with <img src="/globe-hero.png" /> once you have a real screenshot
-// of the 3D globe to drop into public/.
-function HeroVisual() {
-  return (
-    <div style={{
-      position: 'relative',
-      aspectRatio: '1 / 1',
-      maxWidth: 520,
-      margin: '0 auto',
-      display: 'grid', placeItems: 'center',
-    }}>
-      {/* outer ring */}
-      <div style={{
-        position: 'absolute', inset: 0,
-        borderRadius: '50%',
-        border: '2px solid rgba(167, 139, 250,0.35)',
-        animation: 'pulseRing 5s ease-in-out infinite',
-      }} />
-      {/* inner ring */}
-      <div style={{
-        position: 'absolute', inset: '12%',
-        borderRadius: '50%',
-        border: '2px solid rgba(245,158,11,0.4)',
-        animation: 'pulseRing 6s ease-in-out infinite 1s',
-      }} />
-      {/* Live cartoon globe — replaces the CSS gradient fake. The Canvas
-          is pointer-events:none so it doesn't intercept the hero CTAs. */}
-      <div style={{
-        width: '88%', height: '88%',
-        position: 'relative',
-        borderRadius: '50%',
-        overflow: 'hidden',
-        boxShadow: '0 30px 100px rgba(167, 139, 250,0.35)',
+      {/* ── Footer ────────────────────────────────────────────────────────── */}
+      <footer style={{
+        maxWidth: 1280, margin: '0 auto', padding: '40px 32px 60px',
+        position: 'relative', zIndex: 4,
+        borderTop: `2px solid ${INK}`,
       }}>
-        <HeroGlobeClient />
-      </div>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
+          flexWrap: 'wrap', gap: 14, paddingTop: 24,
+        }}>
+          <div style={{
+            fontFamily: DISPLAY, fontSize: 28, fontWeight: 400, letterSpacing: '-0.02em',
+          }}>
+            geknee · <em style={{ color: ACCENT }}>Issue 001</em>
+          </div>
+          <div style={{
+            display: 'flex', gap: 24, fontSize: 13,
+            color: '#3a3a30',
+          }}>
+            <Link href="/leaderboard" style={navLink}>Leaderboard</Link>
+            <Link href="/pricing"     style={navLink}>Pricing</Link>
+            <Link href="/plan"        style={navLink}>Open globe</Link>
+          </div>
+          <div style={{
+            fontFamily: MONO, fontSize: 10, letterSpacing: '0.22em',
+            color: '#6b6b55', textTransform: 'uppercase',
+          }}>
+            &copy; {new Date().getFullYear()} geknee · go there
+          </div>
+        </div>
+      </footer>
 
-      {/* a few rarity-coloured pins floating over the globe */}
-      {[{c:'#ffd700', top:'22%', left:'58%'},
-        {c:'#b9f2ff', top:'60%', left:'30%'},
-        {c:'#c4a7ff', top:'42%', left:'72%'}].map((p, i) => (
-        <div key={i} style={{
-          position: 'absolute', top: p.top, left: p.left,
-          width: 14, height: 14, borderRadius: '50%',
-          background: p.c,
-          boxShadow: `0 0 20px ${p.c}, 0 0 40px ${p.c}88`,
-          animation: `float 3s ease-in-out ${i * 0.6}s infinite`,
-        }} />
-      ))}
-    </div>
+      <style>{`
+        @media (min-width: 900px) { .hide-mobile { display: block !important; } }
+      `}</style>
+    </main>
   );
 }
 
-function Feature({ emoji, title, body }: { emoji: string; title: string; body: string }) {
+const navLink = {
+  fontSize: 13, color: INK, textDecoration: 'none', fontWeight: 600,
+};
+
+// ─── Step card ──────────────────────────────────────────────────────────────
+
+function Step({ n, title, body }: { n: string; title: string; body: string }) {
   return (
     <div style={{
-      background: 'rgba(15,23,42,0.6)',
-      border: '1px solid rgba(148,163,184,0.15)',
-      borderRadius: 14,
-      padding: '22px 20px',
+      padding: '28px 24px',
+      background: PAPER, border: `2px solid ${INK}`,
+      boxShadow: `4px 4px 0 ${ACCENT}`,
     }}>
-      <div style={{ fontSize: 28, marginBottom: 10 }}>{emoji}</div>
-      <div style={{ fontSize: 16, fontWeight: 800, marginBottom: 6 }}>{title}</div>
-      <div style={{ fontSize: 13, color: '#94a3b8', lineHeight: 1.5 }}>{body}</div>
+      <div style={{
+        fontFamily: 'var(--font-ui), system-ui, sans-serif', fontWeight: 900,
+        fontSize: 64, lineHeight: 1, color: ACCENT,
+        letterSpacing: '-0.04em', marginBottom: 8,
+      }}>{n}</div>
+      <div style={{
+        fontFamily: DISPLAY, fontSize: 24, fontWeight: 400, letterSpacing: '-0.01em',
+        marginBottom: 8,
+      }}>{title}</div>
+      <p style={{ fontSize: 13, lineHeight: 1.5, color: '#3a3a30', margin: 0 }}>{body}</p>
     </div>
   );
 }
 
-const navLinkStyle: React.CSSProperties = {
-  color: '#cbd5e1', fontSize: 13, fontWeight: 700, textDecoration: 'none',
-};
+// ─── Specimen card ──────────────────────────────────────────────────────────
+
+function SpecimenCard() {
+  return (
+    <div style={{
+      width: 'min(100%, 360px)',
+      background: PAPER,
+      border: `2px solid ${INK}`,
+      padding: 24, position: 'relative',
+      boxShadow: `8px 8px 0 ${ACCENT}`,
+      transform: 'rotate(2deg)',
+    }}>
+      <div style={{
+        position: 'absolute', top: 18, right: -16, transform: 'rotate(8deg)',
+        padding: '4px 16px', fontFamily: MONO, fontSize: 9, fontWeight: 800,
+        letterSpacing: '0.18em', border: `2px solid ${ACCENT}`, color: ACCENT,
+        background: PAPER, borderRadius: 3,
+      }}>SPECIMEN</div>
+
+      <div style={{
+        fontFamily: MONO, fontSize: 9, letterSpacing: '0.22em',
+        color: '#6b6b55', marginBottom: 12, textTransform: 'uppercase',
+      }}>
+        ENTRY №042 · KIYOMIZU-DERA · KYOTO
+      </div>
+      <div style={{
+        fontFamily: DISPLAY, fontSize: 32, fontWeight: 400, letterSpacing: '-0.02em',
+        lineHeight: 1.05, color: INK,
+      }}>
+        Bronze tier &middot; <em style={{ color: ACCENT }}>caught the morning light.</em>
+      </div>
+      <div style={{
+        marginTop: 18, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center',
+      }}>
+        <Pill>★ 4.7 difficulty</Pill>
+        <Pill>16 quests</Pill>
+        <Pill>Apr 15 &middot; 10:14 AM</Pill>
+      </div>
+      <div style={{
+        marginTop: 22, paddingTop: 16, borderTop: `1px solid rgba(10,10,31,0.12)`,
+        fontSize: 12, color: '#3a3a30', lineHeight: 1.55,
+      }}>
+        Wooden stage. Sakura window. Photo locked. Stone tier auto-drops the moment
+        the geofence pings. Bronze and up &mdash; you complete a quest.
+      </div>
+    </div>
+  );
+}
+
+function Pill({ children }: { children: React.ReactNode }) {
+  return (
+    <span style={{
+      fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', textTransform: 'uppercase',
+      padding: '4px 10px', borderRadius: 999,
+      background: 'rgba(10,10,31,0.06)', color: INK, fontWeight: 700,
+    }}>{children}</span>
+  );
+}
+
+// ─── InkStamp ───────────────────────────────────────────────────────────────
+
+function InkStamp({
+  shape = 'circle', city, code, date, glyph, size = 100, color = '#dc2626', double = false,
+}: {
+  shape?: 'circle' | 'oval' | 'rect';
+  city: string; code: string; date: string; glyph: string;
+  size?: number; color?: string; double?: boolean;
+}) {
+  const radius = shape === 'rect' ? 4 : shape === 'oval' ? '50% / 38%' : '50%';
+  const w = shape === 'oval' ? size * 1.25 : size;
+  const h = shape === 'oval' ? size * 0.75 : size;
+  return (
+    <div style={{
+      width: w, height: h, borderRadius: radius,
+      border: `${double ? 4 : 3}px ${double ? 'double' : 'solid'} ${color}`,
+      color, opacity: 0.85,
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      gap: 1,
+      fontFamily: MONO, textTransform: 'uppercase', textAlign: 'center',
+      letterSpacing: '0.18em', fontWeight: 700, fontSize: 9,
+      padding: 4, boxSizing: 'border-box',
+    }}>
+      <div style={{ fontSize: 14, marginBottom: 1 }}>{glyph}</div>
+      <div style={{ fontSize: 11, fontWeight: 800 }}>{city}</div>
+      <div style={{ fontSize: 8 }}>{code}</div>
+      <div style={{ fontSize: 7, opacity: 0.7 }}>{date}</div>
+    </div>
+  );
+}
