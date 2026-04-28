@@ -169,16 +169,49 @@ async function rawWikiSummary(title: string, thumbPx: number): Promise<WikiResul
   }
 }
 
-// Find the closest Wikipedia article to (lat, lon) within `radiusM` meters
-// that has a thumbnail. Returns its title or null.
-async function geosearchTitle(lat: number, lon: number, radiusM = 10000): Promise<string | null> {
+// Find the best Wikipedia article near (lat, lon) for a known place name.
+// Wikipedia's geosearch returns ALL nearby articles (rivers, mountains,
+// neighbourhoods, the city), not just the city itself — and the closest
+// hit is often a sibling feature (the tributary "Santana" sits closer to
+// the marker than the city of "Santana, Amapá"). Strategy:
+//   1. Pull top 10 hits within radiusM.
+//   2. Prefer titles that contain the queried name (case-insensitive) AND
+//      a disambig qualifier — "Santana (Amapá)" / "Santana, Brazil" — over
+//      a bare match (which is more likely to be the river / landmark).
+//   3. Reject obvious non-settlement titles (River, Mountain, Lake, etc.)
+//      unless they match nothing else.
+//   4. Fall back to the absolute closest hit.
+const NON_SETTLEMENT = /\b(river|stream|mountain|peak|lake|reservoir|forest|park|national\s+park|reserve|island|bay|cape|gulf|strait|hill|valley|airport|station|tributary)\b/i;
+
+async function geosearchTitle(name: string, lat: number, lon: number, radiusM = 10000): Promise<string | null> {
   const url = `https://en.wikipedia.org/w/api.php?action=query&list=geosearch&gscoord=${lat}%7C${lon}&gsradius=${radiusM}&gslimit=10&format=json&origin=*`;
   try {
     const r = await fetch(url);
     if (!r.ok) return null;
     const d = await r.json();
-    const hits: { title: string; dist: number }[] = (d?.query?.geosearch ?? []).map((h: any) => ({ title: h.title, dist: h.dist }));
-    return hits[0]?.title ?? null;
+    const hits: { title: string; dist: number }[] = (d?.query?.geosearch ?? [])
+      .map((h: any) => ({ title: h.title as string, dist: h.dist as number }));
+    if (hits.length === 0) return null;
+
+    const lower = name.toLowerCase();
+    const settled = hits.filter(h => !NON_SETTLEMENT.test(h.title));
+
+    // Tier 1: name match + disambig qualifier (parens or comma).
+    const t1 = settled.find(h => {
+      const t = h.title.toLowerCase();
+      return t.includes(lower) && (t.includes("(") || t.includes(","));
+    });
+    if (t1) return t1.title;
+
+    // Tier 2: bare name match, settlement-style.
+    const t2 = settled.find(h => h.title.toLowerCase().includes(lower));
+    if (t2) return t2.title;
+
+    // Tier 3: any settlement-style hit (closest first).
+    if (settled[0]) return settled[0].title;
+
+    // Tier 4: anything (shouldn't normally happen).
+    return hits[0].title;
   } catch {
     return null;
   }
@@ -206,7 +239,7 @@ export async function wikiSummary(
   }
   // 3. Geosearch by coordinates → closest article with a real summary.
   if (typeof geo?.lat === "number" && typeof geo?.lon === "number") {
-    const nearTitle = await geosearchTitle(geo.lat, geo.lon, 10000);
+    const nearTitle = await geosearchTitle(title, geo.lat, geo.lon, 10000);
     if (nearTitle && nearTitle.toLowerCase() !== title.toLowerCase()) {
       const third = await rawWikiSummary(nearTitle, thumbPx);
       if (third.extract && !third.isDisambig) {
