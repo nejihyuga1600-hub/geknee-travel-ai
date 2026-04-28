@@ -426,15 +426,19 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind, lat: latProp, lo
     <group position={pos} quaternion={orientation}>
       <Text
         fontSize={fontSize}
-        color={mobileActive ? "#ffe066" : kind === "country" ? "#ffffff" : "#b8ccff"}
+        color={mobileActive ? "#ffe066" : kind === "country" ? "#ffffff" : "#dde6ff"}
         outlineWidth={kind === "country" ? 0.020 : 0.013}
-        outlineColor="#000000"
+        outlineColor="#0a0a1f"
+        outlineOpacity={0.95}
         anchorX="center"
         anchorY="middle"
         letterSpacing={kind === "country" ? 0.10 : 0.04}
         sdfGlyphSize={128}
+        renderOrder={2}
         material-side={THREE.FrontSide}
-        material-depthTest
+        material-depthTest={false}
+        material-depthWrite={false}
+        material-toneMapped={false}
       >
         {name.toUpperCase()}
       </Text>
@@ -656,15 +660,19 @@ function GeoLabels({ countries, states, zoomLevel }: {
               position={pos}
               quaternion={orientation}
               fontSize={fontSize}
-              color={kind === "country" ? "#ffffff" : "#b8ccff"}
+              color={kind === "country" ? "#ffffff" : "#dde6ff"}
               outlineWidth={kind === "country" ? 0.020 : 0.013}
-              outlineColor="#000000"
+              outlineColor="#0a0a1f"
+              outlineOpacity={0.95}
               anchorX="center"
               anchorY="middle"
               letterSpacing={kind === "country" ? 0.10 : 0.04}
               sdfGlyphSize={128}
+              renderOrder={2}
               material-side={THREE.FrontSide}
-              material-depthTest
+              material-depthTest={false}
+              material-depthWrite={false}
+              material-toneMapped={false}
             >
               {name.toUpperCase()}
             </Text>
@@ -1617,19 +1625,21 @@ function CityLabel({ n, lat, lon, pos, orientation, fontSize }: {
     <group position={pos} quaternion={orientation}>
       <Text
         fontSize={fontSize}
-        color={mobileActive ? "#ffffff" : "#c8d8ff"}
-        outlineWidth={0.011}
-        outlineColor="#111111"
+        color={mobileActive ? "#ffe066" : "#ffffff"}
+        outlineWidth={0.018}
+        outlineColor="#0a0a1f"
+        outlineOpacity={0.95}
         anchorX="center"
         anchorY="middle"
         letterSpacing={0.01}
         sdfGlyphSize={128}
-        renderOrder={2}
+        renderOrder={3}
         material-depthWrite={false}
-        material-depthTest={true}
+        material-depthTest={false}
         material-side={THREE.FrontSide}
+        material-toneMapped={false}
       >
-        {`\u2022 ${n}`}
+        {n}
       </Text>
 
       {showCard && (
@@ -1803,7 +1813,10 @@ function CityLabels({ camDist }: { camDist: number }) {
         const deg = Math.acos(dot) * (180 / Math.PI);
         if (deg < minDeg) minDeg = deg;
       }
-      const fontSize = minDeg >= 10 ? 0.045 : Math.max(0.022, 0.045 * (minDeg / 10));
+      // City labels: scaled with neighbour density. Base 0.14 keeps them
+      // readable on a 1080p viewport at country/local zoom; floor 0.09
+      // prevents collapse when many cities cluster.
+      const fontSize = minDeg >= 6 ? 0.14 : Math.max(0.09, 0.14 * (minDeg / 6));
       return { ...city, fontSize };
     });
   }, [items, camDist, sepThresh]);

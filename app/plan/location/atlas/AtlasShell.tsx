@@ -222,6 +222,7 @@ export default function AtlasShell() {
         </span>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <ZoomIndicator />
           <NavPill onClick={() => setShopOpen(true)} title="Monument Collection">
             <ColIcon /> <span>Collection</span>
           </NavPill>
@@ -543,9 +544,6 @@ export default function AtlasShell() {
       {/* Genie corner — quiet ✦ assistant. */}
       <GenieCorner trip={trip} step={step} steps={STEPS} open={genieOpen} setOpen={setGenieOpen} />
 
-      {/* Zoom indicator — bottom-left, lowest-clutter spot. */}
-      <ZoomIndicator />
-
       {/* Live product modals — wired to the existing components, not the
           stale design-session copies. */}
       <MonumentShop   open={shopOpen}     onClose={() => setShopOpen(false)} />
@@ -759,8 +757,8 @@ function GenieCorner({
 }
 
 // ── Zoom indicator: subscribes to geknee:camdist from LocationClient. ────
-// Maps the raw camera distance to a coarse, friendly zoom level name.
-// Bottom-left because every other corner already has chrome.
+// Maps raw camera distance to a coarse, friendly zoom-level name. Renders
+// inline inside the top-right nav cluster, just left of the Collection pill.
 function ZoomIndicator() {
   const [camDist, setCamDist] = useState<number | null>(null);
   useEffect(() => {
@@ -787,25 +785,22 @@ function ZoomIndicator() {
 
   return (
     <div style={{
-      position: "fixed",
-      left: 16, bottom: 16,
-      zIndex: 30,
-      display: "flex", alignItems: "center", gap: 10,
+      display: "inline-flex", alignItems: "center", gap: 8,
       padding: "6px 12px",
       borderRadius: 999,
-      background: "rgba(13,13,36,0.75)",
+      background: "rgba(13,13,36,0.55)",
       border: "1px solid rgba(148,163,208,0.18)",
       backdropFilter: "blur(8px)",
       color: "#a8a8c0",
       fontSize: 11,
       fontFamily: "var(--font-ui), system-ui, sans-serif",
       letterSpacing: "0.04em",
-      pointerEvents: "none",
       userSelect: "none",
+      whiteSpace: "nowrap",
     }}>
       <div style={{
         position: "relative",
-        width: 56, height: 3,
+        width: 44, height: 3,
         background: "rgba(148,163,208,0.18)",
         borderRadius: 999,
       }}>
