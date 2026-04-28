@@ -1,5 +1,6 @@
 'use client';
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { track } from '@/lib/analytics';
 import { _setPendingUnlock } from '@/app/plan/location/globe/landmark';
@@ -753,9 +754,32 @@ export default function MonumentShop({ open, onClose }: Props) {
                 {total} of {allTotal} unlocked
               </div>
             </div>
-            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)', fontSize: 22, cursor: 'pointer', padding: 4 }}>
-              {String.fromCodePoint(0x00D7)}
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <Link
+                href="/leaderboard"
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '6px 12px', borderRadius: 999,
+                  background: 'rgba(167,139,250,0.14)',
+                  border: '1px solid rgba(167,139,250,0.35)',
+                  color: '#c7d2fe',
+                  fontSize: 11, fontWeight: 600,
+                  letterSpacing: '0.04em',
+                  textDecoration: 'none',
+                  fontFamily: 'inherit',
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M5 2h6v4a3 3 0 0 1-6 0V2z" />
+                  <path d="M3 4H1.5v2A2.5 2.5 0 0 0 4 8.5M13 4h1.5v2A2.5 2.5 0 0 1 12 8.5" />
+                  <path d="M6.5 11h3l.5 3h-4z" />
+                </svg>
+                <span>Leaderboard</span>
+              </Link>
+              <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.35)', fontSize: 22, cursor: 'pointer', padding: 4 }}>
+                {String.fromCodePoint(0x00D7)}
+              </button>
+            </div>
           </div>
 
           {/* Progress */}

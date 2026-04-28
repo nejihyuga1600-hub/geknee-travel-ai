@@ -231,9 +231,6 @@ export default function AtlasShell() {
           <NavPill onClick={() => { if (session?.user) setTripsOpen(true); else setAuthOpen(true); }} title="Trips & Friends">
             <TripsIcon /> <span>Trips</span>
           </NavPill>
-          <NavPill href="/leaderboard" title="Leaderboard">
-            <TrophyIcon /> <span>Leaders</span>
-          </NavPill>
           {session?.user ? (
             <button
               onClick={() => setTripsOpen(true)}
