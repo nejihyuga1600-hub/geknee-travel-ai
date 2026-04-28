@@ -469,52 +469,41 @@ function DetailView({
         {String.fromCodePoint(0x2190)} Back
       </button>
 
-      {/* Hero card */}
+      {/* Compact title row */}
       <div style={{
-        background: unlocked
-          ? 'linear-gradient(135deg,rgba(167, 139, 250,0.15),rgba(236,72,153,0.08))'
-          : 'rgba(255,255,255,0.03)',
-        border: `1px solid ${unlocked ? 'rgba(167, 139, 250,0.4)' : 'rgba(255,255,255,0.08)'}`,
-        borderRadius: 16, padding: '18px 20px', marginBottom: 20,
-        display: 'flex', alignItems: 'center', gap: 16,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        gap: 12, marginBottom: 18, paddingBottom: 14,
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}>
-        <div style={{
-          fontSize: 52,
-          filter: unlocked ? 'none' : 'brightness(0) drop-shadow(0 0 10px rgba(167, 139, 250,0.6))',
-        }}>
-          {item.emoji}
-        </div>
-        <div style={{ flex: 1 }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
           <div style={{
-            fontSize: 18, fontWeight: 800, color: '#e0e7ff',
+            fontSize: 20, fontWeight: 700, color: '#f2f2f8',
+            fontFamily: 'var(--font-display, Georgia, serif)',
+            letterSpacing: '-0.01em', lineHeight: 1.15,
             filter: unlocked ? 'none' : 'blur(5px)',
             userSelect: unlocked ? 'auto' : 'none',
+            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
           }}>
-            {item.name}
+            {unlocked ? item.name : '??? Unknown ???'}
           </div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginTop: 2 }}>
-            {unlocked ? item.location : '??? Unknown Location'}
-          </div>
-          {unlocked && (
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 6, lineHeight: 1.6 }}>
-              {item.fact}
-            </div>
-          )}
-          {/* Rarity */}
           <div style={{
-            display: 'inline-block', marginTop: 8, padding: '2px 10px', borderRadius: 99,
-            background: `${RARITY_COLOR[item.rarity]}18`,
-            border: `1px solid ${RARITY_COLOR[item.rarity]}40`,
-            color: RARITY_COLOR[item.rarity], fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
+            marginTop: 8, display: 'inline-flex', alignItems: 'center', gap: 8,
           }}>
-            {item.rarity.toUpperCase()}
+            <span style={{
+              padding: '2px 10px', borderRadius: 99,
+              background: `${RARITY_COLOR[item.rarity]}18`,
+              border: `1px solid ${RARITY_COLOR[item.rarity]}40`,
+              color: RARITY_COLOR[item.rarity], fontSize: 10, fontWeight: 700, letterSpacing: '0.06em',
+            }}>
+              {item.rarity.toUpperCase()}
+            </span>
+            {unlocked && (
+              <span style={{ color: '#a78bfa', fontSize: 14 }}>{String.fromCodePoint(0x2713)}</span>
+            )}
           </div>
         </div>
-        {/* Unlock / status */}
-        <div>
-          {unlocked ? (
-            <div style={{ color: '#a78bfa', fontSize: 22 }}>{String.fromCodePoint(0x2713)}</div>
-          ) : canUnlock ? (
+        <div style={{ flexShrink: 0 }}>
+          {!unlocked && canUnlock && (
             <button onClick={() => onUnlock(item)} disabled={loading} style={{
               padding: '8px 14px', borderRadius: 10, border: 'none',
               background: 'linear-gradient(135deg,#7c3aed,#a855f7)',
@@ -523,9 +512,10 @@ function DetailView({
             }}>
               {loading ? '...' : `${String.fromCodePoint(0x1F513)} Collect`}
             </button>
-          ) : (
-            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', textAlign: 'center' }}>
-              {String.fromCodePoint(0x1F512)}<br />Visit<br />to unlock
+          )}
+          {!unlocked && !canUnlock && (
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.3)', textAlign: 'center', lineHeight: 1.3 }}>
+              {String.fromCodePoint(0x1F512)} Visit<br />to unlock
             </div>
           )}
         </div>
@@ -536,18 +526,8 @@ function DetailView({
         {String.fromCodePoint(0x1F3AF)} EXCLUSIVE SKIN MISSIONS
       </div>
 
-      {!unlocked && (
-        <div style={{
-          textAlign: 'center', padding: '20px 0',
-          fontSize: 12, color: 'rgba(255,255,255,0.2)',
-        }}>
-          {String.fromCodePoint(0x1F512)} Collect this item to reveal its missions
-        </div>
-      )}
-
-      {unlocked && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {item.missions.map(ms => {
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {item.missions.map(ms => {
             const done = missionDone(ms.id);
             const skinEarned = hasSkin(ms.skin.id);
             return (
@@ -592,8 +572,7 @@ function DetailView({
               </div>
             );
           })}
-        </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -745,7 +724,7 @@ export default function MonumentShop({ open, onClose }: Props) {
 
   const list    = tab === 'monuments' ? ALL_MONUMENTS : ANIMALS;
   const total   = collected.filter(c => c.skin === 'default').length;
-  const allTotal = MONUMENTS.length + ANIMALS.length;
+  const allTotal = ALL_MONUMENTS.length + ANIMALS.length;
 
   const displayed = list.filter(m => {
     if (filter === 'unlocked') return isCollected(m.id);
@@ -1049,8 +1028,9 @@ export default function MonumentShop({ open, onClose }: Props) {
                         color: unlocked ? rColor : '#6b6b85',
                         fontFamily: 'var(--font-display, Georgia, serif)',
                         lineHeight: 1,
+                        filter: unlocked ? 'none' : 'brightness(0) drop-shadow(0 0 6px rgba(167, 139, 250, 0.5))',
                       }}>
-                        {unlocked ? item.emoji : String.fromCodePoint(0x25CC) /* ◌ */}
+                        {item.emoji}
                       </div>
 
                       {/* Name */}
