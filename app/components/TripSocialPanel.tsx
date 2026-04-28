@@ -378,7 +378,7 @@ export default function TripSocialPanel({
   const GHOST: React.CSSProperties = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,208,0.18)', borderRadius: 10, color: '#a8a8c0', fontSize: 12, fontWeight: 500, padding: '6px 12px', cursor: 'pointer', fontFamily: 'inherit' };
   const INPUT: React.CSSProperties = { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(148,163,208,0.18)', borderRadius: 10, color: '#f2f2f8', fontSize: 13, padding: '9px 12px', outline: 'none', width: '100%', boxSizing: 'border-box', fontFamily: 'inherit' };
   const CARD:  React.CSSProperties = { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(148,163,208,0.12)', borderRadius: 14, padding: '14px 16px', marginBottom: 10 };
-  const TAB   = (active: boolean): React.CSSProperties => ({ flex: 1, padding: '10px 0', fontSize: 13, fontWeight: 600, cursor: 'pointer', border: 'none', borderRadius: 10, background: active ? 'rgba(167,139,250,0.14)' : 'transparent', color: active ? '#a78bfa' : '#a8a8c0', transition: 'all 0.15s', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6 });
+  const TAB   = (active: boolean): React.CSSProperties => ({ flex: 1, padding: '12px 0', fontSize: 13, fontWeight: 500, cursor: 'pointer', border: 'none', borderBottom: `2px solid ${active ? '#a78bfa' : 'transparent'}`, borderRadius: 0, background: 'transparent', color: active ? '#f2f2f8' : '#a8a8c0', transition: 'all 0.15s', fontFamily: 'inherit', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: -1 });
 
   const myAuthor = username ? `@${username}` : myName;
 
@@ -393,70 +393,77 @@ export default function TripSocialPanel({
         {/* ── Header ── */}
         {!activeGroup ? (
           <>
-            <div style={{ padding: '16px 18px 0', flexShrink: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <Avatar src={session?.user?.image} name={session?.user?.name} size={36} />
-                  <div>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#e0e7ff' }}>
-                      {session?.user?.name ?? session?.user?.email ?? 'Traveler'}
-                    </div>
-                    {!editingUsername ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
-                        {username ? (
-                          <span style={{ fontSize: 12, color: '#818cf8', fontWeight: 600 }}>@{username}</span>
-                        ) : (
-                          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>No username set</span>
-                        )}
-                        <button
-                          onClick={() => { setEditingUsername(true); setUsernameInput(username ?? ''); setUsernameError(''); }}
-                          style={{ background: 'none', border: 'none', color: 'rgba(167, 139, 250,0.6)', fontSize: 10, cursor: 'pointer', padding: '0 2px' }}
-                        >
-                          {username ? 'edit' : '+ set username'}
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ marginTop: 4 }}>
-                        <div style={{ display: 'flex', gap: 5 }}>
-                          <div style={{ position: 'relative', flex: 1 }}>
-                            <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: '#818cf8', fontSize: 13, pointerEvents: 'none' }}>@</span>
-                            <input
-                              style={{ ...INPUT, paddingLeft: 22, fontSize: 12, padding: '5px 8px 5px 20px' }}
-                              value={usernameInput}
-                              onChange={e => { setUsernameInput(e.target.value); setUsernameError(''); }}
-                              onKeyDown={e => { if (e.key === 'Enter') saveUsername(); if (e.key === 'Escape') setEditingUsername(false); }}
-                              placeholder="yourname"
-                              autoFocus
-                              maxLength={24}
-                            />
-                          </div>
-                          <button onClick={saveUsername} disabled={usernameSaving} style={{ ...BTN('#4f46e5'), padding: '5px 10px', fontSize: 11 }}>
-                            {usernameSaving ? '…' : 'Save'}
-                          </button>
-                          <button onClick={() => setEditingUsername(false)} style={{ ...GHOST, padding: '5px 8px' }}>✕</button>
-                        </div>
-                        {usernameError && <div style={{ fontSize: 11, color: '#f87171', marginTop: 3 }}>{usernameError}</div>}
-                        <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.2)', marginTop: 2 }}>letters, numbers, _ and - only</div>
-                      </div>
-                    )}
+            {/* ── Header (design layout) ───────────────────────────────────── */}
+            <div style={{
+              padding: '18px 22px 14px',
+              display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between',
+              borderBottom: '1px solid rgba(148,163,208,0.12)',
+              flexShrink: 0,
+            }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontFamily: 'var(--font-display, Georgia, serif)',
+                  fontSize: 22, fontWeight: 400,
+                  letterSpacing: '-0.01em',
+                  color: '#f2f2f8',
+                }}>
+                  Trips &amp; Friends
+                </div>
+                {!editingUsername ? (
+                  <div style={{
+                    fontSize: 11, color: '#a8a8c0',
+                    letterSpacing: '0.06em', marginTop: 4,
+                    display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap',
+                  }}>
+                    <span style={{ color: username ? '#a78bfa' : '#6b6b85' }}>
+                      {username ? `@${username}` : 'no username'}
+                    </span>
+                    <span>·</span>
+                    <span>{trips.length} trip{trips.length === 1 ? '' : 's'}</span>
+                    <span>·</span>
+                    <span>{friends.length} friend{friends.length === 1 ? '' : 's'}</span>
+                    <button
+                      onClick={() => { setEditingUsername(true); setUsernameInput(username ?? ''); setUsernameError(''); }}
+                      style={{ background: 'none', border: 'none', color: '#6b6b85', fontSize: 10, cursor: 'pointer', padding: 0, marginLeft: 4 }}
+                    >
+                      {username ? 'edit' : '+ set username'}
+                    </button>
                   </div>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flexShrink: 0 }}>
-                  <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 22, cursor: 'pointer', lineHeight: 1, padding: 0 }}>
-                    ×
-                  </button>
-                  <button
-                    onClick={() => signOut()}
-                    style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 7, color: 'rgba(255,255,255,0.45)', fontSize: 11, fontWeight: 500, padding: '4px 9px', cursor: 'pointer', whiteSpace: 'nowrap' }}
-                  >
-                    Sign out
-                  </button>
-                </div>
+                ) : (
+                  <div style={{ marginTop: 6 }}>
+                    <div style={{ display: 'flex', gap: 5 }}>
+                      <div style={{ position: 'relative', flex: 1 }}>
+                        <span style={{ position: 'absolute', left: 8, top: '50%', transform: 'translateY(-50%)', color: '#a78bfa', fontSize: 12, pointerEvents: 'none' }}>@</span>
+                        <input
+                          style={{ ...INPUT, paddingLeft: 22, fontSize: 12, padding: '5px 8px 5px 20px' }}
+                          value={usernameInput}
+                          onChange={e => { setUsernameInput(e.target.value); setUsernameError(''); }}
+                          onKeyDown={e => { if (e.key === 'Enter') saveUsername(); if (e.key === 'Escape') setEditingUsername(false); }}
+                          placeholder="yourname"
+                          autoFocus
+                          maxLength={24}
+                        />
+                      </div>
+                      <button onClick={saveUsername} disabled={usernameSaving} style={{ ...BTN(), padding: '5px 12px', fontSize: 11 }}>
+                        {usernameSaving ? '…' : 'Save'}
+                      </button>
+                      <button onClick={() => setEditingUsername(false)} style={{ ...GHOST, padding: '5px 8px' }}>{String.fromCodePoint(0x2715)}</button>
+                    </div>
+                    {usernameError && <div style={{ fontSize: 11, color: '#f87171', marginTop: 3 }}>{usernameError}</div>}
+                  </div>
+                )}
               </div>
+              <button
+                onClick={onClose}
+                aria-label="Close"
+                style={{ background: 'none', border: 'none', color: '#a8a8c0', fontSize: 22, cursor: 'pointer', lineHeight: 1, padding: 4, flexShrink: 0 }}
+              >
+                {String.fromCodePoint(0x00D7)}
+              </button>
             </div>
 
-            {/* Tabs */}
-            <div style={{ display: 'flex', gap: 6, padding: '0 18px', margin: '14px 0 0', flexShrink: 0 }}>
+            {/* Tabs (underline indicator per design) */}
+            <div style={{ display: 'flex', borderBottom: '1px solid rgba(148,163,208,0.12)', flexShrink: 0 }}>
               <button style={TAB(tab === 'trips')} onClick={() => { setTab('trips'); markTabRead('trip_update'); }}>
                 <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden>
                   <rect x="3" y="5" width="10" height="8" rx="1.5" />
@@ -582,8 +589,25 @@ export default function TripSocialPanel({
                     </div>
                   </div>
                 )}
-                {trips.map(trip => (
-                  <div key={trip.id} style={CARD}>
+                {trips.map(trip => {
+                  const isActive = !!currentLocation && trip.location.toLowerCase() === currentLocation.toLowerCase();
+                  return (
+                  <div key={trip.id} style={{
+                    ...CARD,
+                    background: isActive ? 'linear-gradient(135deg, rgba(167,139,250,0.10), rgba(255,255,255,0.02))' : (CARD.background as string),
+                    borderColor: isActive ? 'rgba(167,139,250,0.45)' : (CARD.border as string).split(' ').pop() ?? 'rgba(148,163,208,0.12)',
+                    position: 'relative',
+                  }}>
+                    {isActive && (
+                      <span style={{
+                        position: 'absolute', top: 12, right: 14,
+                        fontSize: 9, fontWeight: 700, letterSpacing: '0.14em',
+                        color: '#a78bfa', display: 'inline-flex', alignItems: 'center', gap: 4,
+                      }}>
+                        <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#a78bfa' }} />
+                        ACTIVE
+                      </span>
+                    )}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
                       {renamingId === trip.id ? (
                         <div style={{ display: 'flex', gap: 6, flex: 1, marginRight: 8 }}>
@@ -627,7 +651,8 @@ export default function TripSocialPanel({
                     )}
                     <button onClick={() => continueTrip(trip)} style={{ ...BTN(), fontSize: 12, padding: '7px 14px' }}>Continue planning &#x2192;</button>
                   </div>
-                ))}
+                  );
+                })}
 
                 {/* ── Plan change history ── */}
                 {(() => {
