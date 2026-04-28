@@ -1,15 +1,16 @@
 import type { Metadata, Viewport } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
-import { Fraunces, Inter_Tight } from "next/font/google";
+import { Fraunces, Inter_Tight, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-// Design-session tokens (see .planning/design-2026-04-24/prototype/shared.jsx):
-//   Fraunces = editorial serif for titles / magic moments
-//   Inter Tight = geometric sans for UI
+// Design-handoff tokens (see .design/design_handoff_geknee_polish/prototype/shared.jsx):
+//   Fraunces       = editorial serif for titles / magic moments
+//   Inter Tight    = geometric sans for UI
+//   JetBrains Mono = small SHOUTY uppercase labels (9–10px, 0.14–0.22em tracking)
 // Exposed at the root so any route can opt in via CSS vars. Geist stays the
-// default; individual routes upgrade by referencing var(--font-display) or
-// var(--font-ui). Non-breaking.
+// default for body copy; individual routes upgrade by referencing
+// var(--font-display), var(--font-ui), or var(--font-mono-display). Non-breaking.
 const fraunces = Fraunces({
   subsets: ["latin"],
   display: "swap",
@@ -21,6 +22,12 @@ const interTight = Inter_Tight({
   display: "swap",
   variable: "--font-ui",
   weight: ["300", "400", "500", "600", "700", "800"],
+});
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-mono-display",
+  weight: ["400", "500", "600", "700"],
 });
 import { SessionProvider } from "next-auth/react";
 import GlobalChat from "./components/GlobalChat";
@@ -46,7 +53,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable} ${fraunces.variable} ${interTight.variable}`}>
+    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable} ${fraunces.variable} ${interTight.variable} ${jetbrainsMono.variable}`}>
       <head>
         {/* Travelpayouts affiliate tracking — production only.
             In dev it's CORS-blocked from localhost AND its DOM-mutation
