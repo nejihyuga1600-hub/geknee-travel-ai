@@ -543,6 +543,9 @@ export default function AtlasShell() {
       {/* Genie corner — quiet ✦ assistant. */}
       <GenieCorner trip={trip} step={step} steps={STEPS} open={genieOpen} setOpen={setGenieOpen} />
 
+      {/* Zoom indicator — bottom-left, lowest-clutter spot. */}
+      <ZoomIndicator />
+
       {/* Live product modals — wired to the existing components, not the
           stale design-session copies. */}
       <MonumentShop   open={shopOpen}     onClose={() => setShopOpen(false)} />
@@ -752,6 +755,70 @@ function GenieCorner({
         </div>
       )}
     </>
+  );
+}
+
+// ── Zoom indicator: subscribes to geknee:camdist from LocationClient. ────
+// Maps the raw camera distance to a coarse, friendly zoom level name.
+// Bottom-left because every other corner already has chrome.
+function ZoomIndicator() {
+  const [camDist, setCamDist] = useState<number | null>(null);
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const d = (e as CustomEvent<{ camDist: number }>).detail?.camDist;
+      if (typeof d === "number") setCamDist(d);
+    };
+    window.addEventListener("geknee:camdist", handler);
+    return () => window.removeEventListener("geknee:camdist", handler);
+  }, []);
+  if (camDist == null) return null;
+
+  const level = camDist >= 26 ? "Globe"
+              : camDist >= 21 ? "Continent"
+              : camDist >= 16 ? "Region"
+              : camDist >= 13 ? "Country"
+              : camDist >= 10 ? "Local"
+              :                  "City";
+
+  // Position within the 8.5..30 visible range, clamped, then inverted so
+  // close-zoom = full bar.
+  const min = 8.5, max = 30;
+  const pct = Math.max(0, Math.min(1, 1 - (camDist - min) / (max - min)));
+
+  return (
+    <div style={{
+      position: "fixed",
+      left: 16, bottom: 16,
+      zIndex: 30,
+      display: "flex", alignItems: "center", gap: 10,
+      padding: "6px 12px",
+      borderRadius: 999,
+      background: "rgba(13,13,36,0.75)",
+      border: "1px solid rgba(148,163,208,0.18)",
+      backdropFilter: "blur(8px)",
+      color: "#a8a8c0",
+      fontSize: 11,
+      fontFamily: "var(--font-ui), system-ui, sans-serif",
+      letterSpacing: "0.04em",
+      pointerEvents: "none",
+      userSelect: "none",
+    }}>
+      <div style={{
+        position: "relative",
+        width: 56, height: 3,
+        background: "rgba(148,163,208,0.18)",
+        borderRadius: 999,
+      }}>
+        <div style={{
+          position: "absolute", top: 0, left: 0, height: "100%",
+          width: `${pct * 100}%`,
+          background: "linear-gradient(90deg, var(--brand-accent), var(--brand-accent-2, #7dd3fc))",
+          borderRadius: 999,
+          transition: "width 280ms cubic-bezier(0.23, 1, 0.32, 1)",
+        }} />
+      </div>
+      <span>{level}</span>
+    </div>
   );
 }
 

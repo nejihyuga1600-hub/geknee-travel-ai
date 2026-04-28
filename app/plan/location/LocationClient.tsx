@@ -1739,13 +1739,16 @@ function CityLabel({ n, lat, lon, pos, orientation, fontSize }: {
 function CityLabels({ camDist }: { camDist: number }) {
   // Dynamic separation threshold: wider zoom = stricter = fewer cities shown.
   // camDist ~21 → thresh ~4°, camDist ~14 → thresh ~1.5°, camDist <12 → ~0.6°
-  const sepThresh = camDist > 18 ? 6.0 : camDist > 15 ? 4.0 : camDist > 12 ? 2.0 : 1.0;
+  // Tightened so more cities pass the spatial-dedup at any given zoom.
+  const sepThresh = camDist > 22 ? 6.0 : camDist > 18 ? 3.5 : camDist > 14 ? 1.8 : camDist > 11 ? 0.9 : 0.5;
   const extraVersion = useExtraCitiesVersion();
   // Population threshold for extras (curated CITIES always pass through).
-  // Far zoom = only big cities; close zoom = full long tail.
-  const popMin = camDist > 18 ? 1_000_000
-              : camDist > 15 ?   300_000
-              : camDist > 12 ?    80_000
+  // Far zoom = only big cities; close zoom = full long tail. Loosened so
+  // mid-zoom (continental) shows more regional centers.
+  const popMin = camDist > 22 ? 1_500_000
+              : camDist > 18 ?   400_000
+              : camDist > 14 ?   100_000
+              : camDist > 11 ?    30_000
               :                        0;
 
   const items = useMemo(() => {
@@ -1775,7 +1778,7 @@ function CityLabels({ camDist }: { camDist: number }) {
   // Greedy spatial dedup: sort tier-1 first, then pick cities that are
   // at least sepThresh° away from any already-selected city.
   const visible = useMemo(() => {
-    if (camDist >= 21) return [];
+    if (camDist >= 25) return [];
     const sorted = [...items].sort((a, b) => a.tier - b.tier);
     const selected: typeof sorted = [];
     const selUnits: THREE.Vector3[] = [];
@@ -2249,6 +2252,8 @@ function GlobeScene() {
     if (rounded !== camDistRef.current) {
       camDistRef.current = rounded;
       setCamDist(rounded);
+      // Publish for any chrome that wants to render a zoom badge.
+      window.dispatchEvent(new CustomEvent("geknee:camdist", { detail: { camDist: rounded } }));
     }
 
     // Mapbox entry is now an explicit two-tap on the city card (Open map button)
