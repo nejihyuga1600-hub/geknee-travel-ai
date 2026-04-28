@@ -19,6 +19,8 @@ import {
 import { extractPlace, fetchPlaceImage, imgCache } from './lib/places';
 import { MarkdownLine, renderInline } from './components/MarkdownLine';
 import { WeatherBar, type DayWeather } from './components/WeatherBar';
+import { DayImages } from './components/DayImages';
+import { PlaceImage } from './components/PlaceImage';
 
 const DayMap = dynamic(() => import('./DayMap'), {
   ssr: false,
@@ -513,65 +515,7 @@ function EditableLine({
 }
 
 // ── Day image strip ────────────────────────────────────────────────────────────
-function DayImages({ heading, location }: { heading: string; location: string }) {
-  const [imgs, setImgs] = useState<{ url: string; label: string }[]>([]);
-
-  useEffect(() => {
-    const cityMatch = heading.match(/:\s*([^—–\-|,\n]+)/);
-    const city = cityMatch ? cityMatch[1].trim() : location;
-
-    const queries = [
-      `${city} travel sightseeing`,
-      `${city} local food cuisine`,
-      `${city} landmark monument`,
-    ];
-
-    let cancelled = false;
-    Promise.all(
-      queries.map(async (q, i) => {
-        try {
-          const res = await fetch(`/api/images?q=${encodeURIComponent(q)}&n=1`);
-          const data: { images: string[] } = await res.json();
-          const url = data.images[0] ?? '';
-          const label = i === 0 ? 'Activities' : i === 1 ? 'Food' : 'Sights';
-          return url ? { url, label } : null;
-        } catch { return null; }
-      })
-    ).then(results => {
-      if (!cancelled) setImgs(results.filter((r): r is { url: string; label: string } => !!r));
-    });
-
-    return () => { cancelled = true; };
-  }, [heading, location]);
-
-  if (imgs.length === 0) return null;
-
-  return (
-    <div style={{ display: 'flex', gap: 8, marginTop: 12, marginBottom: 4, overflowX: 'auto', paddingBottom: 2 }}>
-      {imgs.map((img, i) => (
-        <div key={i} style={{ flexShrink: 0, position: 'relative' }}>
-          <img
-            src={img.url}
-            alt={img.label}
-            style={{
-              width: 140, height: 90, objectFit: 'cover', borderRadius: 10,
-              display: 'block', border: '1px solid rgba(255,255,255,0.1)',
-            }}
-          />
-          <span style={{
-            position: 'absolute', bottom: 5, left: 6,
-            fontSize: 9, fontWeight: 700, color: '#fff',
-            textShadow: '0 1px 4px #000',
-            background: 'rgba(0,0,0,0.45)', borderRadius: 4, padding: '1px 5px',
-            letterSpacing: '0.06em', textTransform: 'uppercase',
-          }}>
-            {img.label}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
+// DayImages — moved to components/DayImages.tsx
 
 // ── Weather bar ────────────────────────────────────────────────────────────────
 // WeatherBar, DayWeather — moved to components/WeatherBar.tsx
@@ -580,42 +524,7 @@ function DayImages({ heading, location }: { heading: string; location: string })
 
 // ── Place extraction (module-level, shared by ActivityBlock + SectionCard) ─────
 // extractPlace, imgCache, fetchPlaceImage — moved to lib/places.ts
-function PlaceImage({ place, height, city }: { place: string; height: number; city?: string }) {
-  const cacheKey = city ? `${place}||${city}` : place;
-  const cached = imgCache.has(cacheKey) ? (imgCache.get(cacheKey) || null) : undefined;
-  const [src, setSrc] = useState<string | null | undefined>(cached);
-
-  useEffect(() => {
-    if (imgCache.has(cacheKey)) { setSrc(imgCache.get(cacheKey) || null); return; }
-    fetchPlaceImage(place, city).then(url => {
-      imgCache.set(cacheKey, url ?? '');
-      setSrc(url);
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cacheKey]);
-
-  return (
-    <div style={{
-      width: '100%', height, borderRadius: 12, overflow: 'hidden',
-      background: 'rgba(255,255,255,0.05)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      position: 'relative',
-    }}>
-      {src && (
-        <>
-          <img src={src} alt={place} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          <div style={{
-            position: 'absolute', top: 0, left: 0, right: 0,
-            background: 'linear-gradient(rgba(0,0,0,0.75), transparent)',
-            padding: '10px 12px 24px',
-          }}>
-            <span style={{ color: '#fff', fontSize: 13, fontWeight: 600, letterSpacing: 0.2 }}>{place}</span>
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
+// PlaceImage — moved to components/PlaceImage.tsx
 
 interface ActivityBlockProps {
   group: Extract<ActivityGroup, { type: 'activity' }>;
