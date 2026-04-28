@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 import { track } from '@/lib/analytics';
 import { _setPendingUnlock } from '@/app/plan/location/globe/landmark';
+import { INFO } from '@/app/plan/location/globe/info';
 
 const DEV_EMAILS = new Set(['nghiaphan081301@gmail.com']);
 
@@ -396,6 +397,39 @@ const ANIMALS: CollectibleBase[] = [
   },
 ];
 
+// ─── Auto-generated catalog from globe/info.ts ────────────────────────────────
+// Curated MONUMENTS above are 49 hand-crafted entries with rich missions.
+// info.ts has 369 landmarks total — every entry the globe can render. This
+// fills the gap so a user collecting an uncurated landmark (e.g. petra,
+// chichenItza) still sees it in their Collection. Default rarity = 'common',
+// default missions = single visit-and-photo for a Stone skin. Curate by
+// adding richer entries to MONUMENTS above; auto entries with the same id
+// get filtered out.
+
+const AUTO_MONUMENTS: CollectibleBase[] = (() => {
+  const curatedIds = new Set([...MONUMENTS, ...ANIMALS].map(m => m.id));
+  const out: CollectibleBase[] = [];
+  for (const [id, info] of Object.entries(INFO)) {
+    if (curatedIds.has(id)) continue;
+    const cityFromLoc = info.location.split(',')[0]?.trim().toLowerCase() ?? id.toLowerCase();
+    out.push({
+      id,
+      name: info.name,
+      location: info.location,
+      cityKeys: [cityFromLoc],
+      emoji: '🏛️',
+      rarity: 'common',
+      fact: info.fact,
+      missions: [
+        { id: `${id}_visit`, label: `Visit ${info.name} in person`, skin: S.stone, verify: 'photo' },
+      ],
+    });
+  }
+  return out;
+})();
+
+const ALL_MONUMENTS: CollectibleBase[] = [...MONUMENTS, ...AUTO_MONUMENTS];
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const RARITY_COLOR: Record<Rarity, string> = {
@@ -709,7 +743,7 @@ export default function MonumentShop({ open, onClose }: Props) {
     setLoading(false);
   }
 
-  const list    = tab === 'monuments' ? MONUMENTS : ANIMALS;
+  const list    = tab === 'monuments' ? ALL_MONUMENTS : ANIMALS;
   const total   = collected.filter(c => c.skin === 'default').length;
   const allTotal = MONUMENTS.length + ANIMALS.length;
 
