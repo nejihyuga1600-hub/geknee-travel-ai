@@ -175,7 +175,8 @@ export default async function ProfilePage(
     <main style={{
       minHeight: '100svh',
       background: 'radial-gradient(ellipse at 40% 30%, rgba(30,70,200,0.35) 0%, rgba(6,8,22,0.97) 55%, #030510 100%)',
-      color: '#fff', fontFamily: 'system-ui, -apple-system, sans-serif',
+      color: 'var(--brand-ink)',
+      fontFamily: 'var(--font-ui), system-ui, -apple-system, sans-serif',
       padding: '40px 20px 80px',
     }}>
       <div style={{ maxWidth: 1080, margin: '0 auto' }}>

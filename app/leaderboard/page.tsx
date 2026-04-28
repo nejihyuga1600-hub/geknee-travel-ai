@@ -98,7 +98,8 @@ export default async function LeaderboardPage() {
     <main style={{
       minHeight: '100svh',
       background: 'radial-gradient(ellipse at 30% 20%, rgba(255,215,0,0.10) 0%, rgba(6,8,22,0.97) 55%, #030510 100%)',
-      color: '#fff', fontFamily: 'system-ui, -apple-system, sans-serif',
+      color: 'var(--brand-ink)',
+      fontFamily: 'var(--font-ui), system-ui, -apple-system, sans-serif',
       padding: '40px 20px 80px',
     }}>
       <div style={{ maxWidth: 880, margin: '0 auto' }}>
