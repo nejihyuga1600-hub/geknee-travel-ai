@@ -1609,7 +1609,19 @@ function StepReview({ trip, onBack }: { trip: Trip; onBack: () => void }) {
       // Hand off to /plan/summary so the AI itinerary kicks off immediately
       // rather than parking the user on a "Saved." confirmation.
       if (id) {
-        reviewRouter.push(`/plan/summary?tripId=${encodeURIComponent(id)}`);
+        // The summary page expects ?savedTripId= (loads itinerary from DB)
+        // PLUS the trip context as URL params (powers the masthead, weather
+        // fetch, and stable trip-id hash). Pass both.
+        const q = new URLSearchParams({
+          savedTripId: id,
+          location: trip.destination,
+          startDate: trip.startDate || '',
+          endDate: endDate || '',
+          nights: String(trip.nights),
+          style: trip.style ?? '',
+          budget: trip.budget ?? '',
+        });
+        reviewRouter.push(`/plan/summary?${q.toString()}`);
       } else {
         setBusy(false);
       }
