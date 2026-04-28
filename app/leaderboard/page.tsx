@@ -119,16 +119,27 @@ export default async function LeaderboardPage() {
 
         {/* Title */}
         <header style={{ marginBottom: 36 }}>
+          <div style={{
+            fontSize: 10, fontWeight: 600,
+            letterSpacing: '0.22em', textTransform: 'uppercase',
+            color: 'var(--brand-accent)', marginBottom: 14,
+          }}>
+            {String.fromCodePoint(0x2726)} Top collectors · Updated every minute
+          </div>
           <h1 style={{
-            margin: 0, fontSize: 48, fontWeight: 500, letterSpacing: -1.2,
+            margin: 0, fontSize: 'clamp(40px, 6vw, 64px)',
+            fontWeight: 400, letterSpacing: '-0.02em', lineHeight: 1.05,
             fontFamily: 'var(--font-display), Georgia, serif',
             color: 'var(--brand-ink)',
           }}>
-            Leader<em style={{ fontStyle: 'italic', color: 'var(--brand-accent)' }}>board</em>
+            The <em style={{ fontStyle: 'italic', color: 'var(--brand-accent)' }}>Leaderboard.</em>
           </h1>
-          <p style={{ color: '#94a3b8', fontSize: 14, marginTop: 8 }}>
-            Most rare-tier monuments collected. Gold, Diamond, Aurora, Celestial.
-            Earned only by visiting and completing the harder quests.
+          <p style={{
+            color: '#a8a8c0', fontSize: 14, marginTop: 14,
+            maxWidth: 560, lineHeight: 1.5,
+          }}>
+            Ranked by rare-tier monuments — Gold, Diamond, Aurora, Celestial —
+            earned only by going there and completing the harder quests.
           </p>
         </header>
 

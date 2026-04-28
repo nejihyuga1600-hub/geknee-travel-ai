@@ -231,6 +231,9 @@ export default function AtlasShell() {
           <NavPill onClick={() => { if (session?.user) setTripsOpen(true); else setAuthOpen(true); }} title="Trips & Friends">
             <TripsIcon /> <span>Trips</span>
           </NavPill>
+          <NavPill href="/leaderboard" title="Leaderboard">
+            <TrophyIcon /> <span>Leaders</span>
+          </NavPill>
           {session?.user ? (
             <button
               onClick={() => setTripsOpen(true)}
@@ -576,6 +579,16 @@ function TripsIcon() {
   return (
     <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden>
       <path d="M5 8a2 2 0 104 0 2 2 0 00-4 0zM11.5 10a1.5 1.5 0 10.01-3M1.5 13c.5-2 2.5-3 5.5-3s5 1 5.5 3" strokeLinecap="round" />
+    </svg>
+  );
+}
+function TrophyIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M5 2h6v4a3 3 0 0 1-6 0V2z" />
+      <path d="M3 4H1.5v2A2.5 2.5 0 0 0 4 8.5M13 4h1.5v2A2.5 2.5 0 0 1 12 8.5" />
+      <path d="M6.5 11h3l.5 3h-4z" />
+      <line x1="5" y1="14" x2="11" y2="14" />
     </svg>
   );
 }
