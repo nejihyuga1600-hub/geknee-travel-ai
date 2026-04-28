@@ -29,12 +29,14 @@ const MODE_STYLE: Record<TransportMode, { color: string; label: string; gmMode: 
 // ── Step icon SVGs ─────────────────────────────────────────────────────────────
 function stepIconSvg(gmMode: string, vehicleType?: string): string {
   const S = 26;
-  const bg = '#fff';
-  let strokeColor = '#4f46e5';
+    // Per design handoff: unify the route on lavender — the glyph (walking
+  // figure / bike / train / plane / car) already carries the mode signal,
+  // and the per-mode rainbow conflicted with the rest of the visual system.
+  const bg = '#0a0a1f';
+  const strokeColor = '#a78bfa';
   let shape = '';
 
   if (gmMode === 'WALKING') {
-    strokeColor = '#16a34a';
     shape = `
       <circle cx="13" cy="5.5" r="2" fill="${strokeColor}"/>
       <line x1="13" y1="7.5" x2="13" y2="14" stroke="${strokeColor}" stroke-width="1.8" stroke-linecap="round"/>
@@ -43,7 +45,6 @@ function stepIconSvg(gmMode: string, vehicleType?: string): string {
       <line x1="13" y1="14" x2="10.5" y2="19" stroke="${strokeColor}" stroke-width="1.8" stroke-linecap="round"/>
       <line x1="13" y1="14" x2="15.5" y2="19" stroke="${strokeColor}" stroke-width="1.8" stroke-linecap="round"/>`;
   } else if (gmMode === 'BICYCLING') {
-    strokeColor = '#ea580c';
     shape = `
       <circle cx="8"  cy="16" r="3.5" fill="none" stroke="${strokeColor}" stroke-width="1.6"/>
       <circle cx="18" cy="16" r="3.5" fill="none" stroke="${strokeColor}" stroke-width="1.6"/>
@@ -51,13 +52,11 @@ function stepIconSvg(gmMode: string, vehicleType?: string): string {
       <line x1="11" y1="8" x2="15" y2="8" stroke="${strokeColor}" stroke-width="1.6" stroke-linecap="round"/>`;
   } else if (gmMode === 'TRANSIT') {
     if (vehicleType === 'FERRY') {
-      strokeColor = '#0284c7';
       shape = `
         <path d="M5 15 Q13 20 21 15 L20 17 Q13 22 6 17 Z" fill="${strokeColor}"/>
         <rect x="9" y="11" width="8" height="4" rx="1.5" fill="${strokeColor}"/>
         <line x1="13" y1="7" x2="13" y2="11" stroke="${strokeColor}" stroke-width="1.8" stroke-linecap="round"/>`;
     } else if (vehicleType === 'BUS' || vehicleType === 'TROLLEYBUS') {
-      strokeColor = '#d97706';
       shape = `
         <rect x="6" y="8" width="14" height="11" rx="2" fill="none" stroke="${strokeColor}" stroke-width="1.6"/>
         <rect x="8"  cy="10" x="8"  y="10" width="4" height="3" rx="0.8" fill="${strokeColor}"/>
@@ -66,7 +65,6 @@ function stepIconSvg(gmMode: string, vehicleType?: string): string {
         <circle cx="17" cy="20.5" r="1.8" fill="${strokeColor}"/>`;
     } else {
       // SUBWAY / RAIL / TRAM / default transit = train
-      strokeColor = '#d97706';
       shape = `
         <rect x="7" y="7" width="12" height="11" rx="2.5" fill="none" stroke="${strokeColor}" stroke-width="1.6"/>
         <rect x="9"  y="9"  width="3" height="2.5" rx="0.6" fill="${strokeColor}"/>
@@ -76,12 +74,10 @@ function stepIconSvg(gmMode: string, vehicleType?: string): string {
         <circle cx="16.5" cy="19.5" r="2"   fill="${strokeColor}"/>`;
     }
   } else if (gmMode === 'FLIGHT') {
-    strokeColor = '#9333ea';
     shape = `
       <path d="M13 5 L15 11 L21 13 L15 15 L13 21 L11 15 L5 13 L11 11 Z" fill="${strokeColor}"/>`;
   } else {
     // DRIVING / default — small car
-    strokeColor = '#4f46e5';
     shape = `
       <rect x="6" y="12" width="14" height="7" rx="2" fill="none" stroke="${strokeColor}" stroke-width="1.6"/>
       <path d="M8 12 L10 8 L16 8 L18 12" fill="none" stroke="${strokeColor}" stroke-width="1.6" stroke-linejoin="round"/>
