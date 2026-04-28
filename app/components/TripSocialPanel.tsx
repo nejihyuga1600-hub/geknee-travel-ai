@@ -591,13 +591,21 @@ export default function TripSocialPanel({
                 )}
                 {trips.map(trip => {
                   const isActive = !!currentLocation && trip.location.toLowerCase() === currentLocation.toLowerCase();
+                  const isRenaming = renamingId === trip.id;
                   return (
-                  <div key={trip.id} style={{
-                    ...CARD,
-                    background: isActive ? 'linear-gradient(135deg, rgba(167,139,250,0.10), rgba(255,255,255,0.02))' : (CARD.background as string),
-                    borderColor: isActive ? 'rgba(167,139,250,0.45)' : (CARD.border as string).split(' ').pop() ?? 'rgba(148,163,208,0.12)',
-                    position: 'relative',
-                  }}>
+                  <div
+                    key={trip.id}
+                    role={isRenaming ? undefined : 'button'}
+                    onClick={isRenaming ? undefined : () => continueTrip(trip)}
+                    style={{
+                      ...CARD,
+                      background: isActive ? 'linear-gradient(135deg, rgba(167,139,250,0.10), rgba(255,255,255,0.02))' : (CARD.background as string),
+                      borderColor: isActive ? 'rgba(167,139,250,0.45)' : (CARD.border as string).split(' ').pop() ?? 'rgba(148,163,208,0.12)',
+                      position: 'relative',
+                      cursor: isRenaming ? 'default' : 'pointer',
+                      transition: 'background 150ms',
+                    }}
+                  >
                     {isActive && (
                       <span style={{
                         position: 'absolute', top: 12, right: 14,
@@ -608,53 +616,62 @@ export default function TripSocialPanel({
                         ACTIVE
                       </span>
                     )}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-                      {renamingId === trip.id ? (
-                        <div style={{ display: 'flex', gap: 6, flex: 1, marginRight: 8 }}>
-                          <input
-                            autoFocus
-                            value={renameValue}
-                            onChange={e => setRenameValue(e.target.value)}
-                            onKeyDown={e => { if (e.key === 'Enter') saveRename(trip.id); if (e.key === 'Escape') setRenamingId(null); }}
-                            style={{ flex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(167, 139, 250,0.5)', borderRadius: 6, color: '#e0e7ff', fontSize: 13, padding: '3px 8px', outline: 'none' }}
-                          />
-                          <button onClick={() => saveRename(trip.id)} disabled={renameSaving} style={{ ...BTN('#4f46e5'), fontSize: 11, padding: '3px 10px' }}>
-                            {renameSaving ? '…' : 'Save'}
-                          </button>
-                          <button onClick={() => setRenamingId(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', fontSize: 13 }}>✕</button>
-                        </div>
-                      ) : (
-                        <div style={{ flex: 1 }}>
-                          <div
-                            style={{
-                              fontFamily: 'var(--font-display, Georgia, serif)',
-                              fontSize: 15, fontWeight: 500, color: '#f2f2f8',
-                              letterSpacing: '-0.01em', lineHeight: 1.25,
-                              cursor: 'pointer',
-                            }}
-                            title="Click to rename"
-                            onClick={() => { setRenamingId(trip.id); setRenameValue(trip.title); }}
-                          >
-                            {trip.title}
-                          </div>
-                          <div style={{ fontSize: 12, color: '#a8a8c0', marginTop: 2 }}>
-                            {trip.location}
-                          </div>
-                        </div>
-                      )}
-                      <button onClick={() => deleteTrip(trip.id)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.25)', cursor: 'pointer', fontSize: 16, lineHeight: 1, padding: '0 0 0 8px', flexShrink: 0 }}>&#x00D7;</button>
-                    </div>
-                    {trip.startDate && (
-                      <div style={{ fontSize: 11, color: '#6b6b85', marginTop: 6, marginBottom: 10, letterSpacing: '0.02em' }}>
-                        {fmtDate(trip.startDate)}{trip.endDate ? ` \u2013 ${fmtDate(trip.endDate)}` : ''}{trip.nights ? ` \u00B7 ${trip.nights} nights` : ''}
+                    {isRenaming ? (
+                      <div onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: 6 }}>
+                        <input
+                          autoFocus
+                          value={renameValue}
+                          onChange={e => setRenameValue(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') saveRename(trip.id); if (e.key === 'Escape') setRenamingId(null); }}
+                          style={{ flex: 1, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(167, 139, 250,0.5)', borderRadius: 6, color: '#e0e7ff', fontSize: 13, padding: '3px 8px', outline: 'none' }}
+                        />
+                        <button onClick={() => saveRename(trip.id)} disabled={renameSaving} style={{ ...BTN(), fontSize: 11, padding: '3px 10px' }}>
+                          {renameSaving ? '…' : 'Save'}
+                        </button>
+                        <button onClick={() => setRenamingId(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.3)', cursor: 'pointer', fontSize: 13 }}>{String.fromCodePoint(0x2715)}</button>
                       </div>
+                    ) : (
+                      <>
+                        <div
+                          style={{
+                            fontFamily: 'var(--font-display, Georgia, serif)',
+                            fontSize: 15, fontWeight: 500, color: '#f2f2f8',
+                            letterSpacing: '-0.01em', lineHeight: 1.25,
+                            paddingRight: isActive ? 64 : 24,
+                          }}
+                          onDoubleClick={e => {
+                            e.stopPropagation();
+                            setRenamingId(trip.id); setRenameValue(trip.title);
+                          }}
+                          title="Double-click to rename"
+                        >
+                          {trip.title}
+                        </div>
+                        <div style={{ fontSize: 12, color: '#a8a8c0', marginTop: 2 }}>
+                          {trip.location}
+                        </div>
+                        {trip.startDate && (
+                          <div style={{ fontSize: 11, color: '#6b6b85', marginTop: 6, letterSpacing: '0.02em' }}>
+                            {fmtDate(trip.startDate)}{trip.endDate ? ` \u2013 ${fmtDate(trip.endDate)}` : ''}{trip.nights ? ` \u00B7 ${trip.nights} nights` : ''}
+                          </div>
+                        )}
+                        <button
+                          onClick={e => { e.stopPropagation(); deleteTrip(trip.id); }}
+                          aria-label="Delete trip"
+                          style={{
+                            position: 'absolute', bottom: 8, right: 10,
+                            background: 'none', border: 'none',
+                            color: 'rgba(168,168,192,0.35)',
+                            cursor: 'pointer', fontSize: 13, lineHeight: 1, padding: 4,
+                          }}
+                        >{String.fromCodePoint(0x00D7)}</button>
+                      </>
                     )}
-                    <button onClick={() => continueTrip(trip)} style={{ ...BTN(), fontSize: 12, padding: '7px 14px' }}>Continue planning &#x2192;</button>
                   </div>
                   );
                 })}
 
-                {/* ── Plan change history ── */}
+                                {/* ── Plan change history ── */}
                 {(() => {
                   const tripNotifs = notifications.filter(n => n.type === 'trip_update');
                   if (tripNotifs.length === 0) return null;
