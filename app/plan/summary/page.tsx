@@ -1884,25 +1884,51 @@ function SummaryContent() {
           </button>
         </div>
 
-        {/* Trip header */}
+        {/* Trip header \u2014 design-handoff masthead: mono section label, giant
+            Fraunces title with italic city accent, single tracked sub-line. */}
         <div style={{
-          background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-          borderRadius: 20, padding: isMobile ? '16px 16px' : '24px 28px', marginBottom: 28,
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid var(--brand-border)',
+          borderRadius: 20,
+          padding: isMobile ? '20px 18px' : '32px 32px 28px',
+          marginBottom: 28,
         }}>
-          <p style={{ color: '#38bdf8', fontSize: 11, fontWeight: 700, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 6 }}>
-            Your AI-generated itinerary
-          </p>
-          <h1 style={{ color: '#fff', fontSize: isMobile ? 22 : 30, fontWeight: 800, marginBottom: 14 }}>{location}</h1>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 18 }}>
+          <div style={{
+            fontFamily: 'var(--font-mono-display), ui-monospace, monospace',
+            fontSize: 10,
+            letterSpacing: '0.22em',
+            textTransform: 'uppercase',
+            color: 'var(--brand-accent-2)',
+            marginBottom: 12,
+          }}>
+            {String.fromCodePoint(0x00A7)} ITINERARY{startDate ? ` \u00b7 ${formatDate(startDate).toUpperCase()}` : ''}{endDate ? ` \u2192 ${formatDate(endDate).toUpperCase()}` : ''}
+          </div>
+          <h1 style={{
+            fontFamily: 'var(--font-display), Georgia, serif',
+            fontSize: isMobile ? 'clamp(32px, 8vw, 44px)' : 'clamp(40px, 5vw, 56px)',
+            fontWeight: 400,
+            letterSpacing: '-0.025em',
+            lineHeight: 1.05,
+            margin: 0,
+            color: 'var(--brand-ink)',
+          }}>
+            <em style={{ fontStyle: 'italic', color: 'var(--brand-accent)' }}>{location}</em>
+          </h1>
+          <div style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            gap: 14,
+            marginTop: 14,
+            color: 'var(--brand-ink-dim)',
+            fontSize: 12,
+          }}>
             {[
-              startDate && `${formatDate(startDate)} \u2013 ${formatDate(endDate)}`,
-              nights && `${nights} nights`,
-              purpose, travelStyle, budget,
-            ].filter(Boolean).map((tag, i) => (
-              <span key={i} style={{
-                background: 'rgba(56,189,248,0.12)', border: '1px solid rgba(56,189,248,0.25)',
-                borderRadius: 999, padding: '3px 11px', color: '#7dd3fc', fontSize: 12,
-              }}>{tag}</span>
+              startDate && nights && `${nights} night${nights === '1' ? '' : 's'}`,
+              purpose && purpose.charAt(0).toUpperCase() + purpose.slice(1),
+              travelStyle && travelStyle.charAt(0).toUpperCase() + travelStyle.slice(1),
+              budget,
+            ].filter(Boolean).map((tag, i, arr) => (
+              <span key={i}>{tag}{i < arr.length - 1 ? ' \u00b7' : ''}</span>
             ))}
           </div>
 
