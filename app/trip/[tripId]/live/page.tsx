@@ -22,6 +22,18 @@ interface TripData {
   nights: number | null;
 }
 
+interface DayWeather {
+  date: string;
+  tempMin: number;
+  tempMax: number;
+  condition: string;
+  icon: string;
+  iconUrl: string;
+  pop: number;
+}
+
+interface Geo { lat: number; lon: number }
+
 const MONO = 'var(--font-mono-display), ui-monospace, monospace';
 const DISPLAY = 'var(--font-display), Georgia, serif';
 
@@ -31,11 +43,37 @@ export default function LiveTripPage() {
   const [trip, setTrip] = useState<TripData | null>(null);
   const [loadingTrip, setLoadingTrip] = useState(true);
   const [now, setNow] = useState<Date>(() => new Date());
+  const [weather, setWeather] = useState<DayWeather[] | null>(null);
+  const [geo, setGeo] = useState<Geo | null>(null);
 
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(t);
   }, []);
+
+  // Browser geolocation. Silent failure — we just don't recenter.
+  useEffect(() => {
+    if (!navigator.geolocation) return;
+    let cancelled = false;
+    navigator.geolocation.getCurrentPosition(
+      pos => { if (!cancelled) setGeo({ lat: pos.coords.latitude, lon: pos.coords.longitude }); },
+      () => { /* permission denied or unavailable — keep mock center */ },
+      { timeout: 8000, maximumAge: 60_000 },
+    );
+    return () => { cancelled = true; };
+  }, []);
+
+  // Weather lookup keyed off the trip's location. Uses the existing
+  // /api/weather endpoint (OpenWeather forecast cached 1h).
+  useEffect(() => {
+    if (!trip?.location) return;
+    let cancelled = false;
+    fetch(`/api/weather?city=${encodeURIComponent(trip.location)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (!cancelled && Array.isArray(d?.days)) setWeather(d.days as DayWeather[]); })
+      .catch(() => { /* silent */ });
+    return () => { cancelled = true; };
+  }, [trip?.location]);
 
   useEffect(() => {
     if (!tripId) return;
@@ -121,7 +159,7 @@ export default function LiveTripPage() {
       </div>
 
       {/* ── Map area ───────────────────────────────────────────────────── */}
-      <LiveMap city={trip?.location ?? null} />
+      <LiveMap city={trip?.location ?? null} geo={geo} weather={weather?.[0] ?? null} />
 
       {/* ── Hero LEAVE-BY card ─────────────────────────────────────────── */}
       <div style={{ padding: '24px 22px 0' }}>
@@ -135,7 +173,7 @@ export default function LiveTripPage() {
         gap: 14, padding: '20px 22px 0',
       }}>
         <NextStopCard />
-        <WeatherAlertCard />
+        <WeatherAlertCard weather={weather?.[0] ?? null} />
         <CrowdsCard />
       </div>
 
@@ -165,28 +203,60 @@ export default function LiveTripPage() {
 
 // ─── Live Map ───────────────────────────────────────────────────────────────
 
-function LiveMap({ city }: { city: string | null }) {
+function LiveMap({ city, geo, weather }: { city: string | null; geo: Geo | null; weather: DayWeather | null }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
+  const youAreHereRef = useRef<mapboxgl.Marker | null>(null);
 
   useEffect(() => {
     const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
     if (!token || !containerRef.current) return;
     mapboxgl.accessToken = token;
 
+    // Prefer geolocation; fall back to Kyoto until both city geocode and
+    // geolocation arrive.
+    const initialCenter: [number, number] = geo ? [geo.lon, geo.lat] : [135.768, 35.0116];
     const map = new mapboxgl.Map({
       container: containerRef.current,
       style: 'mapbox://styles/mapbox/dark-v11',
-      // Default to Kyoto until we wire geolocation. Geocoder lookup can come
-      // online once we plumb the trip city through here.
-      center: [135.768, 35.0116],
+      center: initialCenter,
       zoom: 13,
       pitch: 0,
       attributionControl: false,
     });
     mapRef.current = map;
-    return () => { map.remove(); mapRef.current = null; };
-  }, [city]);
+    return () => {
+      youAreHereRef.current?.remove();
+      youAreHereRef.current = null;
+      map.remove();
+      mapRef.current = null;
+    };
+  // Mounted once; recenter via the effect below as geo arrives.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Recenter and drop / move the "you are here" pulsing marker as the
+  // browser geolocation resolves.
+  useEffect(() => {
+    if (!mapRef.current || !geo) return;
+    mapRef.current.flyTo({ center: [geo.lon, geo.lat], zoom: 14, duration: 1200 });
+    if (!youAreHereRef.current) {
+      const el = document.createElement('div');
+      el.style.cssText = `
+        width: 18px; height: 18px; border-radius: 50%;
+        background: var(--brand-success);
+        box-shadow: 0 0 0 4px rgba(124,255,151,0.25), 0 0 18px rgba(124,255,151,0.55);
+        animation: livePulse 1.6s ease-in-out infinite;
+      `;
+      youAreHereRef.current = new mapboxgl.Marker({ element: el })
+        .setLngLat([geo.lon, geo.lat])
+        .addTo(mapRef.current);
+    } else {
+      youAreHereRef.current.setLngLat([geo.lon, geo.lat]);
+    }
+  }, [geo]);
+
+  void city;
 
   const tokenMissing = !process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
 
@@ -214,7 +284,7 @@ function LiveMap({ city }: { city: string | null }) {
         display: 'flex', flexDirection: 'column', gap: 10,
         pointerEvents: 'none',
       }}>
-        <MiniWeatherCard />
+        <MiniWeatherCard weather={weather} />
         <MiniTransitCard />
       </div>
 
@@ -237,7 +307,10 @@ function LiveMap({ city }: { city: string | null }) {
   );
 }
 
-function MiniWeatherCard() {
+function MiniWeatherCard({ weather }: { weather: DayWeather | null }) {
+  const tempC = weather ? Math.round((weather.tempMin + weather.tempMax) / 2) : null;
+  const cond = weather?.condition ?? 'Loading…';
+  const popPct = weather ? Math.round(weather.pop * 100) : 0;
   return (
     <div style={{
       pointerEvents: 'auto',
@@ -249,10 +322,11 @@ function MiniWeatherCard() {
         WEATHER
       </div>
       <div style={{ fontFamily: DISPLAY, fontSize: 22, fontWeight: 400, color: 'var(--brand-accent-2)' }}>
-        15° {String.fromCodePoint(0x2601)}
+        {tempC === null ? '—' : `${tempC}°`}{' '}
+        {weather && <img src={weather.iconUrl} alt={weather.condition} style={{ width: 24, height: 24, verticalAlign: 'middle' }} />}
       </div>
       <div style={{ fontSize: 11, color: 'var(--brand-ink-dim)' }}>
-        Cloudy · light rain in 3h
+        {cond}{popPct >= 30 ? ` · ${popPct}% rain` : ''}
       </div>
     </div>
   );
@@ -379,14 +453,35 @@ function NextStopCard() {
   );
 }
 
-function WeatherAlertCard() {
+function WeatherAlertCard({ weather }: { weather: DayWeather | null }) {
+  if (!weather) {
+    return (
+      <CardShell accent="var(--brand-gold)" label="WEATHER ALERT">
+        <div style={{ fontFamily: DISPLAY, fontSize: 18, fontWeight: 400, color: 'var(--brand-ink)' }}>Loading…</div>
+        <div style={{ fontSize: 12, color: 'var(--brand-ink-dim)', marginTop: 4 }}>
+          Pulling the local forecast.
+        </div>
+      </CardShell>
+    );
+  }
+  const popPct = Math.round(weather.pop * 100);
+  const headline = popPct >= 60
+    ? `${weather.condition} · expect rain`
+    : popPct >= 30
+      ? `${weather.condition} · light rain possible`
+      : weather.condition;
+  const detail = popPct >= 60
+    ? 'Pack a layer and waterproof your camera bag.'
+    : popPct >= 30
+      ? 'Bring a layer. Most temple gardens stay open in light rain.'
+      : `${weather.tempMax}°/${weather.tempMin}° today — sunset wraps the day in honey light.`;
   return (
     <CardShell accent="var(--brand-gold)" label="WEATHER ALERT">
-      <div style={{ fontFamily: DISPLAY, fontSize: 18, fontWeight: 400, color: 'var(--brand-ink)' }}>
-        Light rain at 4 PM
+      <div style={{ fontFamily: DISPLAY, fontSize: 18, fontWeight: 400, color: 'var(--brand-ink)', textTransform: 'capitalize' }}>
+        {headline}
       </div>
       <div style={{ fontSize: 12, color: 'var(--brand-ink-dim)', marginTop: 4 }}>
-        Bring a layer. Most temple gardens stay open in light rain.
+        {detail}
       </div>
     </CardShell>
   );
