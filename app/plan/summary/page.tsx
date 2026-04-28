@@ -1310,15 +1310,34 @@ function SummaryContent() {
   const { data: session } = useSession();
   const currentUserId = (session?.user as { id?: string })?.id ?? '';
 
-  const location    = params.get('location')    ?? '';
-  const purpose     = params.get('purpose')     ?? '';
-  const travelStyle = params.get('style')       ?? '';
-  const budget      = params.get('budget')      ?? '';
-  const interests   = params.get('interests')   ?? '';
-  const constraints = params.get('constraints') ?? '';
-  const startDate   = params.get('startDate')   ?? '';
-  const endDate     = params.get('endDate')     ?? '';
-  const nights        = params.get('nights')      ?? '';
+  // Fallback: when URL params are missing (e.g. an email link or a saved
+  // bookmark that only carries ?savedTripId=…), we fill in from the loaded
+  // trip below so the masthead and downstream logic still render properly.
+  const [loadedTrip, setLoadedTrip] = useState<{
+    location?: string;
+    startDate?: string | null;
+    endDate?: string | null;
+    nights?: number | null;
+    style?: string | null;
+  } | null>(null);
+  const stylePrefs = useMemo(() => {
+    if (!loadedTrip?.style) return null;
+    try {
+      const parsed = JSON.parse(loadedTrip.style);
+      if (parsed && typeof parsed === 'object') return parsed as Record<string, string>;
+    } catch { /* not json */ }
+    return { style: loadedTrip.style } as Record<string, string>;
+  }, [loadedTrip]);
+
+  const location    = params.get('location')    || loadedTrip?.location || '';
+  const purpose     = params.get('purpose')     || stylePrefs?.purpose || '';
+  const travelStyle = params.get('style')       || stylePrefs?.style || '';
+  const budget      = params.get('budget')      || stylePrefs?.budget || '';
+  const interests   = params.get('interests')   || stylePrefs?.interests || '';
+  const constraints = params.get('constraints') || stylePrefs?.constraints || '';
+  const startDate   = params.get('startDate')   || loadedTrip?.startDate || '';
+  const endDate     = params.get('endDate')     || loadedTrip?.endDate || '';
+  const nights        = params.get('nights')      || (loadedTrip?.nights ? String(loadedTrip.nights) : '');
   const stopsRaw      = params.get('stops')       ?? '';
   const travelingFrom = params.get('travelingFrom') ?? '';
   const travelingTo   = params.get('travelingTo')   ?? '';
@@ -1460,10 +1479,21 @@ function SummaryContent() {
     fetch(`/api/trips/${savedTripDbId}`)
       .then(r => r.json())
       .then(d => {
-        if (cancelled || !d.trip?.itinerary) return;
-        const parsed = parseLines(d.trip.itinerary.split('\n'));
-        setSections(parsed);
-        setStreaming(false);
+        if (cancelled || !d.trip) return;
+        // Seed the fallback so the masthead can render even when URL params
+        // are absent (email links, bookmarks, deep-links).
+        setLoadedTrip({
+          location:  d.trip.location  ?? '',
+          startDate: d.trip.startDate ?? null,
+          endDate:   d.trip.endDate   ?? null,
+          nights:    d.trip.nights    ?? null,
+          style:     d.trip.style     ?? null,
+        });
+        if (d.trip.itinerary) {
+          const parsed = parseLines(d.trip.itinerary.split('\n'));
+          setSections(parsed);
+          setStreaming(false);
+        }
       })
       .catch(() => { if (!cancelled) setError('Could not load saved itinerary.'); });
     return () => { cancelled = true; };
