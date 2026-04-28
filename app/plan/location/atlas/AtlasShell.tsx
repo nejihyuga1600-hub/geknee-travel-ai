@@ -1533,11 +1533,13 @@ function StepStyle({
         <div style={{ display: "flex", gap: 8 }}>
           {BUDGETS.map((b) => {
             const active = trip.budget === b;
+            const perDay = b === "$" ? 60 : b === "$$" ? 150 : b === "$$$" ? 300 : 600;
+            const tier   = b === "$" ? "Hostel" : b === "$$" ? "Comfort" : b === "$$$" ? "Boutique" : "Luxury";
             return (
               <button key={b}
                 onClick={() => setTrip({ ...trip, budget: b })}
                 style={{
-                  flex: 1, padding: "10px 0",
+                  flex: 1, padding: "10px 4px",
                   background: active ? "rgba(167,139,250,0.16)" : "rgba(255,255,255,0.03)",
                   border: `1px solid ${active ? "var(--brand-border-hi)" : "var(--brand-border)"}`,
                   borderRadius: 10,
@@ -1545,7 +1547,22 @@ function StepStyle({
                   fontSize: 14, fontWeight: 600,
                   fontFamily: "inherit",
                   cursor: "pointer",
-                }}>{b}</button>
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+                }}>
+                <span>{b}</span>
+                <span style={{
+                  fontSize: 10, fontWeight: 500,
+                  letterSpacing: "0.02em",
+                  color: active ? "var(--brand-accent)" : "var(--brand-ink-mute)",
+                  opacity: active ? 0.85 : 0.7,
+                }}>${perDay}/day</span>
+                <span style={{
+                  fontSize: 9, fontWeight: 500,
+                  letterSpacing: "0.08em", textTransform: "uppercase",
+                  color: "var(--brand-ink-mute)",
+                  opacity: active ? 0.7 : 0.55,
+                }}>{tier}</span>
+              </button>
             );
           })}
         </div>
