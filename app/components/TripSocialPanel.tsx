@@ -458,7 +458,12 @@ export default function TripSocialPanel({
             {/* Tabs */}
             <div style={{ display: 'flex', gap: 6, padding: '0 18px', margin: '14px 0 0', flexShrink: 0 }}>
               <button style={TAB(tab === 'trips')} onClick={() => { setTab('trips'); markTabRead('trip_update'); }}>
-                {String.fromCodePoint(0x1F9F3)} My Trips
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden>
+                  <rect x="3" y="5" width="10" height="8" rx="1.5" />
+                  <path d="M6 5V3.5a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1V5" strokeLinecap="round" />
+                  <line x1="3" y1="8.5" x2="13" y2="8.5" />
+                </svg>
+                <span>Trips</span>
                 {tripNotifCount > 0 && (
                   <span style={{ marginLeft: 5, background: '#f59e0b', color: '#000', borderRadius: 99, fontSize: 10, fontWeight: 700, padding: '1px 6px' }}>
                     {tripNotifCount}
@@ -466,7 +471,12 @@ export default function TripSocialPanel({
                 )}
               </button>
               <button style={TAB(tab === 'friends')} onClick={() => { setTab('friends'); markTabRead('friend_message', 'friend_request'); }}>
-                {String.fromCodePoint(0x1F465)} Friends
+                <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden>
+                  <path d="M5 8a2 2 0 1 0 4 0 2 2 0 0 0-4 0z" />
+                  <path d="M11.5 10a1.5 1.5 0 1 0 0-3" strokeLinecap="round" />
+                  <path d="M1.5 13c.5-2 2.5-3 5.5-3s5 1 5.5 3" strokeLinecap="round" />
+                </svg>
+                <span>Friends</span>
                 {(pendingIncoming.length + friendNotifCount) > 0 && (
                   <span style={{ marginLeft: 5, background: friendNotifCount > 0 ? '#f59e0b' : '#ef4444', color: friendNotifCount > 0 ? '#000' : '#fff', borderRadius: 99, fontSize: 10, fontWeight: 700, padding: '1px 6px' }}>
                     {pendingIncoming.length + friendNotifCount}
@@ -526,8 +536,23 @@ export default function TripSocialPanel({
             {tab === 'trips' && (
               <>
                 {!showSaveForm ? (
-                  <button onClick={() => setShowSaveForm(true)} style={{ ...BTN('#4f46e5'), width: '100%', padding: '10px', fontSize: 13, marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}>
-                    <span style={{ fontSize: 16 }}>+</span> Save Current Trip
+                  <button
+                    onClick={() => setShowSaveForm(true)}
+                    style={{
+                      width: '100%',
+                      marginBottom: 16,
+                      padding: '12px',
+                      background: 'transparent',
+                      border: '1px dashed rgba(148,163,208,0.3)',
+                      borderRadius: 12,
+                      color: '#a8a8c0',
+                      fontSize: 12, fontWeight: 500,
+                      fontFamily: 'inherit',
+                      cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    }}
+                  >
+                    + Save current trip
                   </button>
                 ) : (
                   <div style={{ ...CARD, marginBottom: 16 }}>
@@ -543,9 +568,18 @@ export default function TripSocialPanel({
 
                 {tripsLoading && <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13, marginTop: 24 }}>Loading…</div>}
                 {!tripsLoading && trips.length === 0 && (
-                  <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', fontSize: 13, marginTop: 32 }}>
-                    <div style={{ fontSize: 32, marginBottom: 8 }}>{String.fromCodePoint(0x1F9F3)}</div>
-                    No saved trips yet.<br />Start planning and save your draft above.
+                  <div style={{ textAlign: 'center', color: '#6b6b85', fontSize: 13, marginTop: 40, fontFamily: 'inherit' }}>
+                    <svg width="36" height="36" viewBox="0 0 16 16" fill="none" stroke="rgba(167,139,250,0.45)" strokeWidth="1.2" style={{ margin: '0 auto 12px', display: 'block' }} aria-hidden>
+                      <rect x="2" y="5" width="12" height="9" rx="1.5" />
+                      <path d="M5.5 5V3.5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V5" strokeLinecap="round" />
+                      <line x1="2" y1="9" x2="14" y2="9" />
+                    </svg>
+                    <div style={{ fontFamily: 'var(--font-display, Georgia, serif)', fontSize: 16, color: '#a8a8c0', marginBottom: 4 }}>
+                      No saved trips yet
+                    </div>
+                    <div style={{ fontSize: 12, color: '#6b6b85' }}>
+                      Start planning and save a draft.
+                    </div>
                   </div>
                 )}
                 {trips.map(trip => (
@@ -739,9 +773,18 @@ export default function TripSocialPanel({
                 {/* Friends list */}
                 {friendsLoading && <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.3)', fontSize: 13, marginTop: 24 }}>Loading…</div>}
                 {!friendsLoading && friends.length === 0 && pendingIncoming.length === 0 && pendingOutgoing.length === 0 && (
-                  <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.2)', fontSize: 13, marginTop: 16 }}>
-                    <div style={{ fontSize: 32, marginBottom: 8 }}>{String.fromCodePoint(0x1F465)}</div>
-                    No friends yet.<br />Add them by @username or email above.
+                  <div style={{ textAlign: 'center', color: '#6b6b85', fontSize: 13, marginTop: 24, fontFamily: 'inherit' }}>
+                    <svg width="36" height="36" viewBox="0 0 16 16" fill="none" stroke="rgba(167,139,250,0.45)" strokeWidth="1.2" style={{ margin: '0 auto 12px', display: 'block' }} aria-hidden>
+                      <path d="M5 8a2 2 0 1 0 4 0 2 2 0 0 0-4 0z" />
+                      <path d="M11.5 10a1.5 1.5 0 1 0 0-3" strokeLinecap="round" />
+                      <path d="M1.5 13c.5-2 2.5-3 5.5-3s5 1 5.5 3" strokeLinecap="round" />
+                    </svg>
+                    <div style={{ fontFamily: 'var(--font-display, Georgia, serif)', fontSize: 16, color: '#a8a8c0', marginBottom: 4 }}>
+                      No friends yet
+                    </div>
+                    <div style={{ fontSize: 12, color: '#6b6b85' }}>
+                      Add them by @username or email above.
+                    </div>
                   </div>
                 )}
                 {friends.length > 0 && (
