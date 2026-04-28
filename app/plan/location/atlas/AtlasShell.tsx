@@ -75,6 +75,14 @@ function addDays(yyyymmdd: string, n: number): string {
   return d.toISOString().slice(0, 10);
 }
 
+function todayYYYYMMDD(): string {
+  const d = new Date();
+  const yy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  return `${yy}-${mm}-${dd}`;
+}
+
 function diffDays(start: string, end: string): number {
   if (!start || !end) return 0;
   const s = new Date(start + "T00:00:00").getTime();
@@ -105,6 +113,15 @@ export default function AtlasShell() {
   const [step, setStep] = useState(0);
   const [dest, setDest] = useState("");
   const [trip, setTrip] = useState<Trip>(EMPTY_TRIP);
+  // Seed today's date on the client so the trip-length slider and
+  // flexible-month picker have a pivot before the user touches Depart.
+  useEffect(() => {
+    setTrip(t => {
+      if (t.startDate || t.endDate) return t;
+      const startDate = todayYYYYMMDD();
+      return { ...t, startDate, endDate: addDays(startDate, t.nights) };
+    });
+  }, []);
   const router = useRouter();
   const { data: session } = useSession();
   const [shopOpen,     setShopOpen]     = useState(false);
