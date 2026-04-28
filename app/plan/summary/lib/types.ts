@@ -10,3 +10,8 @@ export interface RouteStop {
   startDate?: string;
   endDate?: string;
 }
+
+export interface ChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
