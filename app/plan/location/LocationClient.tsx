@@ -1813,10 +1813,8 @@ function CityLabels({ camDist }: { camDist: number }) {
         const deg = Math.acos(dot) * (180 / Math.PI);
         if (deg < minDeg) minDeg = deg;
       }
-      // City labels: scaled with neighbour density. Base 0.14 keeps them
-      // readable on a 1080p viewport at country/local zoom; floor 0.09
-      // prevents collapse when many cities cluster.
-      const fontSize = minDeg >= 6 ? 0.14 : Math.max(0.09, 0.14 * (minDeg / 6));
+      // City labels — halved per user request. Was 0.14 base / 0.09 floor.
+      const fontSize = minDeg >= 6 ? 0.07 : Math.max(0.045, 0.07 * (minDeg / 6));
       return { ...city, fontSize };
     });
   }, [items, camDist, sepThresh]);

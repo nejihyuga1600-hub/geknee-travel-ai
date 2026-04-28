@@ -222,7 +222,6 @@ export default function AtlasShell() {
         </span>
 
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <ZoomIndicator />
           <NavPill onClick={() => setShopOpen(true)} title="Monument Collection">
             <ColIcon /> <span>Collection</span>
           </NavPill>
@@ -265,6 +264,9 @@ export default function AtlasShell() {
           </NavPill>
         </div>
       </nav>
+
+      {/* Vertical zoom indicator — sits just under the hamburger Menu pill. */}
+      <ZoomIndicator />
 
       {/* Initialize / Home — top-center, prominent. Same affordance the
           legacy planner had: tap to reset the globe orientation. */}
@@ -757,8 +759,8 @@ function GenieCorner({
 }
 
 // ── Zoom indicator: subscribes to geknee:camdist from LocationClient. ────
-// Maps raw camera distance to a coarse, friendly zoom-level name. Renders
-// inline inside the top-right nav cluster, just left of the Collection pill.
+// Vertical stack pinned just under the hamburger Menu pill. Bar fills bottom-
+// up as you zoom in; level name sits beneath in vertical writing mode.
 function ZoomIndicator() {
   const [camDist, setCamDist] = useState<number | null>(null);
   useEffect(() => {
@@ -785,34 +787,53 @@ function ZoomIndicator() {
 
   return (
     <div style={{
-      display: "inline-flex", alignItems: "center", gap: 8,
-      padding: "6px 12px",
-      borderRadius: 999,
+      position: "absolute",
+      // Sits below the Menu (hamburger) pill in the top-right nav cluster.
+      // Nav top is 18 + ~36px pill height + 14 gap ≈ 68; pad a little more.
+      top: 76,
+      right: 28,
+      zIndex: 12,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      gap: 6,
+      padding: "8px 6px",
+      borderRadius: 14,
       background: "rgba(13,13,36,0.55)",
       border: "1px solid rgba(148,163,208,0.18)",
       backdropFilter: "blur(8px)",
       color: "#a8a8c0",
-      fontSize: 11,
       fontFamily: "var(--font-ui), system-ui, sans-serif",
-      letterSpacing: "0.04em",
       userSelect: "none",
-      whiteSpace: "nowrap",
+      pointerEvents: "none",
     }}>
+      {/* Vertical bar — fills bottom-up. */}
       <div style={{
         position: "relative",
-        width: 44, height: 3,
+        width: 3, height: 60,
         background: "rgba(148,163,208,0.18)",
         borderRadius: 999,
       }}>
         <div style={{
-          position: "absolute", top: 0, left: 0, height: "100%",
-          width: `${pct * 100}%`,
-          background: "linear-gradient(90deg, var(--brand-accent), var(--brand-accent-2, #7dd3fc))",
+          position: "absolute", left: 0, bottom: 0, width: "100%",
+          height: `${pct * 100}%`,
+          background: "linear-gradient(0deg, var(--brand-accent), var(--brand-accent-2, #7dd3fc))",
           borderRadius: 999,
-          transition: "width 280ms cubic-bezier(0.23, 1, 0.32, 1)",
+          transition: "height 280ms cubic-bezier(0.23, 1, 0.32, 1)",
         }} />
       </div>
-      <span>{level}</span>
+      {/* Level name in vertical writing mode (reads bottom-to-top). */}
+      <span style={{
+        writingMode: "vertical-rl",
+        transform: "rotate(180deg)",
+        fontSize: 10,
+        letterSpacing: "0.16em",
+        textTransform: "uppercase",
+        fontWeight: 600,
+        color: "var(--brand-accent)",
+      }}>
+        {level}
+      </span>
     </div>
   );
 }
