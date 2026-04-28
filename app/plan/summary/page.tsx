@@ -12,6 +12,11 @@ const BookTabDynamic = dynamic(() => import('./BookTab'), { ssr: false });
 const FileVault      = dynamic(() => import('@/app/components/FileVault'), { ssr: false });
 const UpgradeModal   = dynamic(() => import('@/app/components/UpgradeModal'), { ssr: false });
 import { track } from '@/lib/analytics';
+import {
+  parseLines, isTimeLine, groupLines, extractDayNumber, stripDayPrefix,
+  type Section, type ActivityGroup,
+} from './lib/itinerary-parse';
+import { extractPlace, fetchPlaceImage, imgCache } from './lib/places';
 
 const DayMap = dynamic(() => import('./DayMap'), {
   ssr: false,
@@ -28,11 +33,9 @@ const PlanningMapDynamic = dynamic(() => import('./PlanningMap'), {
 });
 
 // ── Types ──────────────────────────────────────────────────────────────────────
-interface Section {
-  id: string;
-  heading: string;     // text after "## ", empty for preamble
-  lines: string[];     // raw markdown lines (non-heading)
-}
+// `Section` and `ActivityGroup` now live in lib/itinerary-parse.ts so the
+// Live trip surface can reuse the same parser without pulling the summary
+// client bundle.
 
 interface EditTarget {
   sectionIdx: number;
@@ -70,36 +73,7 @@ interface Bookmark {
 }
 
 // ── parseLines ─────────────────────────────────────────────────────────────────
-function parseLines(rawLines: string[]): Section[] {
-  const sections: Section[] = [];
-  let current: Section = { id: 's0', heading: '', lines: [] };
-  let idx = 1;
-
-  for (const line of rawLines) {
-    const trimmed = line.trim();
-    const boldDay = trimmed.match(/^\*\*(Day\s+\d+[^*]*)\*\*\s*:?\s*$/i);
-    if (line.startsWith('## ') || line.startsWith('### ') || boldDay) {
-      if (current.heading || current.lines.some(l => l.trim())) {
-        sections.push(current);
-      }
-      let heading = '';
-      if (line.startsWith('## '))       heading = line.slice(3).trim();
-      else if (line.startsWith('### ')) heading = line.slice(4).trim();
-      else if (boldDay)                 heading = boldDay[1].trim();
-      current = { id: `s${idx++}`, heading, lines: [] };
-    } else if (line !== '---') {
-      current.lines.push(line);
-    }
-  }
-  if (current.heading || current.lines.some(l => l.trim())) {
-    sections.push(current);
-  }
-
-  // Drop fully-empty preamble sections
-  return sections.filter(
-    s => s.heading || s.lines.some(l => l.trim())
-  );
-}
+// parseLines — moved to lib/itinerary-parse.ts
 
 // ── Inline markdown renderer ───────────────────────────────────────────────────
 function renderInline(text: string): ReactNode {
@@ -696,178 +670,10 @@ function WeatherBar({ days, unit }: { days: DayWeather[]; unit: 'C' | 'F' }) {
   );
 }
 
-// ── Activity block grouping ────────────────────────────────────────────────────
-/** Matches lines like **9:00 AM** or **12:30 PM** at the start */
-function isTimeLine(line: string): boolean {
-  return /^\*\*\d{1,2}:\d{2}\s*[AP]M\*\*/.test(line.trim());
-}
-
-type ActivityGroup =
-  | { type: 'activity'; headline: string; headlineIdx: number; details: { line: string; idx: number }[] }
-  | { type: 'plain';    line: string;     idx: number };
-
-function groupLines(lines: string[]): ActivityGroup[] {
-  const groups: ActivityGroup[] = [];
-  let current: Extract<ActivityGroup, { type: 'activity' }> | null = null;
-  lines.forEach((line, idx) => {
-    if (isTimeLine(line)) {
-      if (current) groups.push(current);
-      current = { type: 'activity', headline: line, headlineIdx: idx, details: [] };
-    } else if (current) {
-      current.details.push({ line, idx });
-    } else {
-      groups.push({ type: 'plain', line, idx });
-    }
-  });
-  if (current) groups.push(current);
-  return groups;
-}
+// isTimeLine, groupLines, ActivityGroup — moved to lib/itinerary-parse.ts
 
 // ── Place extraction (module-level, shared by ActivityBlock + SectionCard) ─────
-const _GENERIC_TERMS = new Set([
-  'morning','afternoon','evening','night','breakfast','lunch','dinner','brunch',
-  'day','hotel','hostel','accommodation','transport','taxi','bus','train','metro',
-  'subway','flight','airport','station','overview','tips','highlights','optional',
-  'note','budget','local','traditional','free','time','check','arrive','depart',
-  'explore','walk','wander','visit','stop','area','region','neighborhood','district',
-  'center','centre','road',
-]);
-const _FOOD_COMMERCIAL = new Set([
-  'banana','ramen','sushi','croissant','baumkuchen','mochi','takoyaki','tempura',
-  'tonkatsu','udon','soba','matcha','sake','beer','wine','coffee','tea','cake',
-  'cookie','candy','chocolate','snack','sandwich','pizza','pasta','noodle',
-  'dumpling','gyoza','onigiri','kebab','burger','taco','curry','pho','crepe',
-  'waffle','gelato','souvenir','shop','store','sweets','treats',
-]);
-const _PLACE_INDICATORS = new Set([
-  'temple','shrine','museum','gallery','park','garden','palace','castle',
-  'tower','bridge','market','bazaar','quarter','harbor','harbour','beach',
-  'lake','river','mountain','hill','street','avenue','square','plaza',
-  'cathedral','church','mosque','fort','ruins','monument','memorial','arena',
-  'stadium','hall','crossing','viewpoint','waterfall','canyon','valley',
-  'island','peninsula','bay','cliff','cave','falls','pagoda','gate',
-]);
-
-function extractPlace(text: string): string | null {
-  const bolds = [...text.matchAll(/\*\*([^*]+)\*\*/g)].map(m => m[1].trim());
-  if (!bolds.length) return null;
-  function score(name: string): number {
-    if (/^[\d:]+\s*[AP]M$/i.test(name)) return -9999;
-    if (name.length < 4) return -9999;
-    if (!/^[A-Z]/.test(name)) return -9000;
-    const lower = name.toLowerCase();
-    const words = lower.split(/\s+/);
-    if (words.every(w => _GENERIC_TERMS.has(w))) return -8000;
-    if (words.some(w => _FOOD_COMMERCIAL.has(w)) || _FOOD_COMMERCIAL.has(lower)) return -7000;
-    const hasIndicator = words.some(w => _PLACE_INDICATORS.has(w));
-    let s = name.length + words.length * 3;
-    if (hasIndicator) s += 60;
-    // Single-word names only qualify if they contain a place indicator
-    if (words.length === 1 && !hasIndicator) return -500;
-    return s;
-  }
-  const best = bolds.reduce<{ name: string; score: number } | null>((acc, name) => {
-    const s = score(name);
-    return !acc || s > acc.score ? { name, score: s } : acc;
-  }, null);
-  // Require score >= 15 (multi-word proper noun) OR >= 65 (has place indicator)
-  return best && best.score >= 15 ? best.name : null;
-}
-
-// ── Place image — Google Places → Wikidata P18 → Wikipedia → Commons ───────────
-// imgCache: '' means "no image found", undefined means "not yet fetched"
-const imgCache = new Map<string, string>();
-
-const _FOOD_DESC_RE = /\b(dish|cuisine|food|recipe|meal|dessert|drink|beverage|cocktail|snack|sauce|bread|cake|soup|noodle|rice dish|pasta)\b/i;
-
-function _landscapeScore(w?: number, h?: number): number {
-  if (!w || !h) return 0;
-  return w / h;
-}
-
-async function fetchPlaceImage(place: string, city?: string): Promise<string | null> {
-  const q = city ? `${place} ${city}` : place;
-
-  // 1. Google Places textsearch → place-photo proxy (best: actual location photos)
-  try {
-    const sp = new URLSearchParams({ name: place, ...(city ? { location: city } : {}) });
-    const r = await fetch(`/api/place-images?${sp}`);
-    const d: { images: string[] } = await r.json();
-    if (d.images.length > 0) return d.images[0];
-  } catch {}
-
-  // 2. Wikidata P18 — canonical exterior/building photo
-  try {
-    const sp = new URLSearchParams({ action:'wbsearchentities', search: q, language:'en', limit:'3', format:'json', origin:'*' });
-    const r = await fetch(`https://www.wikidata.org/w/api.php?${sp}`);
-    const d = await r.json();
-    for (const entity of (d.search ?? []).slice(0, 3) as {id:string}[]) {
-      const r2 = await fetch(`https://www.wikidata.org/wiki/Special:EntityData/${entity.id}.json`);
-      const d2 = await r2.json();
-      const p18 = d2.entities?.[entity.id]?.claims?.P18;
-      const filename: string | undefined = p18?.[0]?.mainsnak?.datavalue?.value;
-      if (filename) {
-        const slug = encodeURIComponent(filename.replace(/\s+/g, '_'));
-        return `https://commons.wikimedia.org/wiki/Special:FilePath/${slug}?width=800`;
-      }
-    }
-  } catch {}
-
-  // 2. Wikipedia REST summary — skip if description is food
-  try {
-    const slug = encodeURIComponent(place.replace(/\s+/g, '_'));
-    const r = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${slug}`);
-    if (r.ok) {
-      const d = await r.json();
-      const desc: string = d.description ?? '';
-      const url: string | null = d.originalimage?.source ?? d.thumbnail?.source ?? null;
-      if (url && !_FOOD_DESC_RE.test(desc)) return url;
-    }
-  } catch {}
-
-  // 3. Wikipedia search (with city context) → top 3 results
-  try {
-    const p = new URLSearchParams({ action:'query', list:'search', srsearch: q, srlimit:'3', format:'json', origin:'*' });
-    const r = await fetch(`https://en.wikipedia.org/w/api.php?${p}`);
-    const d = await r.json();
-    for (const hit of (d.query?.search ?? []) as {title:string}[]) {
-      const slug = encodeURIComponent(hit.title.replace(/\s+/g, '_'));
-      const r2 = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${slug}`);
-      if (r2.ok) {
-        const d2 = await r2.json();
-        const desc: string = d2.description ?? '';
-        const url: string | null = d2.originalimage?.source ?? d2.thumbnail?.source ?? null;
-        if (url && !_FOOD_DESC_RE.test(desc)) return url;
-      }
-    }
-  } catch {}
-
-  // 4. Wikimedia Commons — search with exterior/location bias, prefer landscape images
-  try {
-    const searchTerm = `${q} (exterior OR building OR street OR entrance OR facade OR view)`;
-    const p = new URLSearchParams({
-      action:'query', generator:'search', gsrsearch: searchTerm,
-      gsrnamespace:'6', gsrlimit:'12', prop:'imageinfo', iiprop:'url|mime|size',
-      format:'json', origin:'*',
-    });
-    const r = await fetch(`https://commons.wikimedia.org/w/api.php?${p}`);
-    const d = await r.json();
-    type PageInfo = { imageinfo?: { url: string; mime: string; width?: number; height?: number }[] };
-    const pages = (Object.values(d.query?.pages ?? {}) as PageInfo[])
-      .filter(pg => {
-        const info = pg.imageinfo?.[0];
-        return info && info.mime.startsWith('image/') && !info.url.endsWith('.svg');
-      })
-      .sort((a, b) =>
-        _landscapeScore(b.imageinfo![0].width, b.imageinfo![0].height) -
-        _landscapeScore(a.imageinfo![0].width, a.imageinfo![0].height)
-      );
-    if (pages.length > 0) return pages[0].imageinfo![0].url;
-  } catch {}
-
-  return null;
-}
-
+// extractPlace, imgCache, fetchPlaceImage — moved to lib/places.ts
 function PlaceImage({ place, height, city }: { place: string; height: number; city?: string }) {
   const cacheKey = city ? `${place}||${city}` : place;
   const cached = imgCache.has(cacheKey) ? (imgCache.get(cacheKey) || null) : undefined;
@@ -1029,26 +835,7 @@ interface SectionCardProps {
   onReplan: () => void;
 }
 
-// Pull the day index out of headings like "Day 1", "Day 2: Arrival", "Day Three".
-function extractDayNumber(heading: string): number | null {
-  const m1 = heading.match(/day[\s\-]*(\d+)/i);
-  if (m1) return parseInt(m1[1], 10);
-  const wordToNum: Record<string, number> = {
-    one: 1, two: 2, three: 3, four: 4, five: 5,
-    six: 6, seven: 7, eight: 8, nine: 9, ten: 10,
-  };
-  const m2 = heading.match(/day\s+(one|two|three|four|five|six|seven|eight|nine|ten)/i);
-  if (m2) return wordToNum[m2[1].toLowerCase()];
-  return null;
-}
-
-// Strip the "Day N" prefix so the title can sit beside the giant numeral.
-function stripDayPrefix(heading: string): string {
-  return heading
-    .replace(/^day[\s\-]*\d+[:\s\-–—]*/i, '')
-    .replace(/^day\s+(one|two|three|four|five|six|seven|eight|nine|ten)[:\s\-–—]*/i, '')
-    .trim();
-}
+// extractDayNumber, stripDayPrefix — moved to lib/itinerary-parse.ts
 
 function SectionCard({
   section, sectionIdx, editTarget, editValue,
