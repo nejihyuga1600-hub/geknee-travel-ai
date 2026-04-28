@@ -427,12 +427,12 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind, lat: latProp, lo
       <Text
         fontSize={fontSize}
         color={mobileActive ? "#ffe066" : kind === "country" ? "#ffffff" : "#b8ccff"}
-        outlineWidth={kind === "country" ? 0.013 : 0.008}
+        outlineWidth={kind === "country" ? 0.020 : 0.013}
         outlineColor="#000000"
         anchorX="center"
         anchorY="middle"
         letterSpacing={kind === "country" ? 0.10 : 0.04}
-        sdfGlyphSize={64}
+        sdfGlyphSize={128}
         material-side={THREE.FrontSide}
         material-depthTest
       >
@@ -635,9 +635,11 @@ function GeoLabels({ countries, states, zoomLevel }: {
         const deg = Math.acos(dot) * (180 / Math.PI);
         if (deg < minDeg) minDeg = deg;
       }
-      const base = it.kind === "country" ? 0.20 : 0.115;
+      const base = it.kind === "country" ? 0.22 : 0.13;
       const thr  = it.kind === "country" ? 18   : 12;
-      const min  = it.kind === "country" ? 0.08  : 0.05;
+      // Bumped minimums so labels stay readable when the camera is close
+      // and many neighbours crush the dynamic font size down.
+      const min  = it.kind === "country" ? 0.11  : 0.08;
       const fontSize = minDeg >= thr ? base : Math.max(min, base * (minDeg / thr));
       return { ...it, fontSize };
     });
@@ -655,12 +657,12 @@ function GeoLabels({ countries, states, zoomLevel }: {
               quaternion={orientation}
               fontSize={fontSize}
               color={kind === "country" ? "#ffffff" : "#b8ccff"}
-              outlineWidth={kind === "country" ? 0.013 : 0.008}
+              outlineWidth={kind === "country" ? 0.020 : 0.013}
               outlineColor="#000000"
               anchorX="center"
               anchorY="middle"
               letterSpacing={kind === "country" ? 0.10 : 0.04}
-              sdfGlyphSize={64}
+              sdfGlyphSize={128}
               material-side={THREE.FrontSide}
               material-depthTest
             >
@@ -1616,12 +1618,12 @@ function CityLabel({ n, lat, lon, pos, orientation, fontSize }: {
       <Text
         fontSize={fontSize}
         color={mobileActive ? "#ffffff" : "#c8d8ff"}
-        outlineWidth={0.006}
+        outlineWidth={0.011}
         outlineColor="#111111"
         anchorX="center"
         anchorY="middle"
         letterSpacing={0.01}
-        sdfGlyphSize={64}
+        sdfGlyphSize={128}
         renderOrder={2}
         material-depthWrite={false}
         material-depthTest={true}
