@@ -113,6 +113,17 @@ export default function AtlasShell() {
   const [step, setStep] = useState(0);
   const [dest, setDest] = useState("");
   const [trip, setTrip] = useState<Trip>(EMPTY_TRIP);
+  // Responsive collapse — top nav becomes too dense on phones, so we
+  // sink Collection / Go Pro / Trips behind the existing Menu pill below
+  // 640px and trim the AUTO-SAVED + dev-callout chrome.
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 640px)");
+    const sync = () => setIsMobile(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
   // Seed today's date on the client so the trip-length slider and
   // flexible-month picker have a pivot before the user touches Depart.
   useEffect(() => {
@@ -266,28 +277,34 @@ export default function AtlasShell() {
           </svg>
           Home
         </button>
-        <span
-          style={{
-            fontSize: 10,
-            color: "var(--brand-ink-mute)",
-            letterSpacing: "0.12em",
-            marginLeft: 12,
-            flex: 1,
-          }}
-        >
-          · AUTO-SAVED
-        </span>
+        {!isMobile && (
+          <span
+            style={{
+              fontSize: 10,
+              color: "var(--brand-ink-mute)",
+              letterSpacing: "0.12em",
+              marginLeft: 12,
+              flex: 1,
+            }}
+          >
+            · AUTO-SAVED
+          </span>
+        )}
 
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <NavPill onClick={() => setShopOpen(true)} title="Monument Collection">
-            <ColIcon /> <span>Collection</span>
-          </NavPill>
-          <NavPill onClick={() => setUpgradeOpen(true)} accent>
-            <SparkleIcon /> <span>Go Pro</span>
-          </NavPill>
-          <NavPill onClick={() => { if (session?.user) setTripsOpen(true); else setAuthOpen(true); }} title="Trips & Friends">
-            <TripsIcon /> <span>Trips</span>
-          </NavPill>
+          {!isMobile && (
+            <>
+              <NavPill onClick={() => setShopOpen(true)} title="Monument Collection">
+                <ColIcon /> <span>Collection</span>
+              </NavPill>
+              <NavPill onClick={() => setUpgradeOpen(true)} accent>
+                <SparkleIcon /> <span>Go Pro</span>
+              </NavPill>
+              <NavPill onClick={() => { if (session?.user) setTripsOpen(true); else setAuthOpen(true); }} title="Trips & Friends">
+                <TripsIcon /> <span>Trips</span>
+              </NavPill>
+            </>
+          )}
           {session?.user ? (
             <button
               onClick={() => setTripsOpen(true)}
@@ -351,7 +368,7 @@ export default function AtlasShell() {
             <line x1="2" y1="12" x2="22" y2="12" />
             <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
           </svg>
-          Home
+          Initialize
         </button>
       </div>
 
@@ -566,39 +583,42 @@ export default function AtlasShell() {
         )}
       </section>
 
-      {/* Visible note — this is shell v0, wiring lands next */}
-      <div
-        style={{
-          position: "absolute",
-          top: 70,
-          right: 24,
-          zIndex: 30,
-          background: "var(--brand-surface)",
-          backdropFilter: "blur(12px)",
-          border: "1px solid var(--brand-border-hi)",
-          borderRadius: 12,
-          padding: "10px 14px",
-          fontSize: 11,
-          color: "var(--brand-ink-dim)",
-          fontFamily: "var(--font-ui), system-ui, sans-serif",
-          maxWidth: 280,
-        }}
-      >
-        <div style={{ color: "var(--brand-accent)", fontWeight: 700, fontSize: 10, letterSpacing: "0.08em" }}>
-          ATLAS · SHELL V0
+      {/* Visible note — this is shell v0, wiring lands next. Hidden on
+          mobile because the callout dominates the small viewport. */}
+      {!isMobile && (
+        <div
+          style={{
+            position: "absolute",
+            top: 70,
+            right: 24,
+            zIndex: 30,
+            background: "var(--brand-surface)",
+            backdropFilter: "blur(12px)",
+            border: "1px solid var(--brand-border-hi)",
+            borderRadius: 12,
+            padding: "10px 14px",
+            fontSize: 11,
+            color: "var(--brand-ink-dim)",
+            fontFamily: "var(--font-ui), system-ui, sans-serif",
+            maxWidth: 280,
+          }}
+        >
+          <div style={{ color: "var(--brand-accent)", fontWeight: 700, fontSize: 10, letterSpacing: "0.08em" }}>
+            ATLAS · SHELL V0
+          </div>
+          <div style={{ marginTop: 4 }}>
+            Variant A from the design session. Flow wiring lands next phase.
+            Meanwhile{" "}
+            <Link
+              href="/plan/location"
+              style={{ color: "var(--brand-accent-2)", textDecoration: "underline" }}
+            >
+              use the live planner
+            </Link>
+            .
+          </div>
         </div>
-        <div style={{ marginTop: 4 }}>
-          Variant A from the design session. Flow wiring lands next phase.
-          Meanwhile{" "}
-          <Link
-            href="/plan/location"
-            style={{ color: "var(--brand-accent-2)", textDecoration: "underline" }}
-          >
-            use the live planner
-          </Link>
-          .
-        </div>
-      </div>
+      )}
 
       {/* Genie corner — quiet ✦ assistant. */}
       <GenieCorner trip={trip} step={step} steps={STEPS} open={genieOpen} setOpen={setGenieOpen} />
