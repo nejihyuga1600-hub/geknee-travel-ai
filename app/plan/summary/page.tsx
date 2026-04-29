@@ -255,7 +255,9 @@ function SummaryContent() {
   }, [location, startDate, endDate, nights, travelStyle]);
 
   // ── Planning tab ──────────────────────────────────────────────────────────────
-  const [mainTab, setMainTab]         = useState<'itinerary' | 'planning' | 'book' | 'files'>(loadedFromSave.current ? 'itinerary' : 'planning');
+  // Default to itinerary on the design pass — the legacy 'planning' tab
+  // (Google-Maps drop-pin search bar) has been superseded by /plan/[tripId]/map.
+  const [mainTab, setMainTab]         = useState<'itinerary' | 'planning' | 'book' | 'files'>('itinerary');
   const [bookmarks, setBookmarks]     = useState<Bookmark[]>([]);
   const [optimizingItinerary, setOptimizingItinerary] = useState(false);
   const [lastOptimized, setLastOptimized] = useState<Date | null>(null);
@@ -776,6 +778,21 @@ function SummaryContent() {
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            {savedTripId && (
+              <Link
+                href={`/plan/${encodeURIComponent(savedTripId)}/map`}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '7px 14px', borderRadius: 10,
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid var(--brand-border)',
+                  color: 'var(--brand-ink)', fontSize: 12, fontWeight: 600,
+                  fontFamily: 'inherit', textDecoration: 'none',
+                }}
+              >
+                {String.fromCodePoint(0x2315)} Map
+              </Link>
+            )}
             <button
               onClick={async () => {
                 if (typeof navigator !== 'undefined' && navigator.share) {
@@ -796,16 +813,17 @@ function SummaryContent() {
               {String.fromCodePoint(0x2197)} Share
             </button>
             <button
-              onClick={() => setMainTab('book')}
+              onClick={() => setMainTab(mainTab === 'book' ? 'itinerary' : 'book')}
               style={{
                 padding: '7px 14px', borderRadius: 10,
-                background: 'var(--brand-ink)', color: 'var(--brand-bg)',
-                border: '1px solid var(--brand-ink)',
+                background: mainTab === 'book' ? 'transparent' : 'var(--brand-ink)',
+                color: mainTab === 'book' ? 'var(--brand-ink)' : 'var(--brand-bg)',
+                border: `1px solid ${mainTab === 'book' ? 'var(--brand-border)' : 'var(--brand-ink)'}`,
                 fontSize: 12, fontWeight: 700,
                 fontFamily: 'inherit', cursor: 'pointer',
               }}
             >
-              Book
+              {mainTab === 'book' ? 'Itinerary' : 'Book'}
             </button>
           </div>
         </div>
@@ -858,7 +876,12 @@ function SummaryContent() {
             ))}
           </div>
 
-          {/* ── Weather unit toggle ───────────────────────────────────────── */}
+          {/* Legacy weather toggle + privacy/invite row hidden during the
+              design pass. The top-bar Share button now covers invite, and
+              weather defaults to the user's locale unit (US-timezone clients
+              get °F via the existing useEffect, others stay on °C). */}
+          {false && (
+          <>
           <div style={{ display: 'flex', gap: 4, marginBottom: 12 }}>
             {(['C', 'F'] as const).map(u => (
               <button key={u} onClick={() => setWeatherUnit(u)} style={{
@@ -871,7 +894,6 @@ function SummaryContent() {
             ))}
           </div>
 
-          {/* ── Share / Invite / Privacy row ─────────────────────────────── */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 16 }}>
 
             {/* Privacy selector */}
@@ -945,9 +967,12 @@ function SummaryContent() {
               )}
             </div>
           </div>
+          </>
+          )}
         </div>
 
-        {/* ── Main tab switcher ─────────────────────────────────────────────── */}
+        {/* ── Main tab switcher (legacy — hidden during the design pass) ─── */}
+        {false && (
         <div style={{
           display: 'flex', alignItems: isMobile ? 'flex-start' : 'center',
           flexDirection: isMobile ? 'column' : 'row',
@@ -993,8 +1018,8 @@ function SummaryContent() {
                 color: 'rgba(245,158,11,0.7)', fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap',
               }}>
                 {String.fromCodePoint(0x23F1)} Last optimized{' '}
-                {lastOptimized.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}{' '}
-                at {lastOptimized.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
+                {lastOptimized!.toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}{' '}
+                at {lastOptimized!.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}
               </span>
             )}
             {bookmarks.length > 0 && (
@@ -1031,6 +1056,7 @@ function SummaryContent() {
             )}
           </div>}
         </div>
+        )}
 
         {/* ── Planning tab ──────────────────────────────────────────────────── */}
         {mainTab === 'planning' && (() => {
@@ -1187,23 +1213,36 @@ function SummaryContent() {
             justifyContent: 'center', gap: 16, padding: '60px 32px',
             textAlign: 'center',
           }}>
-            <div style={{ fontSize: 48 }}>{String.fromCodePoint(0x1F5FA)}</div>
-            <p style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#e2e8f0' }}>
-              Start in the Planning tab
+            <div style={{
+              fontFamily: 'var(--font-mono-display), ui-monospace, monospace',
+              fontSize: 10, letterSpacing: '0.22em',
+              color: 'var(--brand-accent-2)', fontWeight: 600,
+            }}>
+              {String.fromCodePoint(0x00A7)} NO ITINERARY YET
+            </div>
+            <p style={{
+              margin: 0, fontFamily: 'var(--font-display), Georgia, serif',
+              fontSize: 28, fontWeight: 400, letterSpacing: '-0.02em',
+              color: 'var(--brand-ink)',
+            }}>
+              Drop pins, then <em style={{ fontStyle: 'italic', color: 'var(--brand-accent)' }}>build it.</em>
             </p>
-            <p style={{ margin: 0, fontSize: 13, color: 'rgba(255,255,255,0.45)', maxWidth: 340, lineHeight: 1.6 }}>
-              Pin the places you want to visit, then hit <strong style={{ color: '#38bdf8' }}>Generate Itinerary</strong> to build a day-by-day plan around your selections and travel personality.
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--brand-ink-dim)', maxWidth: 380, lineHeight: 1.6 }}>
+              Mark the places you want to visit on the map, then we&apos;ll arrange them into a day-by-day plan.
             </p>
-            <button
-              onClick={() => setMainTab('planning')}
+            <Link
+              href={savedTripId ? `/plan/${encodeURIComponent(savedTripId)}/map` : '/plan'}
               style={{
                 padding: '11px 28px', borderRadius: 12, fontSize: 13, fontWeight: 700,
-                background: 'rgba(56,189,248,0.12)', border: '1.5px solid rgba(56,189,248,0.35)',
-                color: '#38bdf8', cursor: 'pointer',
+                background: 'var(--brand-accent)', color: 'var(--brand-bg)',
+                border: 'none', cursor: 'pointer', textDecoration: 'none',
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                fontFamily: 'inherit',
+                boxShadow: '0 4px 14px rgba(167,139,250,0.35)',
               }}
             >
-              {String.fromCodePoint(0x1F4CD)} Go to Planning
-            </button>
+              {String.fromCodePoint(0x2315)} Open the map
+            </Link>
           </div>
         )}
 
