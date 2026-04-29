@@ -10,7 +10,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { resetGlobeTilt } from "@/lib/globeAnim";
 import {
@@ -123,6 +123,21 @@ export default function AtlasShell() {
     });
   }, []);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Prefill destination from ?location= so deep-links from globe-landmark
+  // clicks, GlobalChat city extraction, etc., land the user on step 1
+  // (Dates) with the destination already populated. Only fires once per
+  // mount; the user can still edit the destination via the Back button.
+  useEffect(() => {
+    const queryLoc = searchParams?.get('location');
+    if (!queryLoc) return;
+    setDest(queryLoc);
+    setTrip(t => ({ ...t, destination: queryLoc }));
+    setStep(1);
+    setSheet('open');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const { data: session } = useSession();
   const [shopOpen,     setShopOpen]     = useState(false);
   const [upgradeOpen,  setUpgradeOpen]  = useState(false);

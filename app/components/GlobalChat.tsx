@@ -118,7 +118,7 @@ function GlobalChatUI({ ctx }: { ctx: ReturnType<typeof usePageContext> }) {
     const handler = (e: Event) => {
       const loc = (e as CustomEvent<{ location: string }>).detail.location;
       if (loc) {
-        router.push(`/plan/style?location=${encodeURIComponent(loc)}`);
+        router.push(`/plan?location=${encodeURIComponent(loc)}`);
       } else {
         setOpen(true);
         setDestError('');
@@ -149,7 +149,7 @@ function GlobalChatUI({ ctx }: { ctx: ReturnType<typeof usePageContext> }) {
       flyToGlobe(lat, lon, () => {
         // Phase 2: zoom camera in close enough to show city labels
         zoomCamera(13, () => {
-          router.push(`/plan/style?location=${encodeURIComponent(city)}`);
+          router.push(`/plan?location=${encodeURIComponent(city)}`);
         });
       });
     } catch {

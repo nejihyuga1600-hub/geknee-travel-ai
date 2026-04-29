@@ -518,7 +518,7 @@ function GeoInfoLabel({ name, pos, orientation, fontSize, kind, lat: latProp, lo
                       Open map
                     </button>
                     <a
-                      href={`/plan/style?location=${encodeURIComponent(name)}`}
+                      href={`/plan?location=${encodeURIComponent(name)}`}
                       style={{
                         display: "block",
                         padding: "8px 0", borderRadius: 10,
@@ -1737,7 +1737,7 @@ function CityLabel({ n, lat, lon, pos, orientation, fontSize }: {
                       Open map
                     </button>
                     <a
-                      href={`/plan/style?location=${encodeURIComponent(n)}`}
+                      href={`/plan?location=${encodeURIComponent(n)}`}
                       style={{
                         display: "block",
                         padding: "8px 0", borderRadius: 10,
@@ -2448,7 +2448,7 @@ export default function LocationPage({ chromeless = false }: { chromeless?: bool
       window.dispatchEvent(new CustomEvent('geknee:globeselect', { detail: { location: loc } }));
     });
     _setLmNavDirect((loc: string) => {
-      router.push(`/plan/style?location=${encodeURIComponent(loc)}`);
+      router.push(`/plan?location=${encodeURIComponent(loc)}`);
     });
     _setGlobeClick(() => {
       window.dispatchEvent(new CustomEvent('geknee:globeselect', { detail: { location: '' } }));
