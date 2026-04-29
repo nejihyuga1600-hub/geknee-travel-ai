@@ -332,6 +332,52 @@ export default function PlanMapPage() {
             </div>
           )}
         </div>
+
+        {/* Ready-to-plan card — sticky bottom CTA per the design handoff. */}
+        {pins.length > 0 && (
+          <div style={{
+            position: 'sticky', bottom: 0,
+            marginTop: 24, marginInline: -20, padding: '16px 20px',
+            background: 'linear-gradient(180deg, rgba(13,13,36,0), rgba(13,13,36,0.95) 30%)',
+            backdropFilter: 'blur(12px)',
+            borderTop: '1px solid var(--brand-border)',
+          }}>
+            <div style={{
+              padding: 16, borderRadius: 14,
+              background: 'rgba(167,139,250,0.10)',
+              border: '1px solid var(--brand-border-hi)',
+            }}>
+              <div style={{
+                fontFamily: DISPLAY, fontSize: 15, fontWeight: 400,
+                color: 'var(--brand-ink)', marginBottom: 6,
+              }}>
+                Ready to plan?
+              </div>
+              <div style={{
+                fontSize: 12, color: 'var(--brand-ink-dim)',
+                lineHeight: 1.5, marginBottom: 12,
+              }}>
+                We&apos;ll order your {pins.length} stop{pins.length === 1 ? '' : 's'} into a daily route, with timing and walking distance.
+              </div>
+              <button
+                onClick={generateItinerary}
+                style={{
+                  width: '100%',
+                  padding: '10px 14px', borderRadius: 10,
+                  background: 'var(--brand-accent)',
+                  color: 'var(--brand-bg)',
+                  border: 'none',
+                  fontSize: 13, fontWeight: 700,
+                  fontFamily: 'inherit',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 14px rgba(167,139,250,0.35)',
+                }}
+              >
+                + Generate itinerary
+              </button>
+            </div>
+          </div>
+        )}
       </aside>
     </div>
   );

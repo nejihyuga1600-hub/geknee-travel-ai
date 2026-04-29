@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import {
   Suspense, useCallback, useEffect, useMemo, useRef, useState,
   type ReactNode,
@@ -747,28 +748,61 @@ function SummaryContent() {
 
       <div style={{ position: 'relative', zIndex: 1, maxWidth: 1720, margin: '0 auto', padding: isMobile ? '16px 14px 120px' : '36px 40px 140px' }}>
 
-        {/* Top nav */}
-        <div style={{ display: 'flex', alignItems: 'center', marginBottom: 20 }}>
-          <button
-            onClick={() => router.push('/')}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 10,
-              background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-              borderRadius: 12, padding: '8px 16px', cursor: 'pointer',
-              color: '#fff', textDecoration: 'none',
-            }}
-          >
-            {/* Temporary GeKnee wordmark — replace src with real logo later */}
-            <div style={{
-              width: 28, height: 28, borderRadius: 8,
-              background: 'linear-gradient(135deg,#6366f1,#38bdf8)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 14, fontWeight: 900, color: '#fff', letterSpacing: -1,
+        {/* Top nav — design handoff: ← Plan left, trip · N days center label,
+            Share / Book on the right. */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          marginBottom: 24, gap: 12,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
+            <Link href="/plan" style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6,
+              color: 'var(--brand-accent)', fontSize: 13, textDecoration: 'none',
+              fontFamily: 'var(--font-ui), system-ui, sans-serif',
             }}>
-              G
-            </div>
-            <span style={{ fontSize: 15, fontWeight: 700, letterSpacing: -0.3 }}>GeKnee</span>
-          </button>
+              {String.fromCodePoint(0x2190)} Plan
+            </Link>
+            <span style={{
+              fontFamily: 'var(--font-display), Georgia, serif',
+              fontSize: 16, color: 'var(--brand-ink)',
+              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+            }}>
+              {location || 'Trip'}{nights ? ` · ${nights} day${nights === '1' ? '' : 's'}` : ''}
+            </span>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+            <button
+              onClick={async () => {
+                if (typeof navigator !== 'undefined' && navigator.share) {
+                  try { await navigator.share({ title: `Trip to ${location}`, url: window.location.href }); } catch { /* dismissed */ }
+                } else {
+                  try { await navigator.clipboard.writeText(window.location.href); } catch {}
+                }
+              }}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '7px 14px', borderRadius: 10,
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid var(--brand-border)',
+                color: 'var(--brand-ink)', fontSize: 12, fontWeight: 600,
+                fontFamily: 'inherit', cursor: 'pointer',
+              }}
+            >
+              {String.fromCodePoint(0x2197)} Share
+            </button>
+            <button
+              onClick={() => setMainTab('book')}
+              style={{
+                padding: '7px 14px', borderRadius: 10,
+                background: 'var(--brand-ink)', color: 'var(--brand-bg)',
+                border: '1px solid var(--brand-ink)',
+                fontSize: 12, fontWeight: 700,
+                fontFamily: 'inherit', cursor: 'pointer',
+              }}
+            >
+              Book
+            </button>
+          </div>
         </div>
 
         {/* Trip header \u2014 design-handoff masthead: mono section label, giant
