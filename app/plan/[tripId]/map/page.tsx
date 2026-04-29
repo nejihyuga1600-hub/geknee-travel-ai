@@ -1,19 +1,18 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
+import { loadGoogleMaps } from '@/lib/googleMapsLoader';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 
-// ─── E1 · Plan map · Mapbox 2D drop-pin UX ──────────────────────────────────
-// Place-marking step that runs alongside the AI-first Atlas flow. Users drop
-// pins on a real Mapbox map for places they want to hit, group them by
-// category, then hand the list to the itinerary generator.
+// ─── E1 · Plan map · Google Maps drop-pin UX ────────────────────────────────
+// Dark-navy Google Maps. Click anywhere to drop a pin in the active category.
+// On pin select we use Places Service to fetch a photo + rating + review
+// snippet, surfaced in a floating info card. Type-ahead in the top search
+// bar uses Places Autocomplete and drops the selected place as a pin.
 //
-// v0 persists pins to localStorage keyed by tripId. A db-backed
-// `/api/trips/[id]/places` route is a clean follow-up once the shape stays
-// put for a while.
+// Pins persist to localStorage keyed by tripId; a /api/trips/[id]/places db
+// backing is a clean follow-up.
 
 const MONO = 'var(--font-mono-display), ui-monospace, monospace';
 const DISPLAY = 'var(--font-display), Georgia, serif';
@@ -31,18 +30,46 @@ const CATEGORY_LABEL: Record<Category, string> = {
   food: 'Food', activities: 'Activities', hotels: 'Hotels', shopping: 'Shopping', monument: 'Monument',
 };
 
+interface PlaceDetails {
+  photo?: string;
+  rating?: number;
+  reviews?: number;
+  reviewSnippet?: string;
+  address?: string;
+}
+
 interface Pin {
   id: string;
   category: Category;
   label: string;
   lat: number;
   lon: number;
-  note?: string;
+  place?: PlaceDetails;
 }
 
 interface TripData { id: string; location: string | null }
 
 const STORAGE = (tripId: string) => `geknee_plan_pins_${tripId}`;
+
+// Dark-navy Google Maps style — matches the design handoff (#0d1525 land,
+// #1a1f3a districts, #1e3a5f water).
+const DARK_STYLE: google.maps.MapTypeStyle[] = [
+  { elementType: 'geometry',           stylers: [{ color: '#0d1525' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#0d1525' }] },
+  { elementType: 'labels.text.fill',   stylers: [{ color: '#6d7aa8' }] },
+  { featureType: 'administrative',     elementType: 'geometry',           stylers: [{ color: '#1a1f3a' }] },
+  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#a78bfa' }] },
+  { featureType: 'poi',                elementType: 'geometry',           stylers: [{ color: '#191e35' }] },
+  { featureType: 'poi',                elementType: 'labels.text.fill',   stylers: [{ color: '#7d8aa8' }] },
+  { featureType: 'poi.park',           elementType: 'geometry',           stylers: [{ color: '#1f3d2c' }] },
+  { featureType: 'poi.park',           elementType: 'labels.text.fill',   stylers: [{ color: '#5fa676' }] },
+  { featureType: 'road',               elementType: 'geometry',           stylers: [{ color: '#2a3050' }] },
+  { featureType: 'road.arterial',      elementType: 'geometry',           stylers: [{ color: '#3d4570' }] },
+  { featureType: 'road.highway',       elementType: 'geometry',           stylers: [{ color: '#3d4570' }] },
+  { featureType: 'transit',            elementType: 'geometry',           stylers: [{ color: '#2a3050' }] },
+  { featureType: 'water',              elementType: 'geometry',           stylers: [{ color: '#1e3a5f' }] },
+  { featureType: 'water',              elementType: 'labels.text.fill',   stylers: [{ color: '#5b8fb8' }] },
+];
 
 export default function PlanMapPage() {
   const params = useParams<{ tripId: string }>();
@@ -54,7 +81,6 @@ export default function PlanMapPage() {
   const [activeCategory, setActiveCategory] = useState<Category>('activities');
   const [selectedPinId, setSelectedPinId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [searchBusy, setSearchBusy] = useState(false);
 
   // Load trip + restore pins
   useEffect(() => {
@@ -76,16 +102,17 @@ export default function PlanMapPage() {
     try { localStorage.setItem(STORAGE(tripId), JSON.stringify(pins)); } catch { /* ignore */ }
   }, [tripId, pins]);
 
-  const addPin = (lat: number, lon: number, label?: string) => {
+  const addPin = (lat: number, lon: number, label?: string, place?: PlaceDetails) => {
     const id = `pin-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
-    const next: Pin = {
+    setPins(p => [...p, {
       id,
       category: activeCategory,
-      label: label || `Pin ${pins.length + 1}`,
+      label: label || `Pin ${p.length + 1}`,
       lat, lon,
-    };
-    setPins(p => [...p, next]);
+      place,
+    }]);
     setSelectedPinId(id);
+    return id;
   };
   const removePin = (id: string) => {
     setPins(p => p.filter(x => x.id !== id));
@@ -97,27 +124,8 @@ export default function PlanMapPage() {
   const recategorise = (id: string, category: Category) => {
     setPins(p => p.map(x => x.id === id ? { ...x, category } : x));
   };
-
-  // Mapbox geocoding for the top-center search. Falls back gracefully if no
-  // token is set; result drops a pin at the matched coords.
-  const handleSearch = async () => {
-    const q = searchQuery.trim();
-    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-    if (!q || !token) return;
-    setSearchBusy(true);
-    try {
-      const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(q)}.json?access_token=${token}&limit=1`;
-      const res = await fetch(url);
-      const data = await res.json() as { features?: Array<{ center: [number, number]; place_name: string }> };
-      const f = data.features?.[0];
-      if (f) {
-        const [lon, lat] = f.center;
-        addPin(lat, lon, q);
-        setSearchQuery('');
-      }
-    } finally {
-      setSearchBusy(false);
-    }
+  const updatePinPlace = (id: string, place: PlaceDetails) => {
+    setPins(p => p.map(x => x.id === id ? { ...x, place: { ...x.place, ...place } } : x));
   };
 
   const grouped = useMemo(() => {
@@ -127,16 +135,14 @@ export default function PlanMapPage() {
   }, [pins]);
 
   const generateItinerary = () => {
-    // Ship pins along to the summary as a stops query param; the existing
-    // flow already accepts `stops` JSON for multi-city. Same shape gives us
-    // place-of-interest passthrough for free.
     const stops = pins.map(p => ({ city: p.label, lat: p.lat, lon: p.lon, category: p.category }));
     const q = new URLSearchParams({ savedTripId: tripId, stops: JSON.stringify(stops) });
     if (trip?.location) q.set('location', trip.location);
     router.push(`/plan/summary?${q.toString()}`);
   };
 
-  const tokenMissing = !process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+  const tokenMissing = !process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const selectedPin = pins.find(p => p.id === selectedPinId) ?? null;
 
   return (
     <div style={{
@@ -190,39 +196,38 @@ export default function PlanMapPage() {
           </button>
         </div>
 
-        {/* Search input */}
+        {/* Search input — wired to Google Places Autocomplete via PlanMap */}
         <div style={{
           position: 'absolute', top: 80, left: '50%', transform: 'translateX(-50%)',
           zIndex: 18, width: 'min(440px, calc(100% - 32px))',
         }}>
-          <form onSubmit={e => { e.preventDefault(); handleSearch(); }}>
-            <div style={{
-              display: 'flex', alignItems: 'center',
-              background: 'rgba(13,13,36,0.92)', backdropFilter: 'blur(16px)',
-              border: '1px solid var(--brand-border)', borderRadius: 12,
-              padding: '0 12px',
-            }}>
-              <span style={{ color: 'var(--brand-ink-mute)', fontSize: 14, marginRight: 8 }}>
-                {String.fromCodePoint(0x2315)}
-              </span>
-              <input
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                placeholder="Search a place to add to your trip"
-                style={{
-                  flex: 1, padding: '10px 0',
-                  background: 'transparent', border: 'none',
-                  color: 'var(--brand-ink)', fontFamily: 'inherit', fontSize: 14,
-                  outline: 'none',
-                }}
-              />
-              <span style={{
-                fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em',
-                color: 'var(--brand-ink-mute)',
-                padding: '3px 8px', border: '1px solid var(--brand-border)', borderRadius: 6,
-              }}>{searchBusy ? '…' : 'ENTER'}</span>
-            </div>
-          </form>
+          <div style={{
+            display: 'flex', alignItems: 'center',
+            background: 'rgba(13,13,36,0.92)', backdropFilter: 'blur(16px)',
+            border: '1px solid var(--brand-border)', borderRadius: 12,
+            padding: '0 12px',
+          }}>
+            <span style={{ color: 'var(--brand-ink-mute)', fontSize: 14, marginRight: 8 }}>
+              {String.fromCodePoint(0x2315)}
+            </span>
+            <input
+              id="plan-map-search"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="Search a place to add to your trip"
+              style={{
+                flex: 1, padding: '10px 0',
+                background: 'transparent', border: 'none',
+                color: 'var(--brand-ink)', fontFamily: 'inherit', fontSize: 14,
+                outline: 'none',
+              }}
+            />
+            <span style={{
+              fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em',
+              color: 'var(--brand-ink-mute)',
+              padding: '3px 8px', border: '1px solid var(--brand-border)', borderRadius: 6,
+            }}>ENTER</span>
+          </div>
         </div>
 
         {/* Category filter */}
@@ -258,7 +263,17 @@ export default function PlanMapPage() {
           selectedPinId={selectedPinId}
           onAddPin={addPin}
           onSelectPin={setSelectedPinId}
+          onUpdatePinPlace={updatePinPlace}
         />
+
+        {/* Selected-pin info card — Google Places photo + rating + review */}
+        {selectedPin && (
+          <PinInfoCard
+            pin={selectedPin}
+            onClose={() => setSelectedPinId(null)}
+            onRename={(label) => renamePin(selectedPin.id, label)}
+          />
+        )}
 
         {tokenMissing && (
           <div style={{
@@ -267,7 +282,7 @@ export default function PlanMapPage() {
             color: 'var(--brand-ink-mute)', fontSize: 12,
             background: 'var(--brand-bg2)',
           }}>
-            NEXT_PUBLIC_MAPBOX_TOKEN not set — map preview disabled.
+            NEXT_PUBLIC_GOOGLE_MAPS_API_KEY not set — map preview disabled.
           </div>
         )}
       </div>
@@ -293,7 +308,7 @@ export default function PlanMapPage() {
           Drop, label, <em style={{ fontStyle: 'italic', color: 'var(--brand-accent)' }}>generate.</em>
         </h2>
         <p style={{ fontSize: 12, color: 'var(--brand-ink-dim)', marginTop: 0, lineHeight: 1.5 }}>
-          Click the map to drop a pin in the active category. Use search above to add by name.
+          Click the map to drop a pin in the active category. Search above to add by name. Click any pin to see Google place details.
         </p>
 
         <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -333,7 +348,6 @@ export default function PlanMapPage() {
           )}
         </div>
 
-        {/* Ready-to-plan card — sticky bottom CTA per the design handoff. */}
         {pins.length > 0 && (
           <div style={{
             position: 'sticky', bottom: 0,
@@ -387,66 +401,122 @@ export default function PlanMapPage() {
 
 function PlanMap({
   location, pins, activeCategory, selectedPinId,
-  onAddPin, onSelectPin,
+  onAddPin, onSelectPin, onUpdatePinPlace,
 }: {
   location: string | null;
   pins: Pin[];
   activeCategory: Category;
   selectedPinId: string | null;
-  onAddPin: (lat: number, lon: number) => void;
+  onAddPin: (lat: number, lon: number, label?: string, place?: PlaceDetails) => string;
   onSelectPin: (id: string | null) => void;
+  onUpdatePinPlace: (id: string, place: PlaceDetails) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
-  const markerMap = useRef<Map<string, mapboxgl.Marker>>(new Map());
+  const mapRef = useRef<google.maps.Map | null>(null);
+  const placesRef = useRef<google.maps.places.PlacesService | null>(null);
+  const markerMap = useRef<Map<string, google.maps.Marker>>(new Map());
   const onAddPinRef = useRef(onAddPin);
   onAddPinRef.current = onAddPin;
   const onSelectPinRef = useRef(onSelectPin);
   onSelectPinRef.current = onSelectPin;
+  const onUpdatePinPlaceRef = useRef(onUpdatePinPlace);
+  onUpdatePinPlaceRef.current = onUpdatePinPlace;
   const activeCategoryRef = useRef(activeCategory);
   activeCategoryRef.current = activeCategory;
 
   // Mount once
   useEffect(() => {
-    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-    if (!token || !containerRef.current) return;
-    mapboxgl.accessToken = token;
+    let cancelled = false;
+    loadGoogleMaps().then(() => {
+      if (cancelled || !containerRef.current) return;
+      const map = new google.maps.Map(containerRef.current, {
+        center: { lat: 35.0116, lng: 135.7681 }, // Kyoto until geocode resolves
+        zoom: 12,
+        styles: DARK_STYLE,
+        disableDefaultUI: true,
+        zoomControl: true,
+        zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM },
+      });
+      mapRef.current = map;
+      placesRef.current = new google.maps.places.PlacesService(map);
 
-    const map = new mapboxgl.Map({
-      container: containerRef.current,
-      style: 'mapbox://styles/mapbox/dark-v11',
-      center: [135.768, 35.0116],
-      zoom: 12,
-      attributionControl: false,
-    });
-    mapRef.current = map;
+      // Click → drop pin. Use nearby PlacesService to look up the closest
+      // place; if a match is found, attach photo/rating/review snippet.
+      map.addListener('click', (e: google.maps.MapMouseEvent) => {
+        const lat = e.latLng?.lat();
+        const lng = e.latLng?.lng();
+        if (lat === undefined || lng === undefined) return;
+        const id = onAddPinRef.current(lat, lng);
+        // Defer the place lookup so the pin shows up immediately.
+        if (placesRef.current) {
+          placesRef.current.nearbySearch(
+            { location: { lat, lng }, radius: 60 },
+            (results, status) => {
+              if (status !== google.maps.places.PlacesServiceStatus.OK) return;
+              const top = results?.[0];
+              if (!top?.place_id) return;
+              hydratePinFromPlace(id, top.place_id);
+            }
+          );
+        }
+      });
 
-    map.on('click', (e) => {
-      onAddPinRef.current(e.lngLat.lat, e.lngLat.lng);
-    });
+      // Wire up Places Autocomplete on the search input.
+      const input = document.getElementById('plan-map-search') as HTMLInputElement | null;
+      if (input) {
+        const ac = new google.maps.places.Autocomplete(input, {
+          fields: ['name', 'geometry', 'place_id', 'photos', 'rating', 'user_ratings_total', 'formatted_address', 'reviews'],
+        });
+        ac.bindTo('bounds', map);
+        ac.addListener('place_changed', () => {
+          const place = ac.getPlace();
+          if (!place.geometry?.location) return;
+          const lat = place.geometry.location.lat();
+          const lng = place.geometry.location.lng();
+          onAddPinRef.current(lat, lng, place.name, placeToDetails(place));
+          map.panTo({ lat, lng });
+          if (input) input.value = '';
+        });
+      }
+    }).catch(() => { /* ignore — no key */ });
 
     return () => {
-      markerMap.current.forEach(m => m.remove());
+      cancelled = true;
+      markerMap.current.forEach(m => m.setMap(null));
       markerMap.current.clear();
-      map.remove();
       mapRef.current = null;
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  function hydratePinFromPlace(pinId: string, placeId: string) {
+    if (!placesRef.current) return;
+    placesRef.current.getDetails(
+      {
+        placeId,
+        fields: ['name', 'photos', 'rating', 'user_ratings_total', 'formatted_address', 'reviews'],
+      },
+      (res, status) => {
+        if (status !== google.maps.places.PlacesServiceStatus.OK || !res) return;
+        const details = placeToDetails(res);
+        if (details) onUpdatePinPlaceRef.current(pinId, details);
+      }
+    );
+  }
+
   // Recenter when location resolves
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !location) return;
-    const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
-    if (!token) return;
-    fetch(`https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(location)}.json?access_token=${token}&limit=1`)
-      .then(r => r.json())
-      .then(d => {
-        const f = d?.features?.[0];
-        if (f?.center) map.flyTo({ center: f.center as [number, number], zoom: 12, duration: 1500 });
-      })
-      .catch(() => { /* ignore */ });
+    loadGoogleMaps().then(() => {
+      const geocoder = new google.maps.Geocoder();
+      geocoder.geocode({ address: location }, (results, status) => {
+        if (status === 'OK' && results?.[0]?.geometry?.location) {
+          map.panTo(results[0].geometry.location);
+          map.setZoom(13);
+        }
+      });
+    });
   }, [location]);
 
   // Sync markers with pins state
@@ -457,26 +527,27 @@ function PlanMap({
     pins.forEach((p, i) => {
       seen.add(p.id);
       const existing = markerMap.current.get(p.id);
+      const icon = pinSvgIcon(i + 1, p.category, p.id === selectedPinId);
       if (existing) {
-        existing.setLngLat([p.lon, p.lat]);
-        const el = existing.getElement();
-        // Refresh visual state (color, selected ring)
-        styleMarkerEl(el, p, i + 1, p.id === selectedPinId);
+        existing.setPosition({ lat: p.lat, lng: p.lon });
+        existing.setIcon(icon);
+        existing.setZIndex(p.id === selectedPinId ? 1000 : 100);
       } else {
-        const el = document.createElement('button');
-        styleMarkerEl(el, p, i + 1, p.id === selectedPinId);
-        el.addEventListener('click', (ev) => {
-          ev.stopPropagation();
+        const marker = new google.maps.Marker({
+          position: { lat: p.lat, lng: p.lon },
+          map,
+          icon,
+          zIndex: p.id === selectedPinId ? 1000 : 100,
+        });
+        marker.addListener('click', () => {
           onSelectPinRef.current(p.id);
         });
-        const marker = new mapboxgl.Marker({ element: el }).setLngLat([p.lon, p.lat]).addTo(map);
         markerMap.current.set(p.id, marker);
       }
     });
-    // Remove stale markers
     Array.from(markerMap.current.entries()).forEach(([id, marker]) => {
       if (!seen.has(id)) {
-        marker.remove();
+        marker.setMap(null);
         markerMap.current.delete(id);
       }
     });
@@ -485,22 +556,175 @@ function PlanMap({
   return <div ref={containerRef} style={{ width: '100%', height: '100svh', background: '#0d1525' }} />;
 }
 
-function styleMarkerEl(el: HTMLElement, pin: Pin, num: number, selected: boolean) {
-  const color = CATEGORY_COLOR[pin.category];
-  el.style.cssText = `
-    cursor: pointer;
-    width: 28px; height: 28px; border-radius: 50%;
-    background: ${color};
-    color: #0a0a1f;
-    font-family: var(--font-mono-display), ui-monospace, monospace;
-    font-size: 11px; font-weight: 800; letter-spacing: 0.04em;
-    display: flex; align-items: center; justify-content: center;
-    border: 2px solid #0a0a1f;
-    box-shadow: ${selected ? `0 0 0 4px rgba(167,139,250,0.45), 0 4px 14px rgba(167,139,250,0.5)` : '0 2px 8px rgba(0,0,0,0.6)'};
-    transform: ${selected ? 'scale(1.1)' : 'scale(1)'};
-    transition: transform 200ms var(--ease-out, cubic-bezier(0.23,1,0.32,1)), box-shadow 200ms;
-  `;
-  el.textContent = String(num);
+function pinSvgIcon(num: number, category: Category, selected: boolean): google.maps.Icon {
+  const color = CATEGORY_COLOR[category];
+  const ring = selected ? '#a78bfa' : '#0a0a1f';
+  const size = selected ? 36 : 28;
+  const r = size / 2;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
+    <circle cx="${r}" cy="${r}" r="${r - 2}" fill="${color}" stroke="${ring}" stroke-width="2.5"/>
+    <text x="${r}" y="${r + Math.round(size * 0.16)}" text-anchor="middle"
+          font-family="ui-monospace,monospace" font-size="${Math.round(size * 0.42)}" font-weight="800"
+          fill="#0a0a1f">${num}</text>
+  </svg>`;
+  return {
+    url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+    scaledSize: new google.maps.Size(size, size),
+    anchor: new google.maps.Point(r, r),
+  };
+}
+
+function placeToDetails(p: google.maps.places.PlaceResult): PlaceDetails | undefined {
+  const photo = p.photos?.[0]?.getUrl({ maxWidth: 600, maxHeight: 400 });
+  const review = p.reviews?.[0]?.text;
+  return {
+    photo: photo,
+    rating: p.rating,
+    reviews: p.user_ratings_total,
+    reviewSnippet: review ? review.slice(0, 180) + (review.length > 180 ? '…' : '') : undefined,
+    address: p.formatted_address,
+  };
+}
+
+// ─── Selected-pin info card ─────────────────────────────────────────────────
+
+function PinInfoCard({ pin, onClose, onRename }: {
+  pin: Pin;
+  onClose: () => void;
+  onRename: (label: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(pin.label);
+  useEffect(() => { setDraft(pin.label); }, [pin.label]);
+
+  const commit = () => {
+    const t = draft.trim();
+    if (t && t !== pin.label) onRename(t);
+    setEditing(false);
+  };
+
+  return (
+    <div style={{
+      position: 'absolute', left: 24, bottom: 24, zIndex: 25,
+      width: 'min(360px, calc(100% - 48px))',
+      background: 'rgba(13,13,36,0.95)',
+      backdropFilter: 'blur(16px)',
+      border: '1px solid var(--brand-border-hi)',
+      borderRadius: 14, overflow: 'hidden',
+      boxShadow: '0 16px 40px rgba(0,0,0,0.55)',
+    }}>
+      {pin.place?.photo ? (
+        <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9' }}>
+          <img src={pin.place.photo} alt={pin.label}
+            style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+          <button onClick={onClose} style={{
+            position: 'absolute', top: 10, right: 10,
+            width: 28, height: 28, borderRadius: '50%',
+            background: 'rgba(10,10,31,0.7)',
+            border: '1px solid var(--brand-border)',
+            color: 'var(--brand-ink)', cursor: 'pointer',
+            fontSize: 14, lineHeight: 1,
+          }}>{String.fromCodePoint(0x00D7)}</button>
+        </div>
+      ) : (
+        <div style={{
+          padding: '10px 14px', display: 'flex', justifyContent: 'flex-end',
+          borderBottom: '1px solid var(--brand-border)',
+        }}>
+          <button onClick={onClose} style={{
+            width: 24, height: 24, borderRadius: '50%',
+            background: 'transparent',
+            border: '1px solid var(--brand-border)',
+            color: 'var(--brand-ink-mute)', cursor: 'pointer',
+            fontSize: 14, lineHeight: 1,
+          }}>{String.fromCodePoint(0x00D7)}</button>
+        </div>
+      )}
+
+      <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: 6,
+          fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', fontWeight: 700,
+          color: CATEGORY_COLOR[pin.category],
+        }}>
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: CATEGORY_COLOR[pin.category] }} />
+          {CATEGORY_LABEL[pin.category].toUpperCase()}
+        </div>
+        {editing ? (
+          <input
+            autoFocus value={draft} onChange={e => setDraft(e.target.value)}
+            onBlur={commit}
+            onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setDraft(pin.label); setEditing(false); } }}
+            style={{
+              fontFamily: DISPLAY, fontSize: 22, fontWeight: 400,
+              letterSpacing: '-0.01em', color: 'var(--brand-ink)',
+              background: 'transparent',
+              border: 'none', borderBottom: '1px solid var(--brand-border)',
+              outline: 'none', padding: '2px 0',
+            }}
+          />
+        ) : (
+          <div
+            onClick={() => setEditing(true)}
+            style={{
+              fontFamily: DISPLAY, fontSize: 22, fontWeight: 400,
+              letterSpacing: '-0.01em', color: 'var(--brand-ink)',
+              cursor: 'text',
+            }}
+          >
+            {pin.label}
+          </div>
+        )}
+
+        {pin.place?.rating !== undefined && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Stars value={Math.round(pin.place.rating)} />
+            <span style={{ fontSize: 12, color: 'var(--brand-ink-dim)' }}>
+              {pin.place.rating.toFixed(1)}
+              {pin.place.reviews ? ` · ${pin.place.reviews.toLocaleString()} reviews` : ''}
+            </span>
+          </div>
+        )}
+
+        {pin.place?.address && (
+          <div style={{ fontSize: 12, color: 'var(--brand-ink-mute)', lineHeight: 1.5 }}>
+            {pin.place.address}
+          </div>
+        )}
+
+        {pin.place?.reviewSnippet && (
+          <blockquote style={{
+            margin: '6px 0 0', padding: '10px 12px',
+            borderLeft: '2px solid var(--brand-accent)',
+            background: 'rgba(167,139,250,0.06)',
+            borderRadius: '0 8px 8px 0',
+            fontSize: 12, color: 'var(--brand-ink-dim)',
+            lineHeight: 1.55, fontStyle: 'italic',
+          }}>
+            &ldquo;{pin.place.reviewSnippet}&rdquo;
+          </blockquote>
+        )}
+
+        {!pin.place?.rating && !pin.place?.address && !pin.place?.reviewSnippet && (
+          <div style={{ fontSize: 12, color: 'var(--brand-ink-mute)', fontStyle: 'italic' }}>
+            No Google place match for this pin yet. Try the search bar to pin a named place instead of an empty patch of map.
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Stars({ value }: { value: number }) {
+  return (
+    <span style={{ display: 'inline-flex', gap: 2, color: 'var(--brand-gold)' }}>
+      {[1, 2, 3, 4, 5].map(n => (
+        <span key={n} style={{ fontSize: 13, opacity: n <= value ? 1 : 0.3 }}>
+          {String.fromCodePoint(0x2605)}
+        </span>
+      ))}
+    </span>
+  );
 }
 
 // ─── Sidebar pin row ────────────────────────────────────────────────────────
