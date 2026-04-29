@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import AtlasShell from "./AtlasShell";
 
 export const metadata: Metadata = {
@@ -11,5 +12,11 @@ export const metadata: Metadata = {
 };
 
 export default function AtlasPage() {
-  return <AtlasShell />;
+  // Suspense wraps AtlasShell because it calls useSearchParams() to read
+  // ?location= for deep-link prefill. Without this, Next.js prerender bails.
+  return (
+    <Suspense fallback={null}>
+      <AtlasShell />
+    </Suspense>
+  );
 }
