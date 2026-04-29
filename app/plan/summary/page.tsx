@@ -255,9 +255,10 @@ function SummaryContent() {
   }, [location, startDate, endDate, nights, travelStyle]);
 
   // ── Planning tab ──────────────────────────────────────────────────────────────
-  // Default to itinerary on the design pass — the legacy 'planning' tab
-  // (Google-Maps drop-pin search bar) has been superseded by /plan/[tripId]/map.
-  const [mainTab, setMainTab]         = useState<'itinerary' | 'planning' | 'book' | 'files'>('itinerary');
+  // Default to planning so users land on the map first and choose what to
+  // include before generating an itinerary. Itinerary tab populates after the
+  // planning tab's "Generate Itinerary" CTA fires.
+  const [mainTab, setMainTab]         = useState<'itinerary' | 'planning' | 'book' | 'files'>('planning');
   const [bookmarks, setBookmarks]     = useState<Bookmark[]>([]);
   const [optimizingItinerary, setOptimizingItinerary] = useState(false);
   const [lastOptimized, setLastOptimized] = useState<Date | null>(null);
