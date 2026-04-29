@@ -61,6 +61,16 @@ interface Bookmark {
   placeId?: string;
 }
 
+// Category palette used by the planning sidebar + map pin renderer.
+// Colors are hand-tuned to read on the dark planning canvas.
+const PLANNING_CATS: { key: BookmarkCategory; label: string; color: string }[] = [
+  { key: 'food',       label: 'Food',       color: '#f97316' },
+  { key: 'activities', label: 'Activities', color: '#a78bfa' },
+  { key: 'hotels',     label: 'Hotels',     color: '#60a5fa' },
+  { key: 'shopping',   label: 'Shopping',   color: '#fbbf24' },
+  { key: 'other',      label: 'Monument',   color: '#94a3b8' },
+];
+
 // ── parseLines ─────────────────────────────────────────────────────────────────
 // parseLines — moved to lib/itinerary-parse.ts
 
@@ -260,6 +270,7 @@ function SummaryContent() {
   // planning tab's "Generate Itinerary" CTA fires.
   const [mainTab, setMainTab]         = useState<'itinerary' | 'planning' | 'book' | 'files'>('planning');
   const [bookmarks, setBookmarks]     = useState<Bookmark[]>([]);
+  const [planningFilter, setPlanningFilter] = useState<'all' | BookmarkCategory>('all');
   const [optimizingItinerary, setOptimizingItinerary] = useState(false);
   const [lastOptimized, setLastOptimized] = useState<Date | null>(null);
   const mapControlRef = useRef<{ panTo: (coords: [number, number]) => void; openPlace: (placeId: string, coords: [number, number]) => void } | null>(null);
@@ -826,6 +837,29 @@ function SummaryContent() {
             >
               {mainTab === 'book' ? 'Itinerary' : 'Book'}
             </button>
+            {mainTab === 'planning' && (
+              <button
+                onClick={() => {
+                  setItineraryRequested(true);
+                  setStreaming(true);
+                  setLines([]);
+                  setSections([]);
+                  setError('');
+                  setMainTab('itinerary');
+                }}
+                style={{
+                  padding: '8px 16px', borderRadius: 10,
+                  background: 'linear-gradient(135deg, #a78bfa 0%, #818cf8 100%)',
+                  color: '#0a0f1e', border: 'none',
+                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  boxShadow: '0 4px 14px rgba(167,139,250,0.35)',
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                }}
+              >
+                Generate itinerary {String.fromCodePoint(0x2192)}
+              </button>
+            )}
           </div>
         </div>
 
@@ -1061,16 +1095,30 @@ function SummaryContent() {
 
         {/* ── Planning tab ──────────────────────────────────────────────────── */}
         {mainTab === 'planning' && (() => {
-          const CATS: { key: BookmarkCategory; label: string; icon: number; color: string }[] = [
-            { key: 'food',       label: 'Food & Drink',    icon: 0x1F374, color: '#f87171' },
-            { key: 'activities', label: 'Activities',      icon: 0x1F3AF, color: '#34d399' },
-            { key: 'hotels',     label: 'Hotels & Stays',  icon: 0x1F3E8, color: '#60a5fa' },
-            { key: 'shopping',   label: 'Shopping',        icon: 0x1F6CD, color: '#c084fc' },
-            { key: 'other',      label: 'Other',           icon: 0x1F4CD, color: '#94a3b8' },
-          ];
-          const grouped = CATS.map(c => ({ ...c, items: bookmarks.filter(b => b.category === c.key) })).filter(g => g.items.length > 0);
+          const filtered = planningFilter === 'all'
+            ? bookmarks
+            : bookmarks.filter(b => b.category === planningFilter);
+          const counts = PLANNING_CATS.map(c => ({
+            ...c,
+            count: bookmarks.filter(b => b.category === c.key).length,
+          })).filter(c => c.count > 0);
+          const handleGenerate = () => {
+            setItineraryRequested(true);
+            setStreaming(true);
+            setLines([]);
+            setSections([]);
+            setError('');
+            setMainTab('itinerary');
+          };
           return (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) 360px',
+              gap: 16,
+              alignItems: 'start',
+            }}>
+              {/* ── Map column ─────────────────────────────────────────────── */}
+              <div style={{ minWidth: 0 }}>
               <PlanningMapDynamic
                 bookmarks={bookmarks}
                 onAddBookmark={b => setBookmarks(prev => [...prev, b])}
@@ -1079,100 +1127,199 @@ function SummaryContent() {
                 extraStops={parsedStops.map(s => s.city)}
                 mapControlRef={mapControlRef}
               />
-              {grouped.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  <p style={{ margin: 0, fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                    Saved Destinations
-                  </p>
-                  {grouped.map(group => (
-                    <div key={group.key}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                        <span style={{ fontSize: 14 }}>{String.fromCodePoint(group.icon)}</span>
-                        <span style={{ fontSize: 12, fontWeight: 700, color: group.color, letterSpacing: '0.04em' }}>{group.label}</span>
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                        {group.items.map(bm => (
-                          <div key={bm.id} style={{
-                            display: 'flex', alignItems: 'center', gap: 8,
-                            background: 'rgba(255,255,255,0.04)', borderRadius: 8,
-                            padding: '8px 12px', border: '1px solid rgba(255,255,255,0.07)',
-                          }}>
-                            <span style={{ flex: 1, fontSize: 13, color: '#e2e8f0', fontWeight: 500, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{bm.name}</span>
-                            <button
-                              onClick={() => {
-                                if (bm.placeId) {
-                                  mapControlRef.current?.openPlace(bm.placeId, bm.coords);
-                                } else {
-                                  mapControlRef.current?.panTo(bm.coords);
-                                }
-                              }}
-                              style={{
-                                padding: '3px 9px', borderRadius: 6, fontSize: 11, flexShrink: 0,
-                                background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)',
-                                color: 'rgba(255,255,255,0.55)', cursor: 'pointer',
-                              }}
-                            >
-                              View
-                            </button>
-                            <button
-                              onClick={() => setBookmarks(prev => prev.filter(b => b.id !== bm.id))}
-                              style={{
-                                padding: '3px 9px', borderRadius: 6, fontSize: 11, flexShrink: 0,
-                                background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
-                                color: '#f87171', cursor: 'pointer',
-                              }}
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* ── Generate Itinerary CTA ─────────────────────────────────── */}
-              <div style={{
-                marginTop: 8, padding: '20px 24px',
-                background: 'linear-gradient(135deg, rgba(56,189,248,0.08) 0%, rgba(167,139,250,0.08) 100%)',
-                border: '1.5px solid rgba(56,189,248,0.2)',
-                borderRadius: 14, display: 'flex', alignItems: 'center',
-                gap: 16, flexWrap: 'wrap',
-              }}>
-                <div style={{ flex: 1, minWidth: 200 }}>
-                  <p style={{ margin: '0 0 4px', fontSize: 14, fontWeight: 700, color: '#e2e8f0' }}>
-                    {bookmarks.length > 0
-                      ? `${bookmarks.length} place${bookmarks.length !== 1 ? 's' : ''} saved \u2014 ready to build your itinerary?`
-                      : 'Pin places above, then generate your itinerary'}
-                  </p>
-                  <p style={{ margin: 0, fontSize: 12, color: 'rgba(255,255,255,0.4)', lineHeight: 1.5 }}>
-                    {bookmarks.length > 0
-                      ? 'Your pinned places will be woven into the itinerary based on your travel personality.'
-                      : 'Search and save restaurants, attractions, hotels, and activities you want to visit. Or skip straight to generation.'}
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    setItineraryRequested(true);
-                    setStreaming(true);
-                    setLines([]);
-                    setSections([]);
-                    setError('');
-                    setMainTab('itinerary');
-                  }}
-                  style={{
-                    flexShrink: 0, padding: '12px 28px', borderRadius: 12,
-                    fontSize: 14, fontWeight: 700, cursor: 'pointer',
-                    background: 'linear-gradient(135deg, #38bdf8 0%, #818cf8 100%)',
-                    border: 'none', color: '#0a0f1e',
-                    boxShadow: '0 4px 20px rgba(56,189,248,0.3)',
-                    transition: 'opacity 0.15s',
-                  }}
-                >
-                  {String.fromCodePoint(0x2728)} Generate Itinerary
-                </button>
               </div>
+              {/* ── Sidebar column ─────────────────────────────────────────── */}
+              <aside style={{
+                background: 'rgba(255,255,255,0.025)',
+                border: '1px solid rgba(255,255,255,0.08)',
+                borderRadius: 16, padding: 18,
+                display: 'flex', flexDirection: 'column', gap: 16,
+                position: isMobile ? 'static' : 'sticky',
+                top: 16,
+                maxHeight: isMobile ? 'none' : 'calc(100vh - 32px)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                  <div style={{
+                    fontFamily: 'var(--font-mono-display), ui-monospace, monospace',
+                    fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase',
+                    color: 'var(--brand-accent-2, rgba(167,139,250,0.85))', fontWeight: 600,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {String.fromCodePoint(0x00A7)} Your Stops{location ? ` · ${location}` : ''}
+                  </div>
+                  <div style={{
+                    flexShrink: 0,
+                    fontFamily: 'var(--font-mono-display), ui-monospace, monospace',
+                    fontSize: 10, fontWeight: 700, letterSpacing: '0.1em',
+                    color: 'rgba(255,255,255,0.55)',
+                    background: 'rgba(255,255,255,0.06)',
+                    border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: 999, padding: '3px 9px',
+                  }}>
+                    {String.fromCodePoint(0x00A7)} {bookmarks.length} {bookmarks.length === 1 ? 'PIN' : 'PINS'}
+                  </div>
+                </div>
+
+                <p style={{
+                  margin: 0,
+                  fontFamily: 'var(--font-display), Georgia, serif',
+                  fontSize: 24, lineHeight: 1.15, fontWeight: 400,
+                  letterSpacing: '-0.015em', color: 'var(--brand-ink)',
+                }}>
+                  Drop pins.{' '}
+                  <em style={{ fontStyle: 'italic', color: 'var(--brand-accent)' }}>
+                    We&apos;ll thread them together.
+                  </em>
+                </p>
+
+                {bookmarks.length > 0 && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {([{ key: 'all' as const, label: 'All', color: '#e2e8f0' }, ...counts.map(c => ({ key: c.key as 'all' | BookmarkCategory, label: c.label, color: c.color }))]).map(p => {
+                      const active = planningFilter === p.key;
+                      return (
+                        <button
+                          key={p.key}
+                          onClick={() => setPlanningFilter(p.key)}
+                          style={{
+                            padding: '5px 12px', borderRadius: 999,
+                            fontSize: 11, fontWeight: 700, letterSpacing: '0.02em',
+                            cursor: 'pointer', fontFamily: 'inherit',
+                            background: active ? p.color : 'rgba(255,255,255,0.05)',
+                            color: active ? '#0a0f1e' : 'rgba(255,255,255,0.7)',
+                            border: `1px solid ${active ? p.color : 'rgba(255,255,255,0.1)'}`,
+                            transition: 'background 0.12s, color 0.12s',
+                          }}
+                        >
+                          {p.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div style={{
+                  display: 'flex', flexDirection: 'column', gap: 6,
+                  overflowY: 'auto', minHeight: 0, flex: '1 1 auto',
+                }}>
+                  {filtered.length === 0 ? (
+                    <div style={{
+                      padding: '28px 12px', textAlign: 'center',
+                      color: 'rgba(255,255,255,0.4)', fontSize: 13, lineHeight: 1.5,
+                    }}>
+                      {bookmarks.length === 0
+                        ? 'No stops yet. Search the map or click a place to add it.'
+                        : 'No stops match this filter.'}
+                    </div>
+                  ) : (
+                    filtered.map(bm => {
+                      const cat = PLANNING_CATS.find(c => c.key === bm.category) ?? PLANNING_CATS[PLANNING_CATS.length - 1];
+                      const num = bookmarks.indexOf(bm) + 1;
+                      const openPin = () => {
+                        if (bm.placeId) mapControlRef.current?.openPlace(bm.placeId, bm.coords);
+                        else mapControlRef.current?.panTo(bm.coords);
+                      };
+                      return (
+                        <div
+                          key={bm.id}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 10,
+                            padding: '8px 10px', borderRadius: 10,
+                            background: 'rgba(255,255,255,0.04)',
+                            border: '1px solid rgba(255,255,255,0.06)',
+                            transition: 'background 0.12s',
+                          }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.07)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.04)')}
+                        >
+                          <button
+                            onClick={openPin}
+                            style={{
+                              flexShrink: 0,
+                              width: 26, height: 26, borderRadius: '50%',
+                              background: cat.color, color: '#0a0f1e',
+                              fontSize: 12, fontWeight: 800,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              border: 'none', cursor: 'pointer',
+                              fontFamily: 'inherit',
+                            }}
+                          >
+                            {num}
+                          </button>
+                          <button
+                            onClick={openPin}
+                            style={{
+                              flex: 1, minWidth: 0,
+                              display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 1,
+                              padding: 0, background: 'transparent', border: 'none',
+                              cursor: 'pointer', textAlign: 'left',
+                            }}
+                          >
+                            <span style={{
+                              fontSize: 13, fontWeight: 600, color: '#e2e8f0',
+                              maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                              fontFamily: 'inherit',
+                            }}>
+                              {bm.name}
+                            </span>
+                            <span style={{
+                              fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+                              color: cat.color, fontFamily: 'var(--font-mono-display), ui-monospace, monospace',
+                            }}>
+                              {cat.label}
+                            </span>
+                          </button>
+                          <button
+                            onClick={() => setBookmarks(prev => prev.filter(b => b.id !== bm.id))}
+                            aria-label={`Remove ${bm.name}`}
+                            style={{
+                              flexShrink: 0, width: 22, height: 22, borderRadius: 6,
+                              background: 'transparent',
+                              border: '1px solid rgba(239,68,68,0.18)',
+                              color: '#f87171', cursor: 'pointer', fontSize: 14, lineHeight: 1,
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontFamily: 'inherit',
+                            }}
+                          >
+                            {String.fromCodePoint(0x00D7)}
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+
+                <div style={{
+                  padding: 14, borderRadius: 12,
+                  background: 'rgba(167,139,250,0.06)',
+                  border: '1px solid rgba(167,139,250,0.2)',
+                  display: 'flex', flexDirection: 'column', gap: 10,
+                }}>
+                  <div>
+                    <p style={{ margin: '0 0 3px', fontSize: 13, fontWeight: 700, color: '#e2e8f0' }}>
+                      Ready to plan?
+                    </p>
+                    <p style={{ margin: 0, fontSize: 11, color: 'rgba(255,255,255,0.55)', lineHeight: 1.45 }}>
+                      {bookmarks.length > 0
+                        ? `We'll order your ${bookmarks.length} stop${bookmarks.length === 1 ? '' : 's'} into a daily route, with timing and walking distance.`
+                        : "We'll generate a day-by-day plan based on your travel style."}
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleGenerate}
+                    style={{
+                      padding: '10px 14px', borderRadius: 10,
+                      fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                      background: 'linear-gradient(135deg, #a78bfa 0%, #818cf8 100%)',
+                      border: 'none', color: '#0a0f1e',
+                      boxShadow: '0 4px 14px rgba(167,139,250,0.35)',
+                      fontFamily: 'inherit',
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+                    }}
+                  >
+                    + Generate Itinerary
+                  </button>
+                </div>
+              </aside>
             </div>
           );
         })()}
