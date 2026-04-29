@@ -188,9 +188,6 @@ function SummaryContent() {
   // Bumped when we need to re-fire the fetch effect even though
   // itineraryRequested didn't change (saved-trip-with-no-itinerary path).
   const [kickoffTick, setKickoffTick] = useState(0);
-  // True once the saved-trip loader has settled (no DB load, or load done).
-  // Drives the auto-kick safety-net effect below.
-  const [savedLoaderDone, setSavedLoaderDone] = useState(!savedTripDbId);
   const [error, setError]         = useState('');
   const [upgradeModal, setUpgradeModal] = useState<{ open: boolean; feature?: string; reason?: string }>({ open: false });
   const bufferRef = useRef('');
@@ -299,37 +296,21 @@ function SummaryContent() {
         });
         if (d.trip.itinerary) {
           const parsed = parseLines(d.trip.itinerary.split('\n'));
-          if (parsed.length > 0) {
-            setSections(parsed);
-            setStreaming(false);
-          }
+          setSections(parsed);
+          setStreaming(false);
+        } else {
+          // Saved trip exists but has no stored itinerary — auto-kick generation
+          // so the user lands on a populated page instead of an empty state.
+          loadedFromSave.current = false;
+          setStreaming(true);
+          setItineraryRequested(true);
+          setKickoffTick(t => t + 1);
         }
-        // The auto-kick effect below handles the no-itinerary / empty-parse case.
       })
-      .catch(() => { if (!cancelled) setError('Could not load saved itinerary.'); })
-      .finally(() => { if (!cancelled) setSavedLoaderDone(true); });
+      .catch(() => { if (!cancelled) setError('Could not load saved itinerary.'); });
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedTripDbId]);
-
-  // ── Safety-net auto-kick ──────────────────────────────────────────────────────
-  // Once the saved-trip loader has settled (or there was no save to load), if
-  // we have enough info to generate an itinerary but nothing's in flight and
-  // sections are empty, kick the fetch automatically. This catches the case
-  // where a saved trip has no stored itinerary (or stored content that parses
-  // to nothing) so the user never sees the "Drop pins" empty state.
-  useEffect(() => {
-    if (!savedLoaderDone) return;
-    if (streaming || error || sections.length > 0) return;
-    const haveLocation = !!location;
-    const haveDates = !!nights || (!!startDate && !!endDate);
-    if (!haveLocation || !haveDates) return;
-    loadedFromSave.current = false;
-    setStreaming(true);
-    setItineraryRequested(true);
-    setKickoffTick(t => t + 1);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [savedLoaderDone, location, nights, startDate, endDate, sections.length, streaming, error]);
 
   // ── Fetch itinerary ──────────────────────────────────────────────────────────
   useEffect(() => {
