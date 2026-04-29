@@ -10,6 +10,7 @@ interface TripDraft {
   id: string; title: string; location: string;
   startDate?: string | null; endDate?: string | null;
   nights?: number | null; notes?: string | null; updatedAt: string;
+  style?: string | null;
 }
 
 interface Friend {
@@ -292,12 +293,30 @@ export default function TripSocialPanel({
   }
 
   function continueTrip(trip: TripDraft) {
+    // Route into the design-faithful summary view — savedTripId loads the
+    // itinerary from the DB; passing the rest of the trip context as URL
+    // params populates the masthead immediately while the API call is
+    // in flight. (Used to push to /plan/style which is the legacy UI.)
     const p = new URLSearchParams();
-    p.set('location', trip.location);
+    p.set('savedTripId', trip.id);
+    p.set('location',    trip.location);
     if (trip.startDate) p.set('startDate', trip.startDate);
     if (trip.endDate)   p.set('endDate',   trip.endDate);
     if (trip.nights)    p.set('nights',    String(trip.nights));
-    router.push(`/plan/style?${p.toString()}`);
+    if (trip.style) {
+      try {
+        const s = JSON.parse(trip.style) as { style?: string; budget?: string; purpose?: string; interests?: string; constraints?: string };
+        if (s.style)       p.set('style',       s.style);
+        if (s.budget)      p.set('budget',      s.budget);
+        if (s.purpose)     p.set('purpose',     s.purpose);
+        if (s.interests)   p.set('interests',   s.interests);
+        if (s.constraints) p.set('constraints', s.constraints);
+      } catch {
+        // Non-JSON style (Atlas saves it as a bare style id like "relaxed")
+        p.set('style', trip.style);
+      }
+    }
+    router.push(`/plan/summary?${p.toString()}`);
     onClose();
   }
 
