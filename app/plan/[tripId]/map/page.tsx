@@ -31,11 +31,18 @@ const CATEGORY_LABEL: Record<Category, string> = {
 };
 
 interface PlaceDetails {
-  photo?: string;
+  photos?: string[];           // up to ~6 photo URLs
   rating?: number;
-  reviews?: number;
-  reviewSnippet?: string;
+  reviewCount?: number;
+  reviewList?: { author: string; rating: number; text: string; relative: string }[];
   address?: string;
+  phone?: string;
+  website?: string;
+  openNow?: boolean;
+  hoursToday?: string;
+  hoursWeek?: string[];
+  priceLevel?: number;         // 0–4
+  types?: string[];
 }
 
 interface Pin {
@@ -465,7 +472,12 @@ function PlanMap({
       const input = document.getElementById('plan-map-search') as HTMLInputElement | null;
       if (input) {
         const ac = new google.maps.places.Autocomplete(input, {
-          fields: ['name', 'geometry', 'place_id', 'photos', 'rating', 'user_ratings_total', 'formatted_address', 'reviews'],
+          fields: [
+            'name', 'geometry', 'place_id',
+            'photos', 'rating', 'user_ratings_total', 'reviews',
+            'formatted_address', 'formatted_phone_number',
+            'website', 'opening_hours', 'price_level', 'types',
+          ],
         });
         ac.bindTo('bounds', map);
         ac.addListener('place_changed', () => {
@@ -494,7 +506,11 @@ function PlanMap({
     placesRef.current.getDetails(
       {
         placeId,
-        fields: ['name', 'photos', 'rating', 'user_ratings_total', 'formatted_address', 'reviews'],
+        fields: [
+          'name', 'photos', 'rating', 'user_ratings_total', 'reviews',
+          'formatted_address', 'formatted_phone_number',
+          'website', 'opening_hours', 'price_level', 'types',
+        ],
       },
       (res, status) => {
         if (status !== google.maps.places.PlacesServiceStatus.OK || !res) return;
@@ -575,14 +591,45 @@ function pinSvgIcon(num: number, category: Category, selected: boolean): google.
 }
 
 function placeToDetails(p: google.maps.places.PlaceResult): PlaceDetails | undefined {
-  const photo = p.photos?.[0]?.getUrl({ maxWidth: 600, maxHeight: 400 });
-  const review = p.reviews?.[0]?.text;
+  const photos = (p.photos ?? [])
+    .slice(0, 6)
+    .map(ph => ph.getUrl({ maxWidth: 800, maxHeight: 600 }));
+  const reviewList = (p.reviews ?? []).slice(0, 3).map(r => ({
+    author: r.author_name ?? 'Anonymous',
+    rating: r.rating ?? 0,
+    text: r.text ?? '',
+    relative: r.relative_time_description ?? '',
+  }));
+  // Today's hours via opening_hours.weekday_text + the new index from
+  // Date#getDay() (0=Sun … 6=Sat). The Google `weekday_text` array is
+  // Mon–Sun ordered.
+  const weekdayText = (p.opening_hours as { weekday_text?: string[] } | undefined)?.weekday_text ?? undefined;
+  const today = new Date().getDay();
+  const idx = today === 0 ? 6 : today - 1;
+  const hoursToday = weekdayText?.[idx]?.split(': ')[1];
+  // open_now is on the legacy field; use isOpen() on the Place when available
+  // (some maps versions strip open_now from the result).
+  let openNow: boolean | undefined;
+  try {
+    const oh = p.opening_hours as { isOpen?: () => boolean; open_now?: boolean } | undefined;
+    if (oh) {
+      if (typeof oh.isOpen === 'function') openNow = oh.isOpen();
+      else if (typeof oh.open_now === 'boolean') openNow = oh.open_now;
+    }
+  } catch { /* ignore */ }
   return {
-    photo: photo,
+    photos,
     rating: p.rating,
-    reviews: p.user_ratings_total,
-    reviewSnippet: review ? review.slice(0, 180) + (review.length > 180 ? '…' : '') : undefined,
+    reviewCount: p.user_ratings_total,
+    reviewList,
     address: p.formatted_address,
+    phone: p.formatted_phone_number,
+    website: p.website,
+    openNow,
+    hoursToday,
+    hoursWeek: weekdayText,
+    priceLevel: p.price_level,
+    types: p.types,
   };
 }
 
@@ -595,7 +642,9 @@ function PinInfoCard({ pin, onClose, onRename }: {
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(pin.label);
-  useEffect(() => { setDraft(pin.label); }, [pin.label]);
+  const [activePhoto, setActivePhoto] = useState(0);
+  const [hoursOpen, setHoursOpen] = useState(false);
+  useEffect(() => { setDraft(pin.label); setActivePhoto(0); setHoursOpen(false); }, [pin.id, pin.label]);
 
   const commit = () => {
     const t = draft.trim();
@@ -603,19 +652,24 @@ function PinInfoCard({ pin, onClose, onRename }: {
     setEditing(false);
   };
 
+  const photos = pin.place?.photos ?? [];
+  const heroPhoto = photos[activePhoto];
+
   return (
     <div style={{
       position: 'absolute', left: 24, bottom: 24, zIndex: 25,
-      width: 'min(360px, calc(100% - 48px))',
-      background: 'rgba(13,13,36,0.95)',
+      width: 'min(380px, calc(100% - 48px))',
+      maxHeight: 'calc(100% - 96px)',
+      overflow: 'auto',
+      background: 'rgba(13,13,36,0.96)',
       backdropFilter: 'blur(16px)',
       border: '1px solid var(--brand-border-hi)',
-      borderRadius: 14, overflow: 'hidden',
+      borderRadius: 14,
       boxShadow: '0 16px 40px rgba(0,0,0,0.55)',
     }}>
-      {pin.place?.photo ? (
+      {heroPhoto ? (
         <div style={{ position: 'relative', width: '100%', aspectRatio: '16 / 9' }}>
-          <img src={pin.place.photo} alt={pin.label}
+          <img src={heroPhoto} alt={pin.label}
             style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           <button onClick={onClose} style={{
             position: 'absolute', top: 10, right: 10,
@@ -625,16 +679,31 @@ function PinInfoCard({ pin, onClose, onRename }: {
             color: 'var(--brand-ink)', cursor: 'pointer',
             fontSize: 14, lineHeight: 1,
           }}>{String.fromCodePoint(0x00D7)}</button>
+          {photos.length > 1 && (
+            <div style={{
+              position: 'absolute', left: 10, bottom: 10, right: 10,
+              display: 'flex', gap: 6, overflowX: 'auto',
+            }}>
+              {photos.map((url, i) => (
+                <button key={i} onClick={() => setActivePhoto(i)} style={{
+                  flexShrink: 0,
+                  width: 56, height: 38, borderRadius: 4,
+                  border: i === activePhoto ? '2px solid var(--brand-accent)' : '1px solid rgba(255,255,255,0.2)',
+                  padding: 0, cursor: 'pointer', background: 'transparent', overflow: 'hidden',
+                  opacity: i === activePhoto ? 1 : 0.7,
+                }}>
+                  <img src={url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       ) : (
-        <div style={{
-          padding: '10px 14px', display: 'flex', justifyContent: 'flex-end',
-          borderBottom: '1px solid var(--brand-border)',
-        }}>
+        <div style={{ padding: '10px 14px', display: 'flex', justifyContent: 'flex-end',
+          borderBottom: '1px solid var(--brand-border)' }}>
           <button onClick={onClose} style={{
             width: 24, height: 24, borderRadius: '50%',
-            background: 'transparent',
-            border: '1px solid var(--brand-border)',
+            background: 'transparent', border: '1px solid var(--brand-border)',
             color: 'var(--brand-ink-mute)', cursor: 'pointer',
             fontSize: 14, lineHeight: 1,
           }}>{String.fromCodePoint(0x00D7)}</button>
@@ -642,36 +711,46 @@ function PinInfoCard({ pin, onClose, onRename }: {
       )}
 
       <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
-          fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', fontWeight: 700,
-          color: CATEGORY_COLOR[pin.category],
-        }}>
-          <span style={{ width: 7, height: 7, borderRadius: '50%', background: CATEGORY_COLOR[pin.category] }} />
-          {CATEGORY_LABEL[pin.category].toUpperCase()}
+        {/* Category + price + open-now chips */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+          <span style={{
+            display: 'inline-flex', alignItems: 'center', gap: 6,
+            fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', fontWeight: 700,
+            color: CATEGORY_COLOR[pin.category],
+          }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: CATEGORY_COLOR[pin.category] }} />
+            {CATEGORY_LABEL[pin.category].toUpperCase()}
+          </span>
+          {pin.place?.priceLevel !== undefined && pin.place.priceLevel > 0 && (
+            <span style={{ fontFamily: MONO, fontSize: 10, color: 'var(--brand-ink-dim)', fontWeight: 700 }}>
+              {'$'.repeat(pin.place.priceLevel)}
+            </span>
+          )}
+          {pin.place?.openNow !== undefined && (
+            <span style={{
+              fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em', fontWeight: 700,
+              padding: '2px 8px', borderRadius: 999,
+              color: pin.place.openNow ? 'var(--brand-success)' : 'var(--brand-warn)',
+              background: pin.place.openNow ? 'rgba(124,255,151,0.10)' : 'rgba(251,146,60,0.10)',
+              border: `1px solid ${pin.place.openNow ? 'rgba(124,255,151,0.4)' : 'rgba(251,146,60,0.4)'}`,
+            }}>{pin.place.openNow ? 'OPEN NOW' : 'CLOSED'}</span>
+          )}
         </div>
+
         {editing ? (
-          <input
-            autoFocus value={draft} onChange={e => setDraft(e.target.value)}
+          <input autoFocus value={draft} onChange={e => setDraft(e.target.value)}
             onBlur={commit}
             onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') { setDraft(pin.label); setEditing(false); } }}
             style={{
               fontFamily: DISPLAY, fontSize: 22, fontWeight: 400,
               letterSpacing: '-0.01em', color: 'var(--brand-ink)',
-              background: 'transparent',
-              border: 'none', borderBottom: '1px solid var(--brand-border)',
-              outline: 'none', padding: '2px 0',
-            }}
-          />
+              background: 'transparent', border: 'none',
+              borderBottom: '1px solid var(--brand-border)', outline: 'none', padding: '2px 0',
+            }} />
         ) : (
-          <div
-            onClick={() => setEditing(true)}
-            style={{
-              fontFamily: DISPLAY, fontSize: 22, fontWeight: 400,
-              letterSpacing: '-0.01em', color: 'var(--brand-ink)',
-              cursor: 'text',
-            }}
-          >
+          <div onClick={() => setEditing(true)}
+            style={{ fontFamily: DISPLAY, fontSize: 22, fontWeight: 400,
+              letterSpacing: '-0.01em', color: 'var(--brand-ink)', cursor: 'text' }}>
             {pin.label}
           </div>
         )}
@@ -681,7 +760,7 @@ function PinInfoCard({ pin, onClose, onRename }: {
             <Stars value={Math.round(pin.place.rating)} />
             <span style={{ fontSize: 12, color: 'var(--brand-ink-dim)' }}>
               {pin.place.rating.toFixed(1)}
-              {pin.place.reviews ? ` · ${pin.place.reviews.toLocaleString()} reviews` : ''}
+              {pin.place.reviewCount ? ` · ${pin.place.reviewCount.toLocaleString()} reviews` : ''}
             </span>
           </div>
         )}
@@ -692,20 +771,92 @@ function PinInfoCard({ pin, onClose, onRename }: {
           </div>
         )}
 
-        {pin.place?.reviewSnippet && (
-          <blockquote style={{
-            margin: '6px 0 0', padding: '10px 12px',
-            borderLeft: '2px solid var(--brand-accent)',
-            background: 'rgba(167,139,250,0.06)',
-            borderRadius: '0 8px 8px 0',
-            fontSize: 12, color: 'var(--brand-ink-dim)',
-            lineHeight: 1.55, fontStyle: 'italic',
-          }}>
-            &ldquo;{pin.place.reviewSnippet}&rdquo;
-          </blockquote>
+        {/* Hours toggle — today's hours visible, click to expand week */}
+        {(pin.place?.hoursToday || pin.place?.hoursWeek?.length) && (
+          <div>
+            <button onClick={() => setHoursOpen(o => !o)} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              width: '100%', padding: '8px 10px', borderRadius: 8,
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid var(--brand-border)',
+              color: 'var(--brand-ink)', fontFamily: 'inherit', fontSize: 12,
+              cursor: 'pointer',
+            }}>
+              <span>{String.fromCodePoint(0x25F7)} {pin.place?.hoursToday ?? 'See hours'}</span>
+              <span style={{ color: 'var(--brand-ink-mute)' }}>{hoursOpen ? '▴' : '▾'}</span>
+            </button>
+            {hoursOpen && pin.place?.hoursWeek?.length && (
+              <div style={{ marginTop: 6, padding: '8px 12px',
+                background: 'rgba(255,255,255,0.02)', borderRadius: 8,
+                fontSize: 11, color: 'var(--brand-ink-dim)', lineHeight: 1.7 }}>
+                {pin.place.hoursWeek.map((d, i) => <div key={i}>{d}</div>)}
+              </div>
+            )}
+          </div>
         )}
 
-        {!pin.place?.rating && !pin.place?.address && !pin.place?.reviewSnippet && (
+        {/* Action row: phone + website (helpful for menus) */}
+        {(pin.place?.phone || pin.place?.website) && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {pin.place?.phone && (
+              <a href={`tel:${pin.place.phone.replace(/\s+/g, '')}`}
+                style={{
+                  flex: '1 1 0', minWidth: 120, textAlign: 'center',
+                  padding: '7px 10px', borderRadius: 8,
+                  background: 'rgba(255,255,255,0.04)', border: '1px solid var(--brand-border)',
+                  color: 'var(--brand-ink)', fontFamily: 'inherit', fontSize: 11, fontWeight: 600,
+                  textDecoration: 'none',
+                }}>
+                {String.fromCodePoint(0x260E)} {pin.place.phone}
+              </a>
+            )}
+            {pin.place?.website && (
+              <a href={pin.place.website} target="_blank" rel="noopener noreferrer"
+                style={{
+                  flex: '1 1 0', minWidth: 120, textAlign: 'center',
+                  padding: '7px 10px', borderRadius: 8,
+                  background: 'rgba(167,139,250,0.10)',
+                  border: '1px solid var(--brand-border-hi)',
+                  color: 'var(--brand-accent)', fontFamily: 'inherit', fontSize: 11, fontWeight: 600,
+                  textDecoration: 'none',
+                }}>
+                {String.fromCodePoint(0x2197)} Website / menu
+              </a>
+            )}
+          </div>
+        )}
+
+        {/* Reviews — top 3 from Google */}
+        {pin.place?.reviewList?.length ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+            <div style={{
+              fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em', fontWeight: 700,
+              color: 'var(--brand-ink-mute)',
+            }}>
+              REVIEWS · {pin.place.reviewCount?.toLocaleString() ?? pin.place.reviewList.length}
+            </div>
+            {pin.place.reviewList.map((r, i) => (
+              <div key={i} style={{
+                padding: '8px 10px', borderRadius: 8,
+                background: 'rgba(167,139,250,0.05)',
+                borderLeft: '2px solid var(--brand-accent)',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <Stars value={Math.round(r.rating)} />
+                  <span style={{ fontSize: 11, color: 'var(--brand-ink)', fontWeight: 600 }}>{r.author}</span>
+                  {r.relative && <span style={{ fontSize: 10, color: 'var(--brand-ink-mute)' }}>· {r.relative}</span>}
+                </div>
+                <div style={{
+                  fontSize: 12, color: 'var(--brand-ink-dim)', lineHeight: 1.55,
+                  display: '-webkit-box', WebkitLineClamp: 4, WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                }}>{r.text}</div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
+        {!pin.place?.rating && !pin.place?.address && !pin.place?.reviewList?.length && (
           <div style={{ fontSize: 12, color: 'var(--brand-ink-mute)', fontStyle: 'italic' }}>
             No Google place match for this pin yet. Try the search bar to pin a named place instead of an empty patch of map.
           </div>
