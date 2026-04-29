@@ -27,7 +27,8 @@ function usePageContext() {
   const endDate       = params.get('endDate')       ?? '';
   const travelingFrom = params.get('travelingFrom') ?? '';
 
-  const page = pathname === '/plan/style'   ? 'style'
+  const page = pathname === '/plan'          ? 'atlas'
+             : pathname === '/plan/style'   ? 'style'
              : pathname === '/plan/dates'   ? 'dates'
              : pathname === '/plan/summary' ? 'summary'
              : pathname === '/plan/book'    ? 'book'
@@ -35,6 +36,7 @@ function usePageContext() {
 
   const placeholders: Record<string, string> = {
     globe:   'Ask me where to go next...',
+    atlas:   'Ask me about your trip — dates, style, budget...',
     style:   'Ask me about travel styles or preferences...',
     dates:   'Ask me about the best time to visit...',
     summary: 'Ask me about your itinerary...',
@@ -43,6 +45,7 @@ function usePageContext() {
 
   const pageDesc =
     page === 'globe'   ? 'The user is on the globe destination discovery page, browsing the interactive 3D globe to choose a travel destination.'
+    : page === 'atlas' ? `The user is in Atlas — the unified trip planner — setting up a trip to ${location || 'their destination'}. Atlas walks them through destination, dates, purpose, style, budget, interests, and origin in a single guided flow.`
     : page === 'style' ? `The user is on the travel preferences page, setting up a trip to ${location || 'their destination'}. They are selecting: travel purpose, style (${style || 'not yet chosen'}), budget (${budget || 'not yet set'}), interests (${interests || 'none yet'}), departure city, and arrival airport.`
     : page === 'dates' ? `The user is selecting travel dates for ${location || 'their destination'}. They are choosing departure and return dates and setting up multi-city stops if any.`
     : page === 'summary' ? `The user is viewing their AI-generated itinerary for ${location} — ${nights} nights, ${startDate} to ${endDate}. Purpose: ${purpose}. Style: ${style}. Budget: ${budget}.`

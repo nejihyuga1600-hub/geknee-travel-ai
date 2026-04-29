@@ -737,7 +737,7 @@ export function Lm({ p, s = 0.4, info, mk, children }: { p: SurfPos; s?: number;
             }}>
               <LandmarkLabel
                 info={info}
-                planUrl={mobileActive ? `/plan/style?location=${encodeURIComponent(info.name)}` : undefined}
+                planUrl={mobileActive ? `/plan?location=${encodeURIComponent(info.name)}` : undefined}
                 floating
               />
             </div>,
