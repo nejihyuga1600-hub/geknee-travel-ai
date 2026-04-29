@@ -57,10 +57,12 @@ function GlobalChatInner() {
   const pathname = usePathname();
   const ctx      = usePageContext();
 
-  // Don't render on the summary page — it has its own inline chat.
-  // Don't render on the planner — AtlasShell carries its own ✦ Genie corner.
-  if (pathname === '/plan/summary') return null;
+  // The summary page used to mount its own in-page chat; that's been
+  // removed during the design pass, so GlobalChat handles /plan/summary
+  // now too. Atlas (the /plan and /plan/location route) still carries
+  // its own ✦ Genie corner widget, so suppress here to avoid duplicates.
   if (pathname?.startsWith('/plan/location')) return null;
+  if (pathname === '/plan')                   return null;
 
   return <GlobalChatUI ctx={ctx} />;
 }

@@ -1207,7 +1207,11 @@ function SummaryContent() {
         )}
 
         {/* Not yet requested — prompt user to visit planning tab */}
-        {!itineraryRequested && !error && (
+        {/* Empty state — show whenever there's no itinerary content yet, not
+            just on a fresh page. A saved trip without a stored itinerary
+            (loadedFromSave + sections.length === 0) used to leave the page
+            blank under the masthead; now it lands here. */}
+        {sections.length === 0 && !streaming && !error && (
           <div style={{
             display: 'flex', flexDirection: 'column', alignItems: 'center',
             justifyContent: 'center', gap: 16, padding: '60px 32px',
@@ -1504,54 +1508,11 @@ function SummaryContent() {
         )}
       </div>
 
-      {/* Genie + Friends chat */}
-      {showGenie && (
-        <div ref={genieRef} style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 9999 }}>
-          {chatOpen && (
-            <ChatPanel
-              tab={chatTab}
-              onTabChange={setChatTab}
-              genieMessages={chatMessages}
-              chatStreaming={chatStreaming}
-              genieInput={chatInput}
-              onGenieInputChange={setChatInput}
-              onGenieSend={sendChat}
-              inspImagePreview={inspImagePreview}
-              inspIsVideo={inspIsVideo}
-              inspFileRef={inspFileRef}
-              onInspFileSelect={handleInspFileSelect}
-              onClearInspImage={clearInspImage}
-              friendMessages={friendMessages}
-              friendInput={friendInput}
-              friendAuthor={friendAuthor}
-              onFriendInputChange={setFriendInput}
-              onFriendAuthorChange={setFriendAuthor}
-              onFriendSend={sendFriendMessage}
-              onClose={() => setChatOpen(false)}
-            />
-          )}
-          <button
-            onClick={() => setChatOpen(p => !p)}
-            title="Chat with your travel genie or friends"
-            style={{
-              width: 80, height: 80, borderRadius: '50%', border: 'none', cursor: 'pointer',
-              background: chatOpen
-                ? 'linear-gradient(135deg, rgba(109,40,217,0.95), rgba(30,58,138,0.95))'
-                : 'linear-gradient(135deg, rgba(76,29,149,0.9), rgba(23,37,84,0.9))',
-              boxShadow: chatOpen
-                ? '0 0 0 2px rgba(167,139,250,0.6), 0 8px 32px rgba(109,40,217,0.5)'
-                : '0 0 0 1px rgba(129,140,248,0.3), 0 8px 24px rgba(0,0,0,0.5)',
-              animation: 'genieFloat 3s ease-in-out infinite',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              overflow: 'visible', position: 'relative',
-              transition: 'background 0.3s, box-shadow 0.3s',
-              padding: 0,
-            }}
-          >
-            <GenieCharacter speaking={genieSpeak} />
-          </button>
-        </div>
-      )}
+      {/* In-page genie chat removed during the design pass — the GlobalChat
+          mounted in app/layout.tsx provides the floating AI assistant
+          globally, so duplicating it here added a second character in the
+          bottom-right corner. ChatPanel + GenieCharacter remain available
+          as exported components for future use. */}
 
       <style>{`
         @keyframes spin        { to { transform: rotate(360deg); } }
