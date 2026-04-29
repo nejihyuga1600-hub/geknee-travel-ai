@@ -9,7 +9,12 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { useSession } from 'next-auth/react';
 
-const BookTabDynamic = dynamic(() => import('./BookTab'), { ssr: false });
+// Design-faithful booking surface (Stays / Flights / Activities / Transport
+// / Insurance with badge counts). The legacy BookTab.tsx remains in the
+// codebase for reference; it'll be retired once BookView absorbs its data
+// fetches. The shared BookTabProps shape from BookTab.tsx is what the page
+// already passes — BookView accepts the same prop interface.
+const BookTabDynamic = dynamic(() => import('./components/BookView'), { ssr: false });
 const FileVault      = dynamic(() => import('@/app/components/FileVault'), { ssr: false });
 const UpgradeModal   = dynamic(() => import('@/app/components/UpgradeModal'), { ssr: false });
 import { track } from '@/lib/analytics';
