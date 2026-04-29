@@ -170,10 +170,24 @@ function SummaryContent() {
   // ── Replan state ──────────────────────────────────────────────────────────────
   const [replanningSection, setReplanningSection] = useState<number | null>(null);
 
+  // ── Auto-trigger ──────────────────────────────────────────────────────────────
+  // If the URL carries enough to generate an itinerary (destination + nights or
+  // start/end), kick off generation on mount instead of forcing the user to
+  // click "Generate Itinerary" / "Open the map" first. Saved trips load from DB
+  // separately; if their stored itinerary is empty we also auto-kick below.
+  const hasEnoughToGenerate =
+    !!params.get('location') &&
+    (!!params.get('nights') ||
+      (!!params.get('startDate') && !!params.get('endDate')));
+  const autoTrigger = !loadedFromSave.current && hasEnoughToGenerate;
+
   // ── Streaming state ──────────────────────────────────────────────────────────
   const [lines, setLines]         = useState<string[]>([]);
-  const [streaming, setStreaming] = useState(false); // only true once user triggers generation
-  const [itineraryRequested, setItineraryRequested] = useState(loadedFromSave.current);
+  const [streaming, setStreaming] = useState(autoTrigger);
+  const [itineraryRequested, setItineraryRequested] = useState(loadedFromSave.current || autoTrigger);
+  // Bumped when we need to re-fire the fetch effect even though
+  // itineraryRequested didn't change (saved-trip-with-no-itinerary path).
+  const [kickoffTick, setKickoffTick] = useState(0);
   const [error, setError]         = useState('');
   const [upgradeModal, setUpgradeModal] = useState<{ open: boolean; feature?: string; reason?: string }>({ open: false });
   const bufferRef = useRef('');
@@ -284,6 +298,13 @@ function SummaryContent() {
           const parsed = parseLines(d.trip.itinerary.split('\n'));
           setSections(parsed);
           setStreaming(false);
+        } else {
+          // Saved trip exists but has no stored itinerary — auto-kick generation
+          // so the user lands on a populated page instead of an empty state.
+          loadedFromSave.current = false;
+          setStreaming(true);
+          setItineraryRequested(true);
+          setKickoffTick(t => t + 1);
         }
       })
       .catch(() => { if (!cancelled) setError('Could not load saved itinerary.'); });
@@ -349,7 +370,7 @@ function SummaryContent() {
     fetch_();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itineraryRequested]);
+  }, [itineraryRequested, kickoffTick]);
 
 
   // ── Section-boundary detection — count ## headings to know when to commit ────
