@@ -246,7 +246,7 @@ export default function AtlasShell() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "18px 24px",
+          padding: isMobile ? "10px 10px" : "14px 16px",
         }}
       >
         <button
@@ -255,14 +255,14 @@ export default function AtlasShell() {
           style={{
             display: "inline-flex",
             alignItems: "center",
-            gap: 8,
-            padding: "8px 14px",
+            gap: 6,
+            padding: "5px 10px",
             borderRadius: 999,
             background: "var(--brand-surface)",
             backdropFilter: "blur(12px)",
             border: "1px solid var(--brand-border)",
             color: "var(--brand-ink)",
-            fontSize: 12,
+            fontSize: 10,
             fontWeight: 600,
             letterSpacing: "0.08em",
             cursor: "pointer",
@@ -270,7 +270,7 @@ export default function AtlasShell() {
             fontFamily: "inherit",
           }}
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <circle cx="12" cy="12" r="10" />
             <line x1="2" y1="12" x2="22" y2="12" />
             <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
@@ -310,7 +310,7 @@ export default function AtlasShell() {
               onClick={() => setTripsOpen(true)}
               title={session.user.name ?? "Account"}
               style={{
-                width: 34, height: 34, borderRadius: "50%",
+                width: 28, height: 28, borderRadius: "50%",
                 background: "linear-gradient(135deg, var(--brand-accent), var(--brand-accent-2, #7dd3fc))",
                 color: "#0a0a1f",
                 display: "grid", placeItems: "center",
@@ -344,7 +344,7 @@ export default function AtlasShell() {
 
       {/* Initialize / Home — top-center, prominent. Same affordance the
           legacy planner had: tap to reset the globe orientation. */}
-      <div style={{ position: "absolute", top: 18, left: "50%", transform: "translateX(-50%)", zIndex: 11 }}>
+      <div style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", zIndex: 11 }}>
         <button
           onClick={() => resetGlobeTilt()}
           title="Reset globe orientation"
@@ -352,18 +352,18 @@ export default function AtlasShell() {
             background: "rgba(6,8,22,0.80)",
             border: "1px solid rgba(167, 139, 250, 0.35)",
             backdropFilter: "blur(14px)",
-            borderRadius: 12,
+            borderRadius: 10,
             color: "#c7d2fe",
-            fontSize: 12, fontWeight: 700,
-            padding: "8px 16px",
+            fontSize: 10, fontWeight: 700,
+            padding: "5px 12px",
             cursor: "pointer",
-            display: "flex", alignItems: "center", gap: 8,
+            display: "flex", alignItems: "center", gap: 6,
             boxShadow: "0 2px 16px rgba(0,0,0,0.5)",
             letterSpacing: "0.05em", textTransform: "uppercase",
             fontFamily: "inherit",
           }}
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
             <circle cx="12" cy="12" r="10" />
             <line x1="2" y1="12" x2="22" y2="12" />
             <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
@@ -944,7 +944,7 @@ function NavPill({
     display: "inline-flex",
     alignItems: "center",
     gap: 6,
-    padding: iconOnly ? "8px 10px" : "8px 14px",
+    padding: iconOnly ? "6px 8px" : "6px 12px",
     borderRadius: 999,
     background: accent
       ? "rgba(167, 139, 250, 0.16)"
@@ -952,7 +952,7 @@ function NavPill({
     backdropFilter: "blur(12px)",
     border: `1px solid ${accent ? "var(--brand-border-hi)" : "var(--brand-border)"}`,
     color: accent ? "var(--brand-accent)" : "var(--brand-ink)",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: accent ? 700 : 500,
     letterSpacing: "0.02em",
     textDecoration: "none",
