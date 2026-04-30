@@ -144,6 +144,7 @@ export default function PlanningMap({
   const [lastQuery, setLastQuery]   = useState('');
   const [loading, setLoading]       = useState(false);
   const [noResult, setNoResult]     = useState(false);
+  const [searchError, setSearchError] = useState<string | null>(null);
   const [detail, setDetail]         = useState<PlaceDetail | null>(null);
   const [searchResults, setSearchResults] = useState<PlaceSummary[]>([]);
   const [activePhoto, setActivePhoto] = useState(0);
@@ -160,6 +161,7 @@ export default function PlanningMap({
   const closePanel = useCallback(() => {
     setDetail(null);
     setNoResult(false);
+    setSearchError(null);
     setSearchResults([]);
     setLastQuery('');
     searchMarkerRef.current?.setMap(null);
@@ -172,6 +174,7 @@ export default function PlanningMap({
     if (!placesRef.current) return;
     setLoading(true);
     setNoResult(false);
+    setSearchError(null);
     setDetail(null);
     setSearchResults([]);
     clearResultMarkers();
@@ -243,6 +246,7 @@ export default function PlanningMap({
     setShowSuggestions(false);
     setLoading(true);
     setNoResult(false);
+    setSearchError(null);
     setDetail(null);
     setSearchResults([]);
     clearResultMarkers();
@@ -260,22 +264,32 @@ export default function PlanningMap({
       req.radius = 50000;
     }
 
-    placesRef.current.textSearch(req, (results, status) => {
-      if (status !== google.maps.places.PlacesServiceStatus.OK || !results || results.length === 0) {
-        setLoading(false);
-        setNoResult(true);
-        return;
+    const PSS = google.maps.places.PlacesServiceStatus;
+
+    // Friendly mapping for surfacing real API failures (key denial, quota,
+    // bad request) instead of the generic "no results" message — those have
+    // very different remediation steps.
+    const friendlyStatus = (s: google.maps.places.PlacesServiceStatus): string | null => {
+      switch (s) {
+        case PSS.REQUEST_DENIED:    return 'Search unavailable — Google Places API key is invalid or Places API isn\'t enabled.';
+        case PSS.OVER_QUERY_LIMIT:  return 'Search quota exceeded. Try again in a minute.';
+        case PSS.INVALID_REQUEST:   return 'Invalid search request.';
+        case PSS.UNKNOWN_ERROR:     return 'Search failed (unknown error). Try again.';
+        default:                    return null;
       }
+    };
+
+    const processResults = (results: google.maps.places.PlaceResult[]) => {
       const usable = results.filter(r => r.place_id && r.geometry?.location);
       if (usable.length === 1) {
         const r = usable[0];
         fetchDetail(r.place_id!, r.geometry?.location ?? undefined);
         return;
       }
-      const summaries: PlaceSummary[] = usable.slice(0, 20).map(r => ({
+      const allSummaries: PlaceSummary[] = usable.map(r => ({
         placeId: r.place_id!,
         name: r.name ?? '',
-        address: r.formatted_address,
+        address: r.formatted_address ?? r.vicinity,
         rating: r.rating,
         userRatingsTotal: r.user_ratings_total,
         priceLevel: r.price_level,
@@ -283,13 +297,83 @@ export default function PlanningMap({
         photoUrl: r.photos?.[0]?.getUrl({ maxWidth: 400, maxHeight: 300 }),
         coords: [r.geometry!.location!.lng(), r.geometry!.location!.lat()],
       }));
+
+      // Distance helper (meters between two lat/lng points).
+      const haversineM = (a: { lat: number; lng: number }, b: { lat: number; lng: number }) => {
+        const R = 6371000;
+        const toRad = (x: number) => x * Math.PI / 180;
+        const dLat = toRad(b.lat - a.lat);
+        const dLng = toRad(b.lng - a.lng);
+        const lat1 = toRad(a.lat);
+        const lat2 = toRad(b.lat);
+        const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+        return 2 * R * Math.asin(Math.sqrt(h));
+      };
+
+      // Pick a ranking anchor:
+      //  - The trip destination (if it sits inside the result cluster — i.e.
+      //    at least one result is within 25km of it).
+      //  - Otherwise the geographic MEDIAN of result coordinates. Median
+      //    beats centroid here because it shrugs off outliers (legacy Places
+      //    APIs often return one result in a different city sharing a name).
+      const dest = destinationCenter.current;
+      const destLatLng = dest ? { lat: dest.lat(), lng: dest.lng() } : null;
+      const destInsideCluster =
+        !!destLatLng &&
+        allSummaries.some(s => haversineM(destLatLng, { lat: s.coords[1], lng: s.coords[0] }) <= 25_000);
+      const anchorPt: { lat: number; lng: number } = (() => {
+        if (destLatLng && destInsideCluster) return destLatLng;
+        const lats = allSummaries.map(s => s.coords[1]).sort((a, b) => a - b);
+        const lngs = allSummaries.map(s => s.coords[0]).sort((a, b) => a - b);
+        return {
+          lat: lats[Math.floor(lats.length / 2)],
+          lng: lngs[Math.floor(lngs.length / 2)],
+        };
+      })();
+
+      // Rank results by:
+      //   quality   = rating × log10(reviewCount + 10)
+      //               (rewards high ratings AND high review volume; the
+      //                +10 stops 0-review places from going to -∞)
+      //   distance  = 1 / (1 + km / 5)   (closer ⇒ closer to 1)
+      // score = quality × distance.
+      // Pure 5★/no-reviews places get less weight than 4.4★/3000-reviews.
+      const scoreOf = (s: PlaceSummary): number => {
+        const rating = s.rating ?? 0;
+        const reviews = s.userRatingsTotal ?? 0;
+        const quality = rating * Math.log10(reviews + 10);
+        const distKm = haversineM(anchorPt, { lat: s.coords[1], lng: s.coords[0] }) / 1000;
+        const distFactor = 1 / (1 + distKm / 5);
+        return quality * distFactor;
+      };
+      allSummaries.sort((a, b) => scoreOf(b) - scoreOf(a));
+      const summaries = allSummaries.slice(0, 20);
+
       setLoading(false);
       setSearchResults(summaries);
       setLastQuery(q);
 
+      // Legacy `nearbySearch` returns "Lite" PlaceResults that often omit
+      // `photos` even when Google does have photos for the place. Backfill
+      // for the top few missing rows via a cheap getDetails(photos-only)
+      // call so the result list isn't visually empty. Capped to limit cost.
+      const PHOTO_BACKFILL_LIMIT = 5;
+      const missingPhoto = summaries.filter(s => !s.photoUrl).slice(0, PHOTO_BACKFILL_LIMIT);
+      missingPhoto.forEach(s => {
+        placesRef.current!.getDetails(
+          { placeId: s.placeId, fields: ['photos'] },
+          (place, dStatus) => {
+            if (dStatus !== PSS.OK || !place?.photos?.length) return;
+            const url = place.photos[0].getUrl({ maxWidth: 400, maxHeight: 300 });
+            setSearchResults(prev =>
+              prev.map(p => (p.placeId === s.placeId ? { ...p, photoUrl: url } : p))
+            );
+          }
+        );
+      });
+
       const m = mapRef.current;
       if (m) {
-        const fit = new google.maps.LatLngBounds();
         summaries.forEach((s, i) => {
           const pos = { lat: s.coords[1], lng: s.coords[0] };
           const num = i + 1;
@@ -311,9 +395,79 @@ export default function PlanningMap({
           });
           marker.addListener('click', () => fetchDetail(s.placeId, new google.maps.LatLng(pos.lat, pos.lng)));
           resultMarkersRef.current.push(marker);
-          fit.extend(pos);
         });
+
+        // Camera framing: zero in on the DENSE part of the results so the
+        // map never lands somewhere empty. We already computed `anchorPt`
+        // above (destination if it sits in the cluster, otherwise the
+        // geographic median, which is robust against the one-far-outlier
+        // case). Keep results within 12km of that anchor — a typical city
+        // radius for hotel/restaurant searches — and fit bounds to those.
+        // Outliers still show in the result panel; they're just not used
+        // to frame the camera.
+        const DENSE_RADIUS_METERS = 12_000;
+        const dense = summaries.filter(
+          s => haversineM(anchorPt, { lat: s.coords[1], lng: s.coords[0] }) <= DENSE_RADIUS_METERS
+        );
+        // Fallback: if fewer than 3 results land in the dense ring (small
+        // cluster, or anchor is off), frame the top 10 ranked results so
+        // we still show what the user is looking at, ranked-best-first.
+        const toFrame = dense.length >= 3 ? dense : summaries.slice(0, Math.min(10, summaries.length));
+        const fit = new google.maps.LatLngBounds();
+        toFrame.forEach(s => fit.extend({ lat: s.coords[1], lng: s.coords[0] }));
         if (!fit.isEmpty()) m.fitBounds(fit, 80);
+      }
+    };
+
+    placesRef.current.textSearch(req, (results, status) => {
+      if (status === PSS.OK && results && results.length > 0) {
+        processResults(results);
+        return;
+      }
+
+      if (status !== PSS.ZERO_RESULTS) {
+        // Real API failure (denial / quota / etc.) — log it; we still try
+        // nearbySearch in case it works (different endpoint, sometimes
+        // succeeds when textSearch is throttled).
+        console.warn('[PlanningMap] textSearch status:', status);
+      }
+
+      // Fallback: nearbySearch with `keyword`. Legacy textSearch is weak at
+      // generic category queries like "hotels" or "restaurants"; nearbySearch
+      // is built for that. Requires a center, not bounds, so we use the
+      // viewport / destination / first-fix center we computed above.
+      if (center && placesRef.current) {
+        placesRef.current.nearbySearch(
+          { location: center, radius: 50000, keyword: q },
+          (nResults, nStatus) => {
+            if (nStatus === PSS.OK && nResults && nResults.length > 0) {
+              processResults(nResults);
+              return;
+            }
+            setLoading(false);
+            const txtFriendly = friendlyStatus(status);
+            const nearFriendly = friendlyStatus(nStatus);
+            if (txtFriendly) {
+              // Prefer the textSearch error since it's the user's primary
+              // intent; nearbySearch was just a rescue attempt.
+              setSearchError(txtFriendly);
+            } else if (nearFriendly) {
+              console.warn('[PlanningMap] nearbySearch status:', nStatus);
+              setSearchError(nearFriendly);
+            } else {
+              setNoResult(true);
+            }
+          }
+        );
+        return;
+      }
+
+      setLoading(false);
+      const friendly = friendlyStatus(status);
+      if (friendly) {
+        setSearchError(friendly);
+      } else {
+        setNoResult(true);
       }
     });
   }, [query, fetchDetail, clearResultMarkers]);
@@ -620,6 +774,7 @@ export default function PlanningMap({
       </div>
 
       {noResult && <p style={{ margin: 0, fontSize: 12, color: '#f87171', paddingLeft: 2 }}>No results found. Try a different name.</p>}
+      {searchError && <p style={{ margin: 0, fontSize: 12, color: '#fbbf24', paddingLeft: 2 }}>{searchError}</p>}
 
       {/* ── Map + side panel ────────────────────────────────────────────────── */}
       <div style={{ position: 'relative', display: 'flex', gap: 0, alignItems: 'stretch', height: '100%', minHeight: 'min(80vh, 720px)' }}>
