@@ -2,7 +2,10 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useSession, signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { track } from '@/lib/analytics';
+
+const FileVault = dynamic(() => import('@/app/components/FileVault'), { ssr: false });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -137,6 +140,9 @@ export default function TripSocialPanel({
     }
   }
 
+  // ── File vault (per-trip) ──────────────────────────────────────────────────
+  const [activeFilesTrip, setActiveFilesTrip] = useState<{ id: string; name: string } | null>(null);
+
   // ── Group chat ─────────────────────────────────────────────────────────────
   const [activeGroup,    setActiveGroup]    = useState<GroupChat | null>(null);
   const [chatMsgs,       setChatMsgs]       = useState<ChatMsg[]>([]);
@@ -226,7 +232,8 @@ export default function TripSocialPanel({
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
-        if (activeGroup) { setActiveGroup(null); setChatMsgs([]); }
+        if (activeFilesTrip) setActiveFilesTrip(null);
+        else if (activeGroup) { setActiveGroup(null); setChatMsgs([]); }
         else onClose();
       }
     }
@@ -404,7 +411,11 @@ export default function TripSocialPanel({
   return (
     <>
       {/* Backdrop */}
-      <div onClick={() => { if (activeGroup) { setActiveGroup(null); setChatMsgs([]); } else onClose(); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 49, animation: 'modalFadeIn 0.25s ease-out' }} />
+      <div onClick={() => {
+        if (activeFilesTrip) setActiveFilesTrip(null);
+        else if (activeGroup) { setActiveGroup(null); setChatMsgs([]); }
+        else onClose();
+      }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', zIndex: 49, animation: 'modalFadeIn 0.25s ease-out' }} />
 
       {/* Panel */}
       <div style={{ position: 'fixed', top: 0, right: 0, bottom: 0, width: 380, background: 'rgba(6,8,22,0.97)', backdropFilter: 'blur(24px)', borderLeft: '1px solid rgba(167, 139, 250,0.2)', zIndex: 50, display: 'flex', flexDirection: 'column', boxShadow: '-8px 0 40px rgba(0,0,0,0.6)', animation: 'panelSlideIn 0.3s ease-out' }}>
@@ -675,6 +686,17 @@ export default function TripSocialPanel({
                           </div>
                         )}
                         <button
+                          onClick={e => { e.stopPropagation(); setActiveFilesTrip({ id: trip.id, name: trip.title }); }}
+                          aria-label="Open files"
+                          title="Files for this trip"
+                          style={{
+                            position: 'absolute', bottom: 6, right: 36,
+                            background: 'none', border: 'none',
+                            color: 'rgba(168,168,192,0.55)',
+                            cursor: 'pointer', fontSize: 14, lineHeight: 1, padding: 4,
+                          }}
+                        >{String.fromCodePoint(0x1F4C2)}</button>
+                        <button
                           onClick={e => { e.stopPropagation(); deleteTrip(trip.id); }}
                           aria-label="Delete trip"
                           style={{
@@ -928,6 +950,50 @@ export default function TripSocialPanel({
               >{String.fromCodePoint(0x27A4)}</button>
             </div>
           </>
+        )}
+
+        {/* ── Files overlay (per-trip) ─────────────────────────────────── */}
+        {activeFilesTrip && userId && (
+          <div style={{
+            position: 'absolute', inset: 0,
+            background: 'rgba(6,8,22,0.97)',
+            backdropFilter: 'blur(24px)',
+            display: 'flex', flexDirection: 'column',
+            zIndex: 2,
+          }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '14px 18px',
+              borderBottom: '1px solid rgba(167,139,250,0.18)',
+            }}>
+              <button
+                onClick={() => setActiveFilesTrip(null)}
+                aria-label="Back"
+                style={{
+                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(148,163,208,0.18)',
+                  borderRadius: 8, color: '#e0e7ff', cursor: 'pointer',
+                  width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 14, lineHeight: 1, padding: 0,
+                }}
+              >{String.fromCodePoint(0x2190)}</button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: 1 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.14em', color: 'rgba(167,139,250,0.7)', textTransform: 'uppercase' }}>
+                  Files
+                </span>
+                <span style={{ fontSize: 14, fontWeight: 600, color: '#f2f2f8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {activeFilesTrip.name}
+                </span>
+              </div>
+              <button
+                onClick={onClose}
+                aria-label="Close"
+                style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 20, cursor: 'pointer', padding: 0, lineHeight: 1 }}
+              >{String.fromCodePoint(0x00D7)}</button>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 18px' }}>
+              <FileVault tripId={activeFilesTrip.id} currentUserId={userId} />
+            </div>
+          </div>
         )}
       </div>
     </>
