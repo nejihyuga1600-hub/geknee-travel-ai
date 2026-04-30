@@ -3,6 +3,39 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { loadGoogleMaps } from '@/lib/googleMapsLoader';
 
+// Dark "midnight grid" map style approximating the Kyoto reference design.
+// Plain Google Maps doesn't render true grid overlays, but a desaturated
+// navy palette with hidden POI clutter gets us close.
+const PLANNER_MAP_STYLE: google.maps.MapTypeStyle[] = [
+  { elementType: 'geometry',         stylers: [{ color: '#0c1325' }] },
+  { elementType: 'labels.text.fill', stylers: [{ color: '#5e6b88' }] },
+  { elementType: 'labels.text.stroke', stylers: [{ color: '#0c1325' }] },
+  { featureType: 'administrative',   elementType: 'geometry', stylers: [{ color: '#1c2541' }] },
+  { featureType: 'administrative.country', elementType: 'geometry.stroke', stylers: [{ color: '#2a3556' }] },
+  { featureType: 'administrative.land_parcel', stylers: [{ visibility: 'off' }] },
+  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#a78bfa' }] },
+  { featureType: 'poi',              stylers: [{ visibility: 'off' }] },
+  { featureType: 'road',             elementType: 'geometry', stylers: [{ color: '#1a2440' }] },
+  { featureType: 'road',             elementType: 'labels',   stylers: [{ visibility: 'off' }] },
+  { featureType: 'road.arterial',    elementType: 'geometry', stylers: [{ color: '#202b4a' }] },
+  { featureType: 'road.highway',     elementType: 'geometry', stylers: [{ color: '#2c3863' }] },
+  { featureType: 'transit',          stylers: [{ visibility: 'off' }] },
+  { featureType: 'water',            elementType: 'geometry', stylers: [{ color: '#070c1c' }] },
+  { featureType: 'water',            elementType: 'labels.text.fill', stylers: [{ color: '#3a466e' }] },
+  { featureType: 'landscape',        elementType: 'geometry', stylers: [{ color: '#101a31' }] },
+];
+
+// Same palette as page.tsx PLANNING_CATS — kept in sync manually because
+// PlanningMap needs to render markers without taking a prop dependency.
+const MARKER_COLORS: Record<string, string> = {
+  food:       '#f97316',
+  activities: '#a78bfa',
+  hotels:     '#60a5fa',
+  shopping:   '#fbbf24',
+  other:      '#94a3b8',
+};
+
+
 export type BookmarkCategory = 'food' | 'activities' | 'hotels' | 'shopping' | 'other';
 
 export interface Bookmark {
@@ -114,6 +147,7 @@ export default function PlanningMap({
   const destinationCenter  = useRef<google.maps.LatLng | null>(null);
   const destinationCountry = useRef<string | null>(null);
   const bmMarkersRef      = useRef<Map<string, google.maps.Marker>>(new Map());
+  const polylineRef       = useRef<google.maps.Polyline | null>(null);
   const searchMarkerRef   = useRef<google.maps.Marker | null>(null);
   const debounceRef       = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -240,6 +274,9 @@ export default function PlanningMap({
         disableDefaultUI: true,
         zoomControl: true,
         gestureHandling: 'greedy',
+        backgroundColor: '#0c1325',
+        styles: PLANNER_MAP_STYLE,
+        clickableIcons: false,
       });
       mapRef.current        = map;
       placesRef.current     = new google.maps.places.PlacesService(map);
@@ -315,35 +352,67 @@ export default function PlanningMap({
     return () => google.maps.event.removeListener(listener);
   }, [fetchDetail]);
 
-  // ── Sync bookmark markers ──────────────────────────────────────────────────
+  // ── Sync bookmark markers + thread them with a polyline ───────────────────
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+
+    // Drop stale markers
     const ids = new Set(bookmarks.map(b => b.id));
     bmMarkersRef.current.forEach((m, id) => {
       if (!ids.has(id)) { m.setMap(null); bmMarkersRef.current.delete(id); }
     });
-    bookmarks.forEach(bm => {
-      if (bmMarkersRef.current.has(bm.id)) return;
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="30" height="40" viewBox="0 0 30 40">
-        <circle cx="15" cy="14" r="12" fill="#f59e0b" stroke="white" stroke-width="2.5"/>
-        <text x="15" y="19" text-anchor="middle" font-family="Arial,sans-serif" font-size="15" fill="#000">\u2605</text>
-        <path d="M9,24 L15,40 L21,24" fill="#f59e0b" stroke="white" stroke-width="1.5" stroke-linejoin="round"/>
+
+    // Re-render every marker so position/index changes reflect immediately
+    // (numbers depend on order in the bookmarks array).
+    bookmarks.forEach((bm, i) => {
+      const existing = bmMarkersRef.current.get(bm.id);
+      if (existing) existing.setMap(null);
+
+      const num = i + 1;
+      const color = MARKER_COLORS[bm.category] ?? MARKER_COLORS.other;
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="34" height="44" viewBox="0 0 34 44">
+        <defs>
+          <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.4"/>
+          </filter>
+        </defs>
+        <path d="M17 2c-7.18 0-13 5.82-13 13 0 9.75 13 27 13 27s13-17.25 13-27c0-7.18-5.82-13-13-13z" fill="${color}" stroke="#0a0f1e" stroke-width="2" filter="url(#shadow)"/>
+        <circle cx="17" cy="15" r="9" fill="#0a0f1e"/>
+        <text x="17" y="19" text-anchor="middle" font-family="ui-sans-serif,system-ui,Arial" font-size="11" font-weight="800" fill="${color}">${num}</text>
       </svg>`;
       const marker = new google.maps.Marker({
         position: { lat: bm.coords[1], lng: bm.coords[0] },
         map,
-        title: bm.name,
+        title: `${num}. ${bm.name}`,
         icon: {
           url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
-          scaledSize: new google.maps.Size(30, 40),
-          anchor: new google.maps.Point(15, 40),
+          scaledSize: new google.maps.Size(34, 44),
+          anchor: new google.maps.Point(17, 44),
         },
+        zIndex: 1000 - i, // lower-numbered pins draw on top
+      });
+      marker.addListener('click', () => {
+        if (bm.placeId) fetchDetail(bm.placeId);
+        else map.panTo({ lat: bm.coords[1], lng: bm.coords[0] });
       });
       bmMarkersRef.current.set(bm.id, marker);
     });
+
+    // Polyline threading the pins in order
+    if (polylineRef.current) { polylineRef.current.setMap(null); polylineRef.current = null; }
+    if (bookmarks.length >= 2) {
+      polylineRef.current = new google.maps.Polyline({
+        path: bookmarks.map(b => ({ lat: b.coords[1], lng: b.coords[0] })),
+        geodesic: true,
+        strokeColor: '#60a5fa',
+        strokeOpacity: 0.85,
+        strokeWeight: 3,
+        map,
+      });
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bookmarks, mapRef.current]);
+  }, [bookmarks, mapRef.current, fetchDetail]);
 
   const handleBookmark = useCallback(() => {
     if (!detail) return;
@@ -374,14 +443,14 @@ export default function PlanningMap({
   ];
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minWidth: 0 }}>
       <style>{`
         @keyframes gkShimmer { 0%,100%{opacity:.35} 50%{opacity:.8} }
       `}</style>
 
-      {/* ── Search bar ─────────────────────────────────────────────────────── */}
-      <div style={{ position: 'relative' }}>
-        <div style={{ display: 'flex', gap: 8 }}>
+      {/* ── Search bar (absolute-positioned overlay rendered later) ─────── */}
+      <div style={{ position: 'absolute', top: 12, left: 12, right: 12, zIndex: 50, pointerEvents: 'none' }}>
+        <div style={{ display: 'flex', gap: 8, pointerEvents: 'auto' }}>
           <input
             value={query}
             onChange={e => {
@@ -486,7 +555,7 @@ export default function PlanningMap({
       {noResult && <p style={{ margin: 0, fontSize: 12, color: '#f87171', paddingLeft: 2 }}>No results found. Try a different name.</p>}
 
       {/* ── Map + side panel ────────────────────────────────────────────────── */}
-      <div style={{ display: 'flex', gap: 0, alignItems: 'stretch', minHeight: 560, borderRadius: 14, overflow: 'hidden', border: '1px solid rgba(255,255,255,0.08)' }}>
+      <div style={{ position: 'relative', display: 'flex', gap: 0, alignItems: 'stretch', height: '100%', minHeight: 620, background: '#0c1325' }}>
 
         {/* ── Side panel ──────────────────────────────────────────────────── */}
         {showPanel && (
@@ -809,8 +878,8 @@ export default function PlanningMap({
         )}
 
         {/* ── Map ─────────────────────────────────────────────────────────── */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div ref={divRef} style={{ width: '100%', height: '100%', minHeight: 560 }} />
+        <div style={{ flex: 1, minWidth: 0, position: 'relative' }}>
+          <div ref={divRef} style={{ position: 'absolute', inset: 0 }} />
         </div>
       </div>
 

@@ -774,23 +774,36 @@ function SummaryContent() {
           marginBottom: 24, gap: 12,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
-            <Link href="/plan" style={{
+            <Link href="/plan/location" style={{
               display: 'inline-flex', alignItems: 'center', gap: 6,
-              color: 'var(--brand-accent)', fontSize: 13, textDecoration: 'none',
+              padding: mainTab === 'planning' ? '5px 12px' : 0,
+              borderRadius: 999,
+              border: mainTab === 'planning' ? '1px solid var(--brand-border)' : 'none',
+              background: mainTab === 'planning' ? 'rgba(255,255,255,0.04)' : 'transparent',
+              color: 'var(--brand-accent)', fontSize: mainTab === 'planning' ? 11 : 13,
+              fontWeight: mainTab === 'planning' ? 700 : 400,
+              letterSpacing: mainTab === 'planning' ? '0.08em' : 'normal',
+              textTransform: mainTab === 'planning' ? 'uppercase' as const : 'none' as const,
+              textDecoration: 'none',
               fontFamily: 'var(--font-ui), system-ui, sans-serif',
             }}>
-              {String.fromCodePoint(0x2190)} Plan
+              {String.fromCodePoint(0x2190)} {mainTab === 'planning' ? 'Back to globe' : 'Plan'}
             </Link>
             <span style={{
               fontFamily: 'var(--font-display), Georgia, serif',
               fontSize: 16, color: 'var(--brand-ink)',
               whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
             }}>
-              {location || 'Trip'}{nights ? ` · ${nights} day${nights === '1' ? '' : 's'}` : ''}
+              {location || 'Trip'}
+              {mainTab === 'planning'
+                ? <em style={{ fontStyle: 'italic', color: 'var(--brand-accent)', marginLeft: 8 }}>· plan your stops</em>
+                : (nights ? ` · ${nights} day${nights === '1' ? '' : 's'}` : '')}
             </span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-            {savedTripId && (
+            {/* Map / Share / Book hidden on planning tab — that view's CTA is the
+                top-right "Generate itinerary →" button below. */}
+            {mainTab !== 'planning' && savedTripId && (
               <Link
                 href={`/plan/${encodeURIComponent(savedTripId)}/map`}
                 style={{
@@ -805,38 +818,42 @@ function SummaryContent() {
                 {String.fromCodePoint(0x2315)} Map
               </Link>
             )}
-            <button
-              onClick={async () => {
-                if (typeof navigator !== 'undefined' && navigator.share) {
-                  try { await navigator.share({ title: `Trip to ${location}`, url: window.location.href }); } catch { /* dismissed */ }
-                } else {
-                  try { await navigator.clipboard.writeText(window.location.href); } catch {}
-                }
-              }}
-              style={{
-                display: 'inline-flex', alignItems: 'center', gap: 6,
-                padding: '7px 14px', borderRadius: 10,
-                background: 'rgba(255,255,255,0.04)',
-                border: '1px solid var(--brand-border)',
-                color: 'var(--brand-ink)', fontSize: 12, fontWeight: 600,
-                fontFamily: 'inherit', cursor: 'pointer',
-              }}
-            >
-              {String.fromCodePoint(0x2197)} Share
-            </button>
-            <button
-              onClick={() => setMainTab(mainTab === 'book' ? 'itinerary' : 'book')}
-              style={{
-                padding: '7px 14px', borderRadius: 10,
-                background: mainTab === 'book' ? 'transparent' : 'var(--brand-ink)',
-                color: mainTab === 'book' ? 'var(--brand-ink)' : 'var(--brand-bg)',
-                border: `1px solid ${mainTab === 'book' ? 'var(--brand-border)' : 'var(--brand-ink)'}`,
-                fontSize: 12, fontWeight: 700,
-                fontFamily: 'inherit', cursor: 'pointer',
-              }}
-            >
-              {mainTab === 'book' ? 'Itinerary' : 'Book'}
-            </button>
+            {mainTab !== 'planning' && (
+              <button
+                onClick={async () => {
+                  if (typeof navigator !== 'undefined' && navigator.share) {
+                    try { await navigator.share({ title: `Trip to ${location}`, url: window.location.href }); } catch { /* dismissed */ }
+                  } else {
+                    try { await navigator.clipboard.writeText(window.location.href); } catch {}
+                  }
+                }}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 6,
+                  padding: '7px 14px', borderRadius: 10,
+                  background: 'rgba(255,255,255,0.04)',
+                  border: '1px solid var(--brand-border)',
+                  color: 'var(--brand-ink)', fontSize: 12, fontWeight: 600,
+                  fontFamily: 'inherit', cursor: 'pointer',
+                }}
+              >
+                {String.fromCodePoint(0x2197)} Share
+              </button>
+            )}
+            {mainTab !== 'planning' && (
+              <button
+                onClick={() => setMainTab(mainTab === 'book' ? 'itinerary' : 'book')}
+                style={{
+                  padding: '7px 14px', borderRadius: 10,
+                  background: mainTab === 'book' ? 'transparent' : 'var(--brand-ink)',
+                  color: mainTab === 'book' ? 'var(--brand-ink)' : 'var(--brand-bg)',
+                  border: `1px solid ${mainTab === 'book' ? 'var(--brand-border)' : 'var(--brand-ink)'}`,
+                  fontSize: 12, fontWeight: 700,
+                  fontFamily: 'inherit', cursor: 'pointer',
+                }}
+              >
+                {mainTab === 'book' ? 'Itinerary' : 'Book'}
+              </button>
+            )}
             {mainTab === 'planning' && (
               <button
                 onClick={() => {
@@ -863,8 +880,9 @@ function SummaryContent() {
           </div>
         </div>
 
-        {/* Trip header \u2014 design-handoff masthead: mono section label, giant
-            Fraunces title with italic city accent, single tracked sub-line. */}
+        {/* Trip header \u2014 hidden on planning tab so the map gets the
+            full canvas; the compact top bar above is enough context. */}
+        {mainTab !== 'planning' && (
         <div style={{
           background: 'rgba(255,255,255,0.03)',
           border: '1px solid var(--brand-border)',
@@ -1005,6 +1023,7 @@ function SummaryContent() {
           </>
           )}
         </div>
+        )}
 
         {/* ── Main tab switcher (legacy — hidden during the design pass) ─── */}
         {false && (
@@ -1114,11 +1133,15 @@ function SummaryContent() {
             <div style={{
               display: 'grid',
               gridTemplateColumns: isMobile ? '1fr' : 'minmax(0, 1fr) 360px',
-              gap: 16,
-              alignItems: 'start',
+              gap: 0,
+              alignItems: 'stretch',
+              borderRadius: 16,
+              overflow: 'hidden',
+              border: '1px solid rgba(255,255,255,0.08)',
+              background: 'rgba(255,255,255,0.02)',
             }}>
               {/* ── Map column ─────────────────────────────────────────────── */}
-              <div style={{ minWidth: 0 }}>
+              <div style={{ minWidth: 0, display: 'flex' }}>
               <PlanningMapDynamic
                 bookmarks={bookmarks}
                 onAddBookmark={b => setBookmarks(prev => [...prev, b])}
@@ -1130,13 +1153,12 @@ function SummaryContent() {
               </div>
               {/* ── Sidebar column ─────────────────────────────────────────── */}
               <aside style={{
-                background: 'rgba(255,255,255,0.025)',
-                border: '1px solid rgba(255,255,255,0.08)',
-                borderRadius: 16, padding: 18,
+                background: 'transparent',
+                borderLeft: isMobile ? 'none' : '1px solid rgba(255,255,255,0.08)',
+                borderTop: isMobile ? '1px solid rgba(255,255,255,0.08)' : 'none',
+                padding: 18,
                 display: 'flex', flexDirection: 'column', gap: 16,
-                position: isMobile ? 'static' : 'sticky',
-                top: 16,
-                maxHeight: isMobile ? 'none' : 'calc(100vh - 32px)',
+                minHeight: isMobile ? 'auto' : 620,
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                   <div style={{
