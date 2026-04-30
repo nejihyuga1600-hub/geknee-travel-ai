@@ -122,7 +122,6 @@ export default function PlanningMap({
   const geocoderRef     = useRef<google.maps.Geocoder | null>(null);
   const autocompleteRef    = useRef<google.maps.places.AutocompleteService | null>(null);
   const destinationCenter  = useRef<google.maps.LatLng | null>(null);
-  const destinationCountry = useRef<string | null>(null);
   const bmMarkersRef      = useRef<Map<string, google.maps.Marker>>(new Map());
   const polylineRef       = useRef<google.maps.Polyline | null>(null);
   const searchMarkerRef   = useRef<google.maps.Marker | null>(null);
@@ -209,6 +208,9 @@ export default function PlanningMap({
   }, []);
 
   // ── Search by text ─────────────────────────────────────────────────────────
+  // Bias results to where the user is looking on the map, not their IP location.
+  // Prefer the current viewport (handles user panning anywhere); fall back to
+  // the destination center; finally fall back to no bias.
   const handleSearch = useCallback(() => {
     const q = query.trim();
     if (!q || !placesRef.current) return;
@@ -217,7 +219,19 @@ export default function PlanningMap({
     setLoading(true);
     setNoResult(false);
     setDetail(null);
-    placesRef.current.textSearch({ query: q }, (results, status) => {
+
+    const map = mapRef.current;
+    const bounds = map?.getBounds();
+    const center = map?.getCenter() ?? destinationCenter.current ?? null;
+    const req: google.maps.places.TextSearchRequest = { query: q };
+    if (bounds) {
+      req.bounds = bounds;
+    } else if (center) {
+      req.location = center;
+      req.radius = 50000;
+    }
+
+    placesRef.current.textSearch(req, (results, status) => {
       if (status !== google.maps.places.PlacesServiceStatus.OK || !results?.[0]?.place_id) {
         setLoading(false);
         setNoResult(true);
@@ -283,24 +297,19 @@ export default function PlanningMap({
       if (location && !cancelled) {
         const cities  = [location, ...(extraStops ?? [])].filter(Boolean);
         const isMulti = cities.length > 1;
-        type GeoResult = { latlng: google.maps.LatLng; country: string | null };
-        const geoResults = (await Promise.all(
+        const latlngs = (await Promise.all(
           cities.map(city =>
-            new Promise<GeoResult | null>(res =>
+            new Promise<google.maps.LatLng | null>(res =>
               geocoderRef.current!.geocode({ address: city }, (r, s) => {
                 if (s !== 'OK' || !r?.[0]) { res(null); return; }
-                const country = r[0].address_components
-                  .find(c => c.types.includes('country'))?.short_name ?? null;
-                res({ latlng: r[0].geometry.location, country });
+                res(r[0].geometry.location);
               })
             )
           )
-        )).filter((c): c is GeoResult => c !== null);
-        const latlngs = geoResults.map(g => g.latlng);
+        )).filter((c): c is google.maps.LatLng => c !== null);
 
         if (!cancelled && latlngs.length > 0) {
-          destinationCenter.current  = latlngs[0];
-          destinationCountry.current = geoResults[0].country;
+          destinationCenter.current = latlngs[0];
           if (isMulti && latlngs.length > 1) {
             const bounds = new google.maps.LatLngBounds();
             latlngs.forEach(c => bounds.extend(c));
@@ -437,15 +446,20 @@ export default function PlanningMap({
               if (!val.trim()) { setSuggestions([]); setShowSuggestions(false); return; }
               debounceRef.current = setTimeout(() => {
                 if (!autocompleteRef.current) return;
+                // Bias to current map viewport so panning the map shifts
+                // results; fall back to the destination center / country if
+                // bounds aren't ready yet.
+                const map = mapRef.current;
+                const viewport = map?.getBounds();
+                const center = map?.getCenter() ?? destinationCenter.current ?? null;
                 autocompleteRef.current.getPlacePredictions(
                   {
                     input: val,
                     types: [],
-                    ...(destinationCenter.current
-                      ? { location: destinationCenter.current, radius: 50000, strictBounds: false }
-                      : {}),
-                    ...(destinationCountry.current
-                      ? { componentRestrictions: { country: destinationCountry.current } }
+                    ...(viewport
+                      ? { bounds: viewport }
+                      : center
+                      ? { location: center, radius: 50000, strictBounds: false }
                       : {}),
                   },
                   (preds, status) => {
