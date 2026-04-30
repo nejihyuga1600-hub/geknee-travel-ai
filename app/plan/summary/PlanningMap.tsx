@@ -397,25 +397,34 @@ export default function PlanningMap({
           resultMarkersRef.current.push(marker);
         });
 
-        // Camera framing: zero in on the DENSE part of the results so the
-        // map never lands somewhere empty. We already computed `anchorPt`
-        // above (destination if it sits in the cluster, otherwise the
-        // geographic median, which is robust against the one-far-outlier
-        // case). Keep results within 12km of that anchor — a typical city
-        // radius for hotel/restaurant searches — and fit bounds to those.
-        // Outliers still show in the result panel; they're just not used
-        // to frame the camera.
-        const DENSE_RADIUS_METERS = 12_000;
-        const dense = summaries.filter(
-          s => haversineM(anchorPt, { lat: s.coords[1], lng: s.coords[0] }) <= DENSE_RADIUS_METERS
-        );
-        // Fallback: if fewer than 3 results land in the dense ring (small
-        // cluster, or anchor is off), frame the top 10 ranked results so
-        // we still show what the user is looking at, ranked-best-first.
-        const toFrame = dense.length >= 3 ? dense : summaries.slice(0, Math.min(10, summaries.length));
+        // Camera framing: pick the 8 pins CLOSEST to the anchor. We sort
+        // by raw distance (not by rank) because rank includes a distance
+        // *penalty* but the rating component can still let a far pin
+        // outscore a near one — using rank for framing risked widening
+        // the bbox. Closest-to-anchor is guaranteed to be a tight cluster.
+        const toFrame = [...summaries]
+          .map(s => ({ s, d: haversineM(anchorPt, { lat: s.coords[1], lng: s.coords[0] }) }))
+          .sort((a, b) => a.d - b.d)
+          .slice(0, Math.min(8, summaries.length))
+          .map(x => x.s);
         const fit = new google.maps.LatLngBounds();
         toFrame.forEach(s => fit.extend({ lat: s.coords[1], lng: s.coords[0] }));
-        if (!fit.isEmpty()) m.fitBounds(fit, 80);
+        if (!fit.isEmpty()) {
+          // Pad a bit on the right to leave room for the parent's "Drop
+          // pins" aside (~360 px) which sits over the map area in the
+          // outer page grid. Padding only shifts framing — pins remain
+          // inside the visible area regardless of side panels.
+          m.fitBounds(fit, { top: 50, right: 60, bottom: 50, left: 50 });
+          // Clamp max zoom — a 200 m cluster would otherwise zoom in to
+          // building level and lose context. NO panTo here — fitBounds
+          // already centers on the cluster bbox, which keeps pins on
+          // screen. (Earlier panTo(anchorPt) experiment regressed when
+          // anchorPt was the trip destination far from the pin cluster.)
+          google.maps.event.addListenerOnce(m, 'idle', () => {
+            const z = m.getZoom();
+            if (z !== undefined && z > 15) m.setZoom(15);
+          });
+        }
       }
     };
 
