@@ -189,6 +189,19 @@ function SummaryContent({ tripIdOverride }: SummaryViewProps) {
   const [streaming, setStreaming] = useState(false); // only true once user triggers generation
   const [itineraryRequested, setItineraryRequested] = useState(loadedFromSave.current);
   const [error, setError]         = useState('');
+  // Tracks the true stage of the load/generate pipeline so the UI can show
+  // what's actually happening instead of a single static "Crafting…" line.
+  // Stages:
+  //   loading-trip : GET /api/trips/<id> in flight
+  //   requesting   : POST /api/itinerary sent, awaiting first byte
+  //   streaming    : chunks arriving from the streaming response
+  //   no-itinerary : trip exists but DB itinerary is empty (transient — we
+  //                  auto-promote to `requesting` immediately)
+  //   idle / done  : nothing in flight
+  const [loadingStage, setLoadingStage] = useState<
+    'idle' | 'loading-trip' | 'requesting' | 'streaming' | 'no-itinerary' | 'done'
+  >(loadedFromSave.current ? 'loading-trip' : 'idle');
+  const requestStartRef = useRef<number>(0);
   const [upgradeModal, setUpgradeModal] = useState<{ open: boolean; feature?: string; reason?: string }>({ open: false });
   const bufferRef = useRef('');
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -309,6 +322,7 @@ function SummaryContent({ tripIdOverride }: SummaryViewProps) {
   useEffect(() => {
     if (!savedTripDbId) return;
     let cancelled = false;
+    setLoadingStage('loading-trip');
     fetch(`/api/trips/${savedTripDbId}`)
       .then(r => r.json())
       .then(d => {
@@ -326,9 +340,28 @@ function SummaryContent({ tripIdOverride }: SummaryViewProps) {
           const parsed = parseLines(d.trip.itinerary.split('\n'));
           setSections(parsed);
           setStreaming(false);
+          setLoadingStage('done');
+        } else {
+          // Trip exists but no itinerary saved yet (e.g. just-created trip
+          // routed in via savedTripId). Without this fallback, the page
+          // sat forever on "Crafting…" because the generate-effect's
+          // loadedFromSave check skipped the fetch. Reset the ref so the
+          // generate-effect runs, then flip the streaming flags so the UI
+          // moves into the "Reaching the AI…" state.
+          loadedFromSave.current = false;
+          setItineraryRequested(true);
+          setStreaming(true);
+          setLines([]);
+          setSections([]);
+          setLoadingStage('no-itinerary');
         }
       })
-      .catch(() => { if (!cancelled) setError('Could not load saved itinerary.'); });
+      .catch(() => {
+        if (!cancelled) {
+          setError('Could not load saved itinerary.');
+          setLoadingStage('idle');
+        }
+      });
     return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [savedTripDbId]);
@@ -338,6 +371,8 @@ function SummaryContent({ tripIdOverride }: SummaryViewProps) {
     if (!itineraryRequested) return; // wait until user clicks "Generate"
     if (loadedFromSave.current) return; // skip — loading from DB instead
     let cancelled = false;
+    setLoadingStage('requesting');
+    requestStartRef.current = Date.now();
     async function fetch_() {
       try {
         const mustVisit = bookmarks.map(b => ({ name: b.name, category: b.category }));
@@ -361,18 +396,27 @@ function SummaryContent({ tripIdOverride }: SummaryViewProps) {
             if (data.code === 'GENERATION_LIMIT') {
               track('upgrade_click', { surface: 'ai_limit', feature: 'generations' }); setUpgradeModal({ open: true, feature: 'Unlimited AI generations', reason: data.error });
               setStreaming(false);
+              setLoadingStage('idle');
               return;
             }
           }
           setError('Failed to generate itinerary. Check your API key and try again.');
           setStreaming(false);
+          setLoadingStage('idle');
           return;
         }
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
+        let firstChunk = true;
         while (!cancelled) {
           const { done, value } = await reader.read();
           if (done) break;
+          if (firstChunk) {
+            // First byte from the AI — flip to "streaming" so the UI swaps
+            // from "Reaching the AI…" to live progress messaging.
+            setLoadingStage('streaming');
+            firstChunk = false;
+          }
           bufferRef.current += decoder.decode(value, { stream: true });
           const all = bufferRef.current.split('\n');
           bufferRef.current = all.pop() ?? '';
@@ -383,9 +427,15 @@ function SummaryContent({ tripIdOverride }: SummaryViewProps) {
           bufferRef.current = '';
         }
       } catch {
-        if (!cancelled) setError('Network error. Please try again.');
+        if (!cancelled) {
+          setError('Network error. Please try again.');
+          setLoadingStage('idle');
+        }
       } finally {
-        if (!cancelled) setStreaming(false);
+        if (!cancelled) {
+          setStreaming(false);
+          setLoadingStage(prev => (prev === 'streaming' ? 'done' : prev));
+        }
       }
     }
     fetch_();
@@ -894,12 +944,17 @@ function SummaryContent({ tripIdOverride }: SummaryViewProps) {
             {mainTab === 'planning' && (
               <button
                 onClick={() => {
+                  // User explicitly asked to (re)generate. Clear the
+                  // loadedFromSave flag so the generate-effect actually
+                  // runs even when the page came in via savedTripId.
+                  loadedFromSave.current = false;
                   setItineraryRequested(true);
                   setStreaming(true);
                   setLines([]);
                   setSections([]);
                   setError('');
                   setMainTab('itinerary');
+                  setLoadingStage('requesting');
                 }}
                 style={{
                   padding: '8px 16px', borderRadius: 10,
@@ -1157,11 +1212,15 @@ function SummaryContent({ tripIdOverride }: SummaryViewProps) {
             count: bookmarks.filter(b => b.category === c.key).length,
           })).filter(c => c.count > 0);
           const handleGenerate = () => {
+            // Same fix as the other Generate button — explicit user intent
+            // means we should ignore the loaded-from-save short circuit.
+            loadedFromSave.current = false;
             setItineraryRequested(true);
             setStreaming(true);
             setLines([]);
             setSections([]);
             setError('');
+            setLoadingStage('requesting');
             setMainTab('itinerary');
           };
           return (
@@ -1523,10 +1582,42 @@ function SummaryContent({ tripIdOverride }: SummaryViewProps) {
                 {[60, 90, 80, 70, 50].map((w, i) => (
                   <div key={i} style={{ width: `${w}%`, height: i === 0 ? 22 : 14, borderRadius: i === 0 ? 8 : 6, background: 'linear-gradient(90deg, rgba(255,255,255,0.06) 25%, rgba(255,255,255,0.12) 50%, rgba(255,255,255,0.06) 75%)', backgroundSize: '800px 100%', animation: `shimmer 1.5s infinite linear ${i * 0.1}s` }} />
                 ))}
-                <div style={{ marginTop: 4, color: 'rgba(255,255,255,0.35)', fontSize: 12 }}>Crafting your personalized itinerary&hellip;</div>
+                {/* Stage-aware status. Replaces the old static "Crafting…"
+                   line so the user sees what's actually happening — and we
+                   can spot stuck states (no transition for 30 s ⇒ surface
+                   a hint). */}
+                <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 10, color: 'rgba(255,255,255,0.55)', fontSize: 12, fontFamily: 'var(--font-mono-display), ui-monospace, monospace', letterSpacing: '0.04em' }}>
+                  <span aria-hidden style={{ width: 6, height: 6, borderRadius: '50%', background: '#38bdf8', animation: 'pulse 1.4s ease-in-out infinite' }} />
+                  {loadingStage === 'loading-trip'  ? 'Loading saved trip…'
+                  : loadingStage === 'no-itinerary' ? 'Trip loaded · starting AI generation…'
+                  : loadingStage === 'requesting'   ? 'Reaching the AI · request in flight…'
+                  : loadingStage === 'streaming'    ? 'Receiving itinerary from AI…'
+                  : 'Crafting your personalized itinerary…'}
+                </div>
               </div>
             ) : (
               <>
+                {/* Live progress badge: how many day-headings we've parsed
+                   so far. Gives the user concrete proof the AI is making
+                   progress instead of just a blinking cursor. */}
+                <div style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 8,
+                  fontFamily: 'var(--font-mono-display), ui-monospace, monospace',
+                  fontSize: 10, fontWeight: 700, letterSpacing: '0.18em',
+                  textTransform: 'uppercase', color: '#38bdf8',
+                  background: 'rgba(56,189,248,0.08)',
+                  border: '1px solid rgba(56,189,248,0.22)',
+                  padding: '5px 10px', borderRadius: 999, marginBottom: 14,
+                }}>
+                  <span aria-hidden style={{ width: 6, height: 6, borderRadius: '50%', background: '#38bdf8', animation: 'pulse 1.4s ease-in-out infinite' }} />
+                  {(() => {
+                    const dayCount = lines.filter(l => /^##\s/.test(l)).length;
+                    const totalDays = parseInt(nights || '0', 10) + 1;
+                    if (dayCount === 0) return 'Receiving from AI…';
+                    if (totalDays > 0 && dayCount <= totalDays) return `Streaming day ${dayCount} of ${totalDays}`;
+                    return `Streaming day ${dayCount}`;
+                  })()}
+                </div>
                 {streamingHeading && (
                   <h2 style={{ color: '#38bdf8', fontSize: 20, fontWeight: 700, marginBottom: 14 }}>
                     {streamingHeading}
@@ -1707,9 +1798,11 @@ function SummaryContent({ tripIdOverride }: SummaryViewProps) {
       <style>{`
         @keyframes spin        { to { transform: rotate(360deg); } }
         @keyframes blink       { 0%,100% { opacity:1; } 50% { opacity:0; } }
+        @keyframes pulse       { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.5; transform:scale(0.7); } }
         @keyframes genieFloat  { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-8px); } }
         @keyframes genieSpark  { 0%,100% { opacity:0; transform:scale(0.5); } 50% { opacity:1; transform:scale(1.2); } }
         @keyframes chatSlideUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes shimmer     { 0% { background-position:-800px 0; } 100% { background-position:800px 0; } }
         @media print { [style*="position: fixed"] { display:none !important; } }
       `}</style>
     </main>
