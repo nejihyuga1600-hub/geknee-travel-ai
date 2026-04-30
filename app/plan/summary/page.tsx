@@ -765,7 +765,14 @@ function SummaryContent() {
         background: 'radial-gradient(ellipse at 40% 20%, rgba(30,70,200,0.35) 0%, rgba(6,8,22,0.96) 60%, #030510 100%)',
       }} />
 
-      <div style={{ position: 'relative', zIndex: 1, maxWidth: 1720, margin: '0 auto', padding: isMobile ? '16px 14px 120px' : '36px 40px 140px' }}>
+      <div style={{
+        position: 'relative', zIndex: 1,
+        maxWidth: mainTab === 'planning' ? '100%' : 1720,
+        margin: '0 auto',
+        padding: isMobile
+          ? '16px 14px 120px'
+          : (mainTab === 'planning' ? '20px 24px 60px' : '36px 40px 140px'),
+      }}>
 
         {/* Top nav — design handoff: ← Plan left, trip · N days center label,
             Share / Book on the right. */}
@@ -1158,7 +1165,7 @@ function SummaryContent() {
                 borderTop: isMobile ? '1px solid rgba(255,255,255,0.08)' : 'none',
                 padding: 18,
                 display: 'flex', flexDirection: 'column', gap: 16,
-                minHeight: isMobile ? 'auto' : 620,
+                minHeight: isMobile ? 'auto' : 'min(80vh, 720px)',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                   <div style={{

@@ -2,29 +2,6 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { loadGoogleMaps } from '@/lib/googleMapsLoader';
-
-// Dark "midnight grid" map style approximating the Kyoto reference design.
-// Plain Google Maps doesn't render true grid overlays, but a desaturated
-// navy palette with hidden POI clutter gets us close.
-const PLANNER_MAP_STYLE: google.maps.MapTypeStyle[] = [
-  { elementType: 'geometry',         stylers: [{ color: '#0c1325' }] },
-  { elementType: 'labels.text.fill', stylers: [{ color: '#5e6b88' }] },
-  { elementType: 'labels.text.stroke', stylers: [{ color: '#0c1325' }] },
-  { featureType: 'administrative',   elementType: 'geometry', stylers: [{ color: '#1c2541' }] },
-  { featureType: 'administrative.country', elementType: 'geometry.stroke', stylers: [{ color: '#2a3556' }] },
-  { featureType: 'administrative.land_parcel', stylers: [{ visibility: 'off' }] },
-  { featureType: 'administrative.locality', elementType: 'labels.text.fill', stylers: [{ color: '#a78bfa' }] },
-  { featureType: 'poi',              stylers: [{ visibility: 'off' }] },
-  { featureType: 'road',             elementType: 'geometry', stylers: [{ color: '#1a2440' }] },
-  { featureType: 'road',             elementType: 'labels',   stylers: [{ visibility: 'off' }] },
-  { featureType: 'road.arterial',    elementType: 'geometry', stylers: [{ color: '#202b4a' }] },
-  { featureType: 'road.highway',     elementType: 'geometry', stylers: [{ color: '#2c3863' }] },
-  { featureType: 'transit',          stylers: [{ visibility: 'off' }] },
-  { featureType: 'water',            elementType: 'geometry', stylers: [{ color: '#070c1c' }] },
-  { featureType: 'water',            elementType: 'labels.text.fill', stylers: [{ color: '#3a466e' }] },
-  { featureType: 'landscape',        elementType: 'geometry', stylers: [{ color: '#101a31' }] },
-];
-
 // Same palette as page.tsx PLANNING_CATS — kept in sync manually because
 // PlanningMap needs to render markers without taking a prop dependency.
 const MARKER_COLORS: Record<string, string> = {
@@ -274,9 +251,7 @@ export default function PlanningMap({
         disableDefaultUI: true,
         zoomControl: true,
         gestureHandling: 'greedy',
-        backgroundColor: '#0c1325',
-        styles: PLANNER_MAP_STYLE,
-        clickableIcons: false,
+        clickableIcons: true,
       });
       mapRef.current        = map;
       placesRef.current     = new google.maps.places.PlacesService(map);
@@ -448,9 +423,9 @@ export default function PlanningMap({
         @keyframes gkShimmer { 0%,100%{opacity:.35} 50%{opacity:.8} }
       `}</style>
 
-      {/* ── Search bar (absolute-positioned overlay rendered later) ─────── */}
-      <div style={{ position: 'absolute', top: 12, left: 12, right: 12, zIndex: 50, pointerEvents: 'none' }}>
-        <div style={{ display: 'flex', gap: 8, pointerEvents: 'auto' }}>
+      {/* ── Search bar (absolute-positioned overlay over the map) ───────── */}
+      <div style={{ position: 'absolute', top: 12, left: '50%', transform: 'translateX(-50%)', width: 'min(560px, calc(100% - 24px))', zIndex: 50, pointerEvents: 'none' }}>
+        <div style={{ display: 'flex', gap: 8, pointerEvents: 'auto', background: 'rgba(10,15,30,0.92)', backdropFilter: 'blur(10px)', padding: 6, borderRadius: 12, border: '1px solid rgba(255,255,255,0.12)', boxShadow: '0 6px 24px rgba(0,0,0,0.35)' }}>
           <input
             value={query}
             onChange={e => {
@@ -555,7 +530,7 @@ export default function PlanningMap({
       {noResult && <p style={{ margin: 0, fontSize: 12, color: '#f87171', paddingLeft: 2 }}>No results found. Try a different name.</p>}
 
       {/* ── Map + side panel ────────────────────────────────────────────────── */}
-      <div style={{ position: 'relative', display: 'flex', gap: 0, alignItems: 'stretch', height: '100%', minHeight: 620, background: '#0c1325' }}>
+      <div style={{ position: 'relative', display: 'flex', gap: 0, alignItems: 'stretch', height: '100%', minHeight: 'min(80vh, 720px)' }}>
 
         {/* ── Side panel ──────────────────────────────────────────────────── */}
         {showPanel && (
