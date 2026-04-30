@@ -202,6 +202,13 @@ function SummaryContent({ tripIdOverride }: SummaryViewProps) {
     'idle' | 'loading-trip' | 'requesting' | 'streaming' | 'no-itinerary' | 'done'
   >(loadedFromSave.current ? 'loading-trip' : 'idle');
   const requestStartRef = useRef<number>(0);
+  // Live wall-clock seconds since the active load began. Drives both the
+  // "12s" suffix on the status line AND the slow-warning / retry CTA that
+  // surfaces if a request hangs.
+  const [elapsedSec, setElapsedSec] = useState(0);
+  // Bumped to retrigger the generate-effect when the user clicks "Try again"
+  // — useEffect deps need a reference change to re-run.
+  const [retryNonce, setRetryNonce] = useState(0);
   const [upgradeModal, setUpgradeModal] = useState<{ open: boolean; feature?: string; reason?: string }>({ open: false });
   const bufferRef = useRef('');
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -317,6 +324,28 @@ function SummaryContent({ tripIdOverride }: SummaryViewProps) {
       // Quota exceeded or storage disabled — fail silently rather than crash.
     }
   }, [bookmarks, bookmarksKey]);
+
+  // ── Elapsed-time tick — drives status line + slow-warning / retry CTA ───────
+  useEffect(() => {
+    const isActive =
+      loadingStage === 'loading-trip' ||
+      loadingStage === 'no-itinerary' ||
+      loadingStage === 'requesting' ||
+      loadingStage === 'streaming';
+    if (!isActive) {
+      setElapsedSec(0);
+      requestStartRef.current = 0;
+      return;
+    }
+    // Anchor the start time on the first active tick. Keep it across
+    // intra-flow transitions (loading-trip → requesting → streaming) so
+    // the seconds counter doesn't reset mid-load.
+    if (!requestStartRef.current) requestStartRef.current = Date.now();
+    const tick = () => setElapsedSec(Math.floor((Date.now() - requestStartRef.current) / 1000));
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, [loadingStage]);
 
   // ── Load itinerary from saved trip (if ?savedTripId= param present) ──────────
   useEffect(() => {
@@ -441,7 +470,7 @@ function SummaryContent({ tripIdOverride }: SummaryViewProps) {
     fetch_();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itineraryRequested]);
+  }, [itineraryRequested, retryNonce]);
 
 
   // ── Section-boundary detection — count ## headings to know when to commit ────
@@ -1588,12 +1617,75 @@ function SummaryContent({ tripIdOverride }: SummaryViewProps) {
                    a hint). */}
                 <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 10, color: 'rgba(255,255,255,0.55)', fontSize: 12, fontFamily: 'var(--font-mono-display), ui-monospace, monospace', letterSpacing: '0.04em' }}>
                   <span aria-hidden style={{ width: 6, height: 6, borderRadius: '50%', background: '#38bdf8', animation: 'pulse 1.4s ease-in-out infinite' }} />
-                  {loadingStage === 'loading-trip'  ? 'Loading saved trip…'
-                  : loadingStage === 'no-itinerary' ? 'Trip loaded · starting AI generation…'
-                  : loadingStage === 'requesting'   ? 'Reaching the AI · request in flight…'
-                  : loadingStage === 'streaming'    ? 'Receiving itinerary from AI…'
-                  : 'Crafting your personalized itinerary…'}
+                  <span>
+                    {loadingStage === 'loading-trip'  ? 'Loading saved trip…'
+                    : loadingStage === 'no-itinerary' ? 'Trip loaded · starting AI generation…'
+                    : loadingStage === 'requesting'   ? 'Reaching the AI · request in flight…'
+                    : loadingStage === 'streaming'    ? 'Receiving itinerary from AI…'
+                    : 'Crafting your personalized itinerary…'}
+                    {elapsedSec > 0 && <span style={{ opacity: 0.55 }}> · {elapsedSec}s</span>}
+                  </span>
                 </div>
+                {/* Slow-load surface: warn at 30 s, offer a retry at 60 s.
+                   The /api/itinerary stream can legitimately take that long
+                   for a multi-day trip, but if it hangs the user otherwise
+                   has no escape hatch from the skeleton. */}
+                {elapsedSec >= 30 && (
+                  <div style={{
+                    marginTop: 12,
+                    padding: '12px 14px',
+                    borderRadius: 10,
+                    background: 'rgba(251,191,36,0.06)',
+                    border: '1px solid rgba(251,191,36,0.22)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                    flexWrap: 'wrap',
+                  }}>
+                    <p style={{
+                      margin: 0,
+                      color: '#fbbf24',
+                      fontFamily: 'var(--font-mono-display), ui-monospace, monospace',
+                      fontSize: 11,
+                      letterSpacing: '0.04em',
+                    }}>
+                      {elapsedSec >= 60
+                        ? 'Taking longer than usual. The AI may be stuck — retry?'
+                        : 'Taking longer than usual · the AI is working through your trip…'}
+                    </p>
+                    {elapsedSec >= 60 && (
+                      <button
+                        onClick={() => {
+                          loadedFromSave.current = false;
+                          setItineraryRequested(true);
+                          setStreaming(true);
+                          setLines([]);
+                          setSections([]);
+                          setError('');
+                          setLoadingStage('requesting');
+                          requestStartRef.current = Date.now();
+                          setRetryNonce(n => n + 1);
+                        }}
+                        style={{
+                          padding: '7px 14px',
+                          borderRadius: 8,
+                          background: 'rgba(251,191,36,0.14)',
+                          border: '1px solid rgba(251,191,36,0.4)',
+                          color: '#fbbf24',
+                          fontFamily: 'var(--font-mono-display), ui-monospace, monospace',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          letterSpacing: '0.12em',
+                          textTransform: 'uppercase',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Try again
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <>
