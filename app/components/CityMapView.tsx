@@ -62,6 +62,25 @@ export default function CityMapView({ name, lat, lon, monuments, onClose, embedd
         'star-intensity': 0.3,
       });
 
+      // Surveying a continent at zoom <5 should only show country labels —
+      // mapbox/satellite-streets-v12 starts pulling in regions, states, and
+      // mid-tier cities around zoom 3 which clutters the view at this scale.
+      const COUNTRY_ONLY_BELOW = 5;
+      const layers = map.getStyle().layers ?? [];
+      for (const layer of layers) {
+        if (layer.type !== 'symbol') continue;
+        if (layer.id === 'country-label' || layer.id === 'continent-label') continue;
+        if (
+          layer.id === 'state-label' ||
+          layer.id.startsWith('settlement-') ||
+          layer.id === 'place-label'
+        ) {
+          const currentMin = (layer as { minzoom?: number }).minzoom ?? 0;
+          const currentMax = (layer as { maxzoom?: number }).maxzoom ?? 24;
+          map.setLayerZoomRange(layer.id, Math.max(currentMin, COUNTRY_ONLY_BELOW), currentMax);
+        }
+      }
+
       if (!map.getLayer('3d-buildings')) {
         map.addLayer({
           id: '3d-buildings',
