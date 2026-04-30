@@ -275,6 +275,32 @@ function SummaryContent() {
   const [lastOptimized, setLastOptimized] = useState<Date | null>(null);
   const mapControlRef = useRef<{ panTo: (coords: [number, number]) => void; openPlace: (placeId: string, coords: [number, number]) => void } | null>(null);
 
+  // Persist pins across refresh, keyed by destination so each trip has its
+  // own pin set. Hydrate on mount / when location changes; save on every
+  // bookmarks change (after hydration has run for the current key).
+  const bookmarksKey = `geknee:bookmarks:${location || 'default'}`;
+  const hydratedKeyRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem(bookmarksKey);
+      const parsed = raw ? (JSON.parse(raw) as Bookmark[]) : [];
+      setBookmarks(Array.isArray(parsed) ? parsed : []);
+    } catch {
+      setBookmarks([]);
+    }
+    hydratedKeyRef.current = bookmarksKey;
+  }, [bookmarksKey]);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (hydratedKeyRef.current !== bookmarksKey) return;
+    try {
+      window.localStorage.setItem(bookmarksKey, JSON.stringify(bookmarks));
+    } catch {
+      // Quota exceeded or storage disabled — fail silently rather than crash.
+    }
+  }, [bookmarks, bookmarksKey]);
+
   // ── Load itinerary from saved trip (if ?savedTripId= param present) ──────────
   useEffect(() => {
     if (!savedTripDbId) return;

@@ -40,6 +40,18 @@ interface PlaceDetail {
   reviews: Array<{ author: string; rating: number; text: string }>;
 }
 
+interface PlaceSummary {
+  placeId: string;
+  name: string;
+  address?: string;
+  rating?: number;
+  userRatingsTotal?: number;
+  priceLevel?: number;
+  types: string[];
+  photoUrl?: string;
+  coords: [number, number];
+}
+
 export interface MapControl {
   panTo: (coords: [number, number]) => void;
   openPlace: (placeId: string, coords: [number, number]) => void;
@@ -125,24 +137,35 @@ export default function PlanningMap({
   const bmMarkersRef      = useRef<Map<string, google.maps.Marker>>(new Map());
   const polylineRef       = useRef<google.maps.Polyline | null>(null);
   const searchMarkerRef   = useRef<google.maps.Marker | null>(null);
+  const resultMarkersRef  = useRef<google.maps.Marker[]>([]);
   const debounceRef       = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [query, setQuery]           = useState('');
+  const [lastQuery, setLastQuery]   = useState('');
   const [loading, setLoading]       = useState(false);
   const [noResult, setNoResult]     = useState(false);
   const [detail, setDetail]         = useState<PlaceDetail | null>(null);
+  const [searchResults, setSearchResults] = useState<PlaceSummary[]>([]);
   const [activePhoto, setActivePhoto] = useState(0);
   const [activeTab, setActiveTab]   = useState<'info' | 'reviews' | 'menu'>('info');
   const [suggestions, setSuggestions] = useState<google.maps.places.AutocompletePrediction[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
+  const clearResultMarkers = useCallback(() => {
+    resultMarkersRef.current.forEach(m => m.setMap(null));
+    resultMarkersRef.current = [];
+  }, []);
+
   // ── Close panel ────────────────────────────────────────────────────────────
   const closePanel = useCallback(() => {
     setDetail(null);
     setNoResult(false);
+    setSearchResults([]);
+    setLastQuery('');
     searchMarkerRef.current?.setMap(null);
     searchMarkerRef.current = null;
-  }, []);
+    clearResultMarkers();
+  }, [clearResultMarkers]);
 
   // ── Fetch place details ────────────────────────────────────────────────────
   const fetchDetail = useCallback((placeId: string, fallback?: google.maps.LatLng) => {
@@ -150,6 +173,8 @@ export default function PlanningMap({
     setLoading(true);
     setNoResult(false);
     setDetail(null);
+    setSearchResults([]);
+    clearResultMarkers();
     setActivePhoto(0);
     setActiveTab('info');
 
@@ -205,7 +230,7 @@ export default function PlanningMap({
         mapRef.current?.setZoom(15);
       }
     );
-  }, []);
+  }, [clearResultMarkers]);
 
   // ── Search by text ─────────────────────────────────────────────────────────
   // Bias results to where the user is looking on the map, not their IP location.
@@ -219,6 +244,10 @@ export default function PlanningMap({
     setLoading(true);
     setNoResult(false);
     setDetail(null);
+    setSearchResults([]);
+    clearResultMarkers();
+    searchMarkerRef.current?.setMap(null);
+    searchMarkerRef.current = null;
 
     const map = mapRef.current;
     const bounds = map?.getBounds();
@@ -232,14 +261,62 @@ export default function PlanningMap({
     }
 
     placesRef.current.textSearch(req, (results, status) => {
-      if (status !== google.maps.places.PlacesServiceStatus.OK || !results?.[0]?.place_id) {
+      if (status !== google.maps.places.PlacesServiceStatus.OK || !results || results.length === 0) {
         setLoading(false);
         setNoResult(true);
         return;
       }
-      fetchDetail(results[0].place_id!, results[0].geometry?.location ?? undefined);
+      const usable = results.filter(r => r.place_id && r.geometry?.location);
+      if (usable.length === 1) {
+        const r = usable[0];
+        fetchDetail(r.place_id!, r.geometry?.location ?? undefined);
+        return;
+      }
+      const summaries: PlaceSummary[] = usable.slice(0, 20).map(r => ({
+        placeId: r.place_id!,
+        name: r.name ?? '',
+        address: r.formatted_address,
+        rating: r.rating,
+        userRatingsTotal: r.user_ratings_total,
+        priceLevel: r.price_level,
+        types: r.types ?? [],
+        photoUrl: r.photos?.[0]?.getUrl({ maxWidth: 400, maxHeight: 300 }),
+        coords: [r.geometry!.location!.lng(), r.geometry!.location!.lat()],
+      }));
+      setLoading(false);
+      setSearchResults(summaries);
+      setLastQuery(q);
+
+      const m = mapRef.current;
+      if (m) {
+        const fit = new google.maps.LatLngBounds();
+        summaries.forEach((s, i) => {
+          const pos = { lat: s.coords[1], lng: s.coords[0] };
+          const num = i + 1;
+          const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="34" height="44" viewBox="0 0 34 44">
+            <path d="M17 2c-7.18 0-13 5.82-13 13 0 9.75 13 27 13 27s13-17.25 13-27c0-7.18-5.82-13-13-13z" fill="#38bdf8" stroke="#0a0f1e" stroke-width="2"/>
+            <circle cx="17" cy="15" r="9" fill="#0a0f1e"/>
+            <text x="17" y="19" text-anchor="middle" font-family="ui-sans-serif,system-ui,Arial" font-size="11" font-weight="800" fill="#38bdf8">${num}</text>
+          </svg>`;
+          const marker = new google.maps.Marker({
+            position: pos,
+            map: m,
+            title: `${num}. ${s.name}`,
+            icon: {
+              url: `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`,
+              scaledSize: new google.maps.Size(34, 44),
+              anchor: new google.maps.Point(17, 44),
+            },
+            zIndex: 500 - i,
+          });
+          marker.addListener('click', () => fetchDetail(s.placeId, new google.maps.LatLng(pos.lat, pos.lng)));
+          resultMarkersRef.current.push(marker);
+          fit.extend(pos);
+        });
+        if (!fit.isEmpty()) m.fitBounds(fit, 80);
+      }
     });
-  }, [query, fetchDetail]);
+  }, [query, fetchDetail, clearResultMarkers]);
 
   // ── Init map ───────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -414,7 +491,7 @@ export default function PlanningMap({
   }, [detail, onAddBookmark]);
 
   const isBookmarked = !!detail && bookmarks.some(b => b.name === detail.name);
-  const showPanel    = loading || !!detail;
+  const showPanel    = loading || !!detail || searchResults.length > 0;
 
   const isFood     = detail ? isRestaurantType(detail.types) : false;
   const isActivity = detail ? isActivityType(detail.types)   : false;
@@ -863,6 +940,96 @@ export default function PlanningMap({
                   </div>
                 )}
               </>
+            ) : searchResults.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  padding: '12px 14px',
+                  borderBottom: '1px solid rgba(255,255,255,0.07)',
+                  flexShrink: 0,
+                }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
+                    <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, fontWeight: 700, letterSpacing: 1.1, textTransform: 'uppercase' }}>
+                      {searchResults.length} {searchResults.length === 1 ? 'result' : 'results'}
+                    </span>
+                    <span style={{ color: '#f1f5f9', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {lastQuery}
+                    </span>
+                  </div>
+                  <button
+                    onClick={closePanel}
+                    style={{
+                      width: 26, height: 26, borderRadius: '50%',
+                      background: 'rgba(255,255,255,0.06)', border: 'none',
+                      color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                    }}
+                    title="Close"
+                  >
+                    {String.fromCodePoint(0x00D7)}
+                  </button>
+                </div>
+                <div style={{ overflowY: 'auto', flex: 1 }}>
+                  {searchResults.map((r, i) => (
+                    <button
+                      key={r.placeId}
+                      onClick={() => fetchDetail(r.placeId, new google.maps.LatLng(r.coords[1], r.coords[0]))}
+                      style={{
+                        display: 'flex', gap: 10, alignItems: 'flex-start',
+                        width: '100%', padding: '10px 14px',
+                        background: 'transparent', border: 'none',
+                        borderBottom: '1px solid rgba(255,255,255,0.05)',
+                        cursor: 'pointer', textAlign: 'left',
+                        transition: 'background 0.12s',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'rgba(56,189,248,0.07)')}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      <span style={{
+                        flexShrink: 0,
+                        width: 22, height: 22, borderRadius: '50%',
+                        background: '#38bdf8', color: '#0a0f1e',
+                        fontSize: 11, fontWeight: 800,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        marginTop: r.photoUrl ? 18 : 2,
+                      }}>{i + 1}</span>
+                      {r.photoUrl && (
+                        <img
+                          src={r.photoUrl}
+                          alt=""
+                          style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }}
+                        />
+                      )}
+                      <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: 1 }}>
+                        <span style={{ color: '#f1f5f9', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {r.name}
+                        </span>
+                        {r.rating !== undefined && (
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                            <span style={{ color: '#fbbf24', fontSize: 11, fontWeight: 700 }}>{r.rating.toFixed(1)}</span>
+                            <Stars rating={r.rating} size={10} />
+                            {r.userRatingsTotal !== undefined && (
+                              <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: 10 }}>
+                                ({r.userRatingsTotal.toLocaleString()})
+                              </span>
+                            )}
+                            {priceDollars(r.priceLevel) && (
+                              <span style={{ color: '#a3e635', fontSize: 10, fontWeight: 700, marginLeft: 4 }}>
+                                {priceDollars(r.priceLevel)}
+                              </span>
+                            )}
+                          </span>
+                        )}
+                        {r.address && (
+                          <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, lineHeight: 1.35, overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                            {r.address}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
             ) : null}
           </div>
         )}
