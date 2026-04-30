@@ -397,9 +397,10 @@ export default function PlanningMap({
     else if (isActivityType(detail.types)) category = 'activities';
     else if (detail.types.some(t => ['shopping_mall','store','clothing_store','department_store','supermarket','convenience_store','book_store','jewelry_store','shoe_store','electronics_store','furniture_store','home_goods_store','hardware_store','pet_store','florist','pharmacy'].includes(t))) category = 'shopping';
     onAddBookmark({ id: `bm_${Date.now()}`, name: detail.name, coords: detail.coords, category, placeId: detail.placeId });
+    // Clear the temporary search highlight (the new numbered pin takes its
+    // place) but leave the detail panel open so the user can keep reading.
     searchMarkerRef.current?.setMap(null);
     searchMarkerRef.current = null;
-    setDetail(null);
     setQuery('');
   }, [detail, onAddBookmark]);
 
@@ -656,8 +657,8 @@ export default function PlanningMap({
                     }}
                   >
                     {isBookmarked
-                      ? <>{String.fromCodePoint(0x2713)} Bookmarked</>
-                      : <>{String.fromCodePoint(0x2B50)} Bookmark this destination</>}
+                      ? <>{String.fromCodePoint(0x2713)} Pinned</>
+                      : <>{String.fromCodePoint(0x1F4CD)} Pin destination</>}
                   </button>
 
                   {/* ── Tabs ────────────────────────────────────────────── */}
