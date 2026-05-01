@@ -141,7 +141,9 @@ FORMATTING RULES:
    - Always show how to get from one activity to the next — include the mode of transport emoji (🚶 walk, 🚇 subway/metro, 🚌 bus, 🚕 taxi/rideshare, 🚂 train, 🚴 bike, ⛵ ferry), the travel time in minutes, and the specific line or route name where relevant
    - Include approximate duration for each activity in parentheses e.g. *(~2 hrs)*
    - Lunch and dinner entries should specify the restaurant, cuisine type, and approximate cost per person
-   - Factor in realistic travel times between locations — don't pack in activities that are geographically too spread out`;
+   - Factor in realistic travel times between locations — don't pack in activities that are geographically too spread out
+
+3. NO TIME-OF-DAY SUBHEADINGS: Do NOT split a day into "Morning / Afternoon / Evening" subsections (no \`### Morning\`, no \`**Morning**\`, no bare "Morning:" lines). The clock time on each activity already conveys when it happens. List all activities for a day as one chronological flow under the day's \`## Day N: Title\` heading.`;
 
 export async function POST(req: Request) {
   // ── Auth + generation limit ───────────────────────────────────────────────

@@ -13,6 +13,12 @@ export type ActivityGroup =
   | { type: 'activity'; headline: string; headlineIdx: number; details: { line: string; idx: number }[] }
   | { type: 'plain';    line: string;     idx: number };
 
+// Subheadings inside a day that are pure time-of-day labels — strip them
+// entirely so activities flow chronologically by their **HH:MM AM** stamps
+// instead of being chunked into Morning/Afternoon/Evening cards. Catches
+// both bare "### Morning" and bolded "**Morning**" variants.
+const TIME_OF_DAY_RE = /^(?:###\s+)?(?:\*\*)?\s*(morning|afternoon|evening|night|midday|noon|early\s+morning|late\s+afternoon|late\s+evening|breakfast|lunch|dinner)\s*(?:\*\*)?\s*:?\s*$/i;
+
 export function parseLines(rawLines: string[]): Section[] {
   const sections: Section[] = [];
   let current: Section = { id: 's0', heading: '', lines: [] };
@@ -21,16 +27,27 @@ export function parseLines(rawLines: string[]): Section[] {
   for (const line of rawLines) {
     const trimmed = line.trim();
     const boldDay = trimmed.match(/^\*\*(Day\s+\d+[^*]*)\*\*\s*:?\s*$/i);
-    if (line.startsWith('## ') || line.startsWith('### ') || boldDay) {
+    // Section boundaries: only `## H2` and `**Day N**`. Older prompts and
+    // some models emit `### Morning|Afternoon|Evening` subheadings which
+    // used to fragment a single day into 3-4 separate cards. Treat those
+    // as in-day noise (filtered below) instead of section breaks.
+    if (line.startsWith('## ') || boldDay) {
       if (current.heading || current.lines.some(l => l.trim())) {
         sections.push(current);
       }
-      let heading = '';
-      if (line.startsWith('## '))       heading = line.slice(3).trim();
-      else if (line.startsWith('### ')) heading = line.slice(4).trim();
-      else if (boldDay)                 heading = boldDay[1].trim();
+      const heading = line.startsWith('## ')
+        ? line.slice(3).trim()
+        : (boldDay ? boldDay[1].trim() : '');
       current = { id: `s${idx++}`, heading, lines: [] };
-    } else if (line !== '---') {
+    } else if (line === '---') {
+      // Drop horizontal rules — they're decoration in the AI output.
+      continue;
+    } else if (TIME_OF_DAY_RE.test(trimmed)) {
+      // Drop morning/afternoon/evening sub-labels; activity time stamps
+      // (**9:00 AM**) already encode the chronological order so the
+      // sub-labels are visual noise that wrecks the day's flow.
+      continue;
+    } else {
       current.lines.push(line);
     }
   }
