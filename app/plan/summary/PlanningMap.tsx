@@ -1149,11 +1149,27 @@ export default function PlanningMap({
                   borderBottom: '1px solid rgba(255,255,255,0.07)',
                   flexShrink: 0,
                 }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-                    <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, fontWeight: 700, letterSpacing: 1.1, textTransform: 'uppercase' }}>
-                      {searchResults.length} {searchResults.length === 1 ? 'result' : 'results'}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                    <span style={{
+                      color: 'var(--brand-accent-2, rgba(167,139,250,0.85))',
+                      fontFamily: 'var(--font-mono-display), ui-monospace, monospace',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      letterSpacing: '0.18em',
+                      textTransform: 'uppercase',
+                    }}>
+                      § {searchResults.length} {searchResults.length === 1 ? 'result' : 'results'}
                     </span>
-                    <span style={{ color: '#f1f5f9', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    <span style={{
+                      color: 'var(--brand-ink, #f1f5f9)',
+                      fontFamily: 'var(--font-display), Georgia, serif',
+                      fontSize: 16,
+                      fontWeight: 400,
+                      letterSpacing: '-0.01em',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                    }}>
                       {lastQuery}
                     </span>
                   </div>
@@ -1189,20 +1205,47 @@ export default function PlanningMap({
                       <span style={{
                         flexShrink: 0,
                         width: 22, height: 22, borderRadius: '50%',
-                        background: '#38bdf8', color: '#0a0f1e',
-                        fontSize: 11, fontWeight: 800,
+                        background: 'var(--brand-accent, #38bdf8)', color: '#0a0f1e',
+                        fontFamily: 'var(--font-mono-display), ui-monospace, monospace',
+                        fontSize: 11, fontWeight: 700,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        marginTop: r.photoUrl ? 18 : 2,
+                        marginTop: 18,
                       }}>{i + 1}</span>
-                      {r.photoUrl && (
+                      {r.photoUrl ? (
                         <img
                           src={r.photoUrl}
                           alt=""
                           style={{ width: 60, height: 60, objectFit: 'cover', borderRadius: 6, flexShrink: 0 }}
                         />
+                      ) : (
+                        // Placeholder so rows without a Google photo still
+                        // have visual weight and the layout doesn't shift.
+                        <div style={{
+                          width: 60, height: 60, borderRadius: 6, flexShrink: 0,
+                          background: 'rgba(56,189,248,0.06)',
+                          border: '1px solid rgba(56,189,248,0.14)',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          color: 'rgba(56,189,248,0.55)',
+                        }}>
+                          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                            <path d="M3 21h18" />
+                            <path d="M5 21V7l7-4 7 4v14" />
+                            <path d="M9 9h.01M9 13h.01M9 17h.01M14 9h.01M14 13h.01M14 17h.01" />
+                          </svg>
+                        </div>
                       )}
-                      <span style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, flex: 1 }}>
-                        <span style={{ color: '#f1f5f9', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      <span style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 0, flex: 1 }}>
+                        <span style={{
+                          color: 'var(--brand-ink, #f1f5f9)',
+                          fontFamily: 'var(--font-display), Georgia, serif',
+                          fontSize: 14,
+                          fontWeight: 400,
+                          letterSpacing: '-0.005em',
+                          lineHeight: 1.2,
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        }}>
                           {r.name}
                         </span>
                         {r.rating !== undefined && (
