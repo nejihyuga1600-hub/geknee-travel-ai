@@ -432,17 +432,24 @@ function PlanMap({
   const activeCategoryRef = useRef(activeCategory);
   activeCategoryRef.current = activeCategory;
 
+  // Track when the Google Maps Map instance has been created. The map
+  // creation effect runs once on mount, but `location` may still be null
+  // at that point (trip fetch hasn't returned yet). The recenter effect
+  // depends on BOTH `location` and `mapReady` so it fires correctly
+  // regardless of which arrived second.
+  const [mapReady, setMapReady] = useState(false);
+
   // Mount once
   useEffect(() => {
     let cancelled = false;
     loadGoogleMaps().then(() => {
       if (cancelled || !containerRef.current) return;
-      // Fast path: if the trip's destination is in our known-monument
-      // table, use those coords as the initial center so the map lands
-      // on Taj Mahal / Eiffel / etc. immediately. Otherwise fall back to
-      // a wide global view (zoom 2) and let the geocoder effect snap in.
-      // Avoids the previous "starts in Kyoto, pans to destination" flash
-      // that left the camera mid-pan over the wrong continent.
+      // Fast path: if the trip's destination is already known at the
+      // moment Google Maps loads, use those coords as the initial center
+      // so the map lands on Taj Mahal / Eiffel / etc. immediately.
+      // Otherwise fall back to a wide global view (zoom 2) and the
+      // recenter effect snaps in once `location` resolves from the trip
+      // fetch (mapReady flips true now, that effect's deps trigger).
       const known = lookupKnownCoords(location);
       const map = new google.maps.Map(containerRef.current, {
         center: known ?? { lat: 20, lng: 0 },
@@ -454,6 +461,7 @@ function PlanMap({
       });
       mapRef.current = map;
       placesRef.current = new google.maps.places.PlacesService(map);
+      setMapReady(true);
 
       // Click → drop pin. Use nearby PlacesService to look up the closest
       // place; if a match is found, attach photo/rating/review snippet.
@@ -505,6 +513,7 @@ function PlanMap({
       markerMap.current.forEach(m => m.setMap(null));
       markerMap.current.clear();
       mapRef.current = null;
+      setMapReady(false);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -528,11 +537,17 @@ function PlanMap({
     );
   }
 
-  // Recenter when location resolves. Try the known-monument shortcut
-  // first (no API call), fall back to Geocoder for everything else. Use
-  // `setCenter` instead of `panTo` so the move is instant — animated pans
-  // across long distances let the user see wrong continents en route.
+  // Recenter when location resolves OR when the map becomes ready
+  // (whichever happens last). Without the mapReady dep there's a race:
+  // if `location` updates BEFORE the Google Maps SDK finishes loading,
+  // this effect fires once with map=null, bails, and never re-runs —
+  // leaving the camera permanently at the (lat 20, lng 0) global
+  // fallback. Tracking mapReady as a dep guarantees the recenter fires
+  // on whichever side resolves last. Try the known-monument shortcut
+  // first (no API call), fall back to Geocoder otherwise. `setCenter`
+  // instead of `panTo` so long-distance moves are instant.
   useEffect(() => {
+    if (!mapReady) return;
     const map = mapRef.current;
     if (!map || !location) return;
     const known = lookupKnownCoords(location);
@@ -552,7 +567,7 @@ function PlanMap({
         }
       });
     });
-  }, [location]);
+  }, [location, mapReady]);
 
   // Sync markers with pins state
   useEffect(() => {
