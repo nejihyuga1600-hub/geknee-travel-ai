@@ -2,6 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { loadGoogleMaps } from '@/lib/googleMapsLoader';
+import { lookupKnownCoords } from '@/app/plan/lib/monument-coords';
 // Same palette as page.tsx PLANNING_CATS — kept in sync manually because
 // PlanningMap needs to render markers without taking a prop dependency.
 const MARKER_COLORS: Record<string, string> = {
@@ -533,19 +534,27 @@ export default function PlanningMap({
         }
       });
 
-      // Auto-zoom
+      // Auto-zoom. Resolve each city via the known-monument fast path
+      // first (instant, no API call); fall back to Geocoder per-city
+      // only when the fast path misses. Saves Geocoder quota and lets
+      // the map land on the destination synchronously when the trip is
+      // pegged to a famous monument.
       if (location && !cancelled) {
         const cities  = [location, ...(extraStops ?? [])].filter(Boolean);
         const isMulti = cities.length > 1;
         const latlngs = (await Promise.all(
-          cities.map(city =>
-            new Promise<google.maps.LatLng | null>(res =>
+          cities.map(city => {
+            const known = lookupKnownCoords(city);
+            if (known) {
+              return Promise.resolve(new google.maps.LatLng(known.lat, known.lng));
+            }
+            return new Promise<google.maps.LatLng | null>(res =>
               geocoderRef.current!.geocode({ address: city }, (r, s) => {
                 if (s !== 'OK' || !r?.[0]) { res(null); return; }
                 res(r[0].geometry.location);
               })
-            )
-          )
+            );
+          })
         )).filter((c): c is google.maps.LatLng => c !== null);
 
         if (!cancelled && latlngs.length > 0) {

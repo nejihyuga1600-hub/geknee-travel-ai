@@ -4,38 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { loadGoogleMaps } from '@/lib/googleMapsLoader';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
-import { MONUMENT_LATLON } from '@/app/plan/location/globe/skins';
-
-// Display-name → coords fast path. Avoids a Geocoder roundtrip for famous
-// destinations so the map lands on the right spot the instant it mounts,
-// instead of flashing through Kyoto / mid-pan over Africa while we wait
-// for Google. MONUMENT_LATLON keys are camelCase ('tajMahal'), so we
-// build a normalized lookup keyed by the human-readable name once.
-const NAME_TO_COORDS: Record<string, { lat: number; lng: number }> = (() => {
-  const labels: Record<string, string> = {
-    eiffelTower: 'eiffel tower', colosseum: 'colosseum', tajMahal: 'taj mahal',
-    greatWall: 'great wall of china', statueLiberty: 'statue of liberty',
-    sagradaFamilia: 'sagrada familia', machuPicchu: 'machu picchu',
-    christRedeem: 'christ the redeemer', angkorWat: 'angkor wat',
-    pyramidGiza: 'pyramids of giza', goldenGate: 'golden gate bridge',
-    bigBen: 'big ben', acropolis: 'acropolis', sydneyOpera: 'sydney opera house',
-    neuschwanstein: 'neuschwanstein castle', stonehenge: 'stonehenge',
-    iguazuFalls: 'iguazu falls', tokyoSkytree: 'tokyo skytree',
-    victoriaFalls: 'victoria falls',
-  };
-  const out: Record<string, { lat: number; lng: number }> = {};
-  for (const [key, label] of Object.entries(labels)) {
-    const ll = MONUMENT_LATLON[key];
-    if (ll) out[label] = { lat: ll.lat, lng: ll.lon };
-  }
-  return out;
-})();
-
-function lookupKnownCoords(location: string | null): { lat: number; lng: number } | null {
-  if (!location) return null;
-  const key = location.trim().toLowerCase();
-  return NAME_TO_COORDS[key] ?? null;
-}
+import { lookupKnownCoords } from '@/app/plan/lib/monument-coords';
 
 // ─── E1 · Plan map · Google Maps drop-pin UX ────────────────────────────────
 // Dark-navy Google Maps. Click anywhere to drop a pin in the active category.
