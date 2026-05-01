@@ -4,6 +4,38 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { loadGoogleMaps } from '@/lib/googleMapsLoader';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import { MONUMENT_LATLON } from '@/app/plan/location/globe/skins';
+
+// Display-name → coords fast path. Avoids a Geocoder roundtrip for famous
+// destinations so the map lands on the right spot the instant it mounts,
+// instead of flashing through Kyoto / mid-pan over Africa while we wait
+// for Google. MONUMENT_LATLON keys are camelCase ('tajMahal'), so we
+// build a normalized lookup keyed by the human-readable name once.
+const NAME_TO_COORDS: Record<string, { lat: number; lng: number }> = (() => {
+  const labels: Record<string, string> = {
+    eiffelTower: 'eiffel tower', colosseum: 'colosseum', tajMahal: 'taj mahal',
+    greatWall: 'great wall of china', statueLiberty: 'statue of liberty',
+    sagradaFamilia: 'sagrada familia', machuPicchu: 'machu picchu',
+    christRedeem: 'christ the redeemer', angkorWat: 'angkor wat',
+    pyramidGiza: 'pyramids of giza', goldenGate: 'golden gate bridge',
+    bigBen: 'big ben', acropolis: 'acropolis', sydneyOpera: 'sydney opera house',
+    neuschwanstein: 'neuschwanstein castle', stonehenge: 'stonehenge',
+    iguazuFalls: 'iguazu falls', tokyoSkytree: 'tokyo skytree',
+    victoriaFalls: 'victoria falls',
+  };
+  const out: Record<string, { lat: number; lng: number }> = {};
+  for (const [key, label] of Object.entries(labels)) {
+    const ll = MONUMENT_LATLON[key];
+    if (ll) out[label] = { lat: ll.lat, lng: ll.lon };
+  }
+  return out;
+})();
+
+function lookupKnownCoords(location: string | null): { lat: number; lng: number } | null {
+  if (!location) return null;
+  const key = location.trim().toLowerCase();
+  return NAME_TO_COORDS[key] ?? null;
+}
 
 // ─── E1 · Plan map · Google Maps drop-pin UX ────────────────────────────────
 // Dark-navy Google Maps. Click anywhere to drop a pin in the active category.
@@ -436,9 +468,16 @@ function PlanMap({
     let cancelled = false;
     loadGoogleMaps().then(() => {
       if (cancelled || !containerRef.current) return;
+      // Fast path: if the trip's destination is in our known-monument
+      // table, use those coords as the initial center so the map lands
+      // on Taj Mahal / Eiffel / etc. immediately. Otherwise fall back to
+      // a wide global view (zoom 2) and let the geocoder effect snap in.
+      // Avoids the previous "starts in Kyoto, pans to destination" flash
+      // that left the camera mid-pan over the wrong continent.
+      const known = lookupKnownCoords(location);
       const map = new google.maps.Map(containerRef.current, {
-        center: { lat: 35.0116, lng: 135.7681 }, // Kyoto until geocode resolves
-        zoom: 12,
+        center: known ?? { lat: 20, lng: 0 },
+        zoom: known ? 13 : 2,
         styles: DARK_STYLE,
         disableDefaultUI: true,
         zoomControl: true,
@@ -520,16 +559,27 @@ function PlanMap({
     );
   }
 
-  // Recenter when location resolves
+  // Recenter when location resolves. Try the known-monument shortcut
+  // first (no API call), fall back to Geocoder for everything else. Use
+  // `setCenter` instead of `panTo` so the move is instant — animated pans
+  // across long distances let the user see wrong continents en route.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !location) return;
+    const known = lookupKnownCoords(location);
+    if (known) {
+      map.setCenter(known);
+      map.setZoom(13);
+      return;
+    }
     loadGoogleMaps().then(() => {
       const geocoder = new google.maps.Geocoder();
       geocoder.geocode({ address: location }, (results, status) => {
         if (status === 'OK' && results?.[0]?.geometry?.location) {
-          map.panTo(results[0].geometry.location);
+          map.setCenter(results[0].geometry.location);
           map.setZoom(13);
+        } else {
+          console.warn('[plan/map] geocode failed for', location, 'status:', status);
         }
       });
     });
