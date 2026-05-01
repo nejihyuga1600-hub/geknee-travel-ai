@@ -877,7 +877,15 @@ export default function PlanningMap({
 
                 {/* ── Name + rating + bookmark ───────────────────────────── */}
                 <div style={{ padding: '14px 16px 0', flexShrink: 0 }}>
-                  <h3 style={{ margin: '0 0 5px', color: '#fff', fontSize: 16, fontWeight: 800, lineHeight: 1.2 }}>
+                  <h3 style={{
+                    margin: '0 0 6px',
+                    color: 'var(--brand-ink, #f1f5f9)',
+                    fontFamily: 'var(--font-display), Georgia, serif',
+                    fontSize: 22,
+                    fontWeight: 400,
+                    letterSpacing: '-0.015em',
+                    lineHeight: 1.15,
+                  }}>
                     {detail.name}
                   </h3>
 
@@ -910,14 +918,26 @@ export default function PlanningMap({
                   <button
                     onClick={isBookmarked ? undefined : handleBookmark}
                     style={{
-                      width: '100%', padding: '10px 0', borderRadius: 10, fontSize: 13, fontWeight: 700,
-                      background: isBookmarked ? 'rgba(34,197,94,0.12)' : 'rgba(245,158,11,0.17)',
-                      border: `1.5px solid ${isBookmarked ? 'rgba(34,197,94,0.4)' : 'rgba(245,158,11,0.5)'}`,
-                      color: isBookmarked ? '#86efac' : '#fcd34d',
+                      width: '100%',
+                      padding: '11px 0',
+                      borderRadius: 10,
+                      fontFamily: 'var(--font-mono-display), ui-monospace, monospace',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      letterSpacing: '0.18em',
+                      textTransform: 'uppercase',
+                      background: isBookmarked
+                        ? 'rgba(56,189,248,0.08)'
+                        : 'rgba(56,189,248,0.14)',
+                      border: `1px solid ${isBookmarked ? 'rgba(56,189,248,0.3)' : 'rgba(56,189,248,0.4)'}`,
+                      color: 'var(--brand-accent, #38bdf8)',
                       cursor: isBookmarked ? 'default' : 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-                      boxShadow: isBookmarked ? 'none' : '0 0 18px rgba(245,158,11,0.12)',
-                      marginBottom: 12,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      transition: 'background 180ms ease',
+                      marginBottom: 14,
                     }}
                   >
                     {isBookmarked
@@ -936,12 +956,20 @@ export default function PlanningMap({
                         key={t.key}
                         onClick={() => setActiveTab(t.key)}
                         style={{
-                          padding: '7px 12px', fontSize: 11, fontWeight: 600,
-                          background: 'transparent', border: 'none',
-                          borderBottom: `2px solid ${activeTab === t.key ? '#38bdf8' : 'transparent'}`,
-                          color: activeTab === t.key ? '#38bdf8' : 'rgba(255,255,255,0.35)',
-                          cursor: 'pointer', whiteSpace: 'nowrap',
-                          marginBottom: -1, transition: 'color 0.15s',
+                          padding: '9px 12px',
+                          fontFamily: 'var(--font-mono-display), ui-monospace, monospace',
+                          fontSize: 10,
+                          fontWeight: 700,
+                          letterSpacing: '0.18em',
+                          textTransform: 'uppercase',
+                          background: 'transparent',
+                          border: 'none',
+                          borderBottom: `2px solid ${activeTab === t.key ? 'var(--brand-accent, #38bdf8)' : 'transparent'}`,
+                          color: activeTab === t.key ? 'var(--brand-accent, #38bdf8)' : 'rgba(255,255,255,0.45)',
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          marginBottom: -1,
+                          transition: 'color 180ms ease',
                         }}
                       >
                         {t.label}
@@ -960,7 +988,7 @@ export default function PlanningMap({
                     )}
                     {detail.openingHours && (
                       <div>
-                        <p style={{ margin: '0 0 6px', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.28)', letterSpacing: 1.1, textTransform: 'uppercase' }}>Hours</p>
+                        <p style={{ margin: '0 0 6px', fontFamily: 'var(--font-mono-display), ui-monospace, monospace', fontSize: 10, fontWeight: 700, color: 'var(--brand-accent-2, rgba(167,139,250,0.85))', letterSpacing: '0.18em', textTransform: 'uppercase' }}>Hours</p>
                         {detail.openingHours.map((h, i) => (
                           <p key={i} style={{ margin: '0 0 3px', fontSize: 11, color: 'rgba(255,255,255,0.45)', lineHeight: 1.4 }}>{h}</p>
                         ))}
@@ -968,13 +996,13 @@ export default function PlanningMap({
                     )}
                     {detail.phone && (
                       <div>
-                        <p style={{ margin: '0 0 3px', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.28)', letterSpacing: 1.1, textTransform: 'uppercase' }}>Phone</p>
+                        <p style={{ margin: '0 0 3px', fontFamily: 'var(--font-mono-display), ui-monospace, monospace', fontSize: 10, fontWeight: 700, color: 'var(--brand-accent-2, rgba(167,139,250,0.85))', letterSpacing: '0.18em', textTransform: 'uppercase' }}>Phone</p>
                         <p style={{ margin: 0, fontSize: 12, color: '#7dd3fc' }}>{detail.phone}</p>
                       </div>
                     )}
                     {detail.website && (
                       <div>
-                        <p style={{ margin: '0 0 3px', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.28)', letterSpacing: 1.1, textTransform: 'uppercase' }}>Website</p>
+                        <p style={{ margin: '0 0 3px', fontFamily: 'var(--font-mono-display), ui-monospace, monospace', fontSize: 10, fontWeight: 700, color: 'var(--brand-accent-2, rgba(167,139,250,0.85))', letterSpacing: '0.18em', textTransform: 'uppercase' }}>Website</p>
                         <a href={detail.website} target="_blank" rel="noreferrer"
                           style={{ fontSize: 11, color: '#38bdf8', wordBreak: 'break-all', textDecoration: 'none' }}>
                           {detail.website.replace(/^https?:\/\//, '').replace(/\/$/, '')}
@@ -1058,7 +1086,7 @@ export default function PlanningMap({
                     {/* Hours (useful for planning) */}
                     {detail.openingHours && (
                       <div>
-                        <p style={{ margin: '0 0 8px', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.28)', letterSpacing: 1.1, textTransform: 'uppercase' }}>
+                        <p style={{ margin: '0 0 8px', fontFamily: 'var(--font-mono-display), ui-monospace, monospace', fontSize: 10, fontWeight: 700, color: 'var(--brand-accent-2, rgba(167,139,250,0.85))', letterSpacing: '0.18em', textTransform: 'uppercase' }}>
                           {isFood ? 'Opening Hours' : 'Visiting Hours'}
                         </p>
                         {detail.openingHours.map((h, i) => (
@@ -1075,7 +1103,7 @@ export default function PlanningMap({
                       if (priceReviews.length === 0) return null;
                       return (
                         <div>
-                          <p style={{ margin: '0 0 8px', fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.28)', letterSpacing: 1.1, textTransform: 'uppercase' }}>
+                          <p style={{ margin: '0 0 8px', fontFamily: 'var(--font-mono-display), ui-monospace, monospace', fontSize: 10, fontWeight: 700, color: 'var(--brand-accent-2, rgba(167,139,250,0.85))', letterSpacing: '0.18em', textTransform: 'uppercase' }}>
                             From reviews
                           </p>
                           {priceReviews.slice(0, 2).map((r, i) => (
