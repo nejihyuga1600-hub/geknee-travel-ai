@@ -332,6 +332,32 @@ function SummaryContent({ tripIdOverride }: SummaryViewProps) {
     }
   }, [bookmarks, bookmarksKey]);
 
+  // ── Auto-retry safety net ───────────────────────────────────────────────────
+  // If the page sits in a load/generate state for 90 s without any chunks
+  // arriving, kick off one automatic retry. Catches transient upstream
+  // hiccups (Anthropic/OpenAI gateway blips, dropped connections) without
+  // requiring the user to find and click the "Try again" button. Strictly
+  // ONE auto-retry per page lifetime — a stuck-after-retry state still
+  // surfaces the manual button and stops trying so we don't loop.
+  const autoRetriedRef = useRef(false);
+  useEffect(() => {
+    if (autoRetriedRef.current) return;
+    if (elapsedSec < 90) return;
+    if (lines.length > 0) return; // chunks are arriving, not stuck
+    if (loadingStage !== 'requesting' && loadingStage !== 'no-itinerary' && loadingStage !== 'streaming') return;
+    autoRetriedRef.current = true;
+    console.warn('[itinerary] auto-retrying after', elapsedSec, 's stuck at stage:', loadingStage);
+    loadedFromSave.current = false;
+    setItineraryRequested(true);
+    setStreaming(true);
+    setLines([]);
+    setSections([]);
+    setError('');
+    setLoadingStage('requesting');
+    requestStartRef.current = Date.now();
+    setRetryNonce(n => n + 1);
+  }, [elapsedSec, loadingStage, lines.length]);
+
   // ── Elapsed-time tick — drives status line + slow-warning / retry CTA ───────
   useEffect(() => {
     const isActive =
@@ -379,17 +405,23 @@ function SummaryContent({ tripIdOverride }: SummaryViewProps) {
           setLoadingStage('done');
         } else {
           // Trip exists but no itinerary saved yet (e.g. just-created trip
-          // routed in via savedTripId). Without this fallback, the page
+          // routed in via savedTripId). Without this fallback the page
           // sat forever on "Crafting…" because the generate-effect's
-          // loadedFromSave check skipped the fetch. Reset the ref so the
-          // generate-effect runs, then flip the streaming flags so the UI
-          // moves into the "Reaching the AI…" state.
+          // loadedFromSave check skipped the fetch. We:
+          //   1. Clear loadedFromSave so the early-return is bypassed.
+          //   2. Bump retryNonce so the generate-effect's deps actually
+          //      change. itineraryRequested is initialized to true on
+          //      mount when savedTripId is present, so a plain
+          //      setItineraryRequested(true) here would be a no-op and
+          //      React would never re-run the effect — that was the
+          //      "stuck on Trip loaded · starting AI generation…" bug.
           loadedFromSave.current = false;
           setItineraryRequested(true);
           setStreaming(true);
           setLines([]);
           setSections([]);
           setLoadingStage('no-itinerary');
+          setRetryNonce(n => n + 1);
         }
       })
       .catch(() => {
