@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { BookTabProps } from '../BookTab';
+import type { BookTabProps } from '../lib/types';
 
 // Design-handoff booking surface: tabbed layout (Stays / Flights / Activities
 // / Transport / Insurance) with badge counts, 3-column hotel cards, wide

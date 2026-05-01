@@ -292,7 +292,14 @@ function SummaryContent({ tripIdOverride }: SummaryViewProps) {
   // Default to planning so users land on the map first and choose what to
   // include before generating an itinerary. Itinerary tab populates after the
   // planning tab's "Generate Itinerary" CTA fires.
-  const [mainTab, setMainTab]         = useState<'itinerary' | 'planning' | 'book'>('planning');
+  // Default depends on the entry route. The legacy /plan/summary path
+  // historically opens on 'planning' (pin destinations → Generate). The
+  // new tab route /plan/<id>/itinerary signals via `tripIdOverride` that
+  // the user is asking specifically for the itinerary view, so default
+  // to 'itinerary' there — keeps URL semantics aligned with content.
+  const [mainTab, setMainTab]         = useState<'itinerary' | 'planning' | 'book'>(
+    tripIdOverride ? 'itinerary' : 'planning'
+  );
   const [bookmarks, setBookmarks]     = useState<Bookmark[]>([]);
   const [planningFilter, setPlanningFilter] = useState<'all' | BookmarkCategory>('all');
   const [optimizingItinerary, setOptimizingItinerary] = useState(false);

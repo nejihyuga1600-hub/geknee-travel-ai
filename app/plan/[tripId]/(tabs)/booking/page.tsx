@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
-import type { BookTabProps } from '@/app/plan/summary/BookTab';
+import type { BookTabProps } from '@/app/plan/summary/lib/types';
 
 const BookView = dynamic(() => import('@/app/plan/summary/components/BookView'), { ssr: false });
 
