@@ -537,36 +537,77 @@ function PlanMap({
     );
   }
 
-  // Recenter when location resolves OR when the map becomes ready
-  // (whichever happens last). Without the mapReady dep there's a race:
-  // if `location` updates BEFORE the Google Maps SDK finishes loading,
-  // this effect fires once with map=null, bails, and never re-runs —
-  // leaving the camera permanently at the (lat 20, lng 0) global
-  // fallback. Tracking mapReady as a dep guarantees the recenter fires
-  // on whichever side resolves last. Try the known-monument shortcut
-  // first (no API call), fall back to Geocoder otherwise. `setCenter`
-  // instead of `panTo` so long-distance moves are instant.
+  // Recenter the map on the trip's destination as soon as BOTH the
+  // location string and the Google Maps instance are available.
+  //
+  // Three-tier resolution chain (each tier independently logged so a
+  // user with the camera stuck at the global fallback can always
+  // diagnose which tier failed by opening the browser console):
+  //
+  //   1. lookupKnownCoords(location)  — synchronous, fuzzy substring
+  //      match against the MONUMENT_LATLON table. Zero API calls.
+  //   2. Google Maps client-side Geocoder  — covers locations outside
+  //      the monument table (cities, custom destinations).
+  //   3. /api/geocode  — server-side proxy as a last resort. If the
+  //      client-side Geocoder is throttled or the JS API key has been
+  //      restricted in a way that blocks the Geocoder service but not
+  //      the server-side Geocoding key, this still works.
+  //
+  // Without the mapReady dep there's a race: if `location` updates
+  // BEFORE the SDK finishes loading, the effect fires once with
+  // mapRef=null, bails, never re-runs — leaving the camera at the
+  // (lat 20, lng 0) global fallback. Both deps mean whichever resolves
+  // last triggers the recenter.
   useEffect(() => {
     if (!mapReady) return;
     const map = mapRef.current;
     if (!map || !location) return;
+    let cancelled = false;
+    const apply = (coords: { lat: number; lng: number } | google.maps.LatLng) => {
+      if (cancelled) return;
+      map.setCenter(coords);
+      map.setZoom(13);
+    };
+
     const known = lookupKnownCoords(location);
     if (known) {
-      map.setCenter(known);
-      map.setZoom(13);
+      console.log('[plan/map] tier-1 monument hit for', location, '→', known);
+      apply(known);
       return;
     }
+
     loadGoogleMaps().then(() => {
+      if (cancelled) return;
       const geocoder = new google.maps.Geocoder();
       geocoder.geocode({ address: location }, (results, status) => {
+        if (cancelled) return;
         if (status === 'OK' && results?.[0]?.geometry?.location) {
-          map.setCenter(results[0].geometry.location);
-          map.setZoom(13);
-        } else {
-          console.warn('[plan/map] geocode failed for', location, 'status:', status);
+          console.log('[plan/map] tier-2 client geocoder hit for', location);
+          apply(results[0].geometry.location);
+          return;
         }
+        console.warn('[plan/map] tier-2 client geocoder failed for', location, 'status:', status, '— trying server fallback');
+        // Tier 3: server-side geocode endpoint (separate API key /
+        // quota path; survives client-side restrictions).
+        fetch(`/api/geocode?address=${encodeURIComponent(location)}`)
+          .then(r => (r.ok ? r.json() : Promise.reject(new Error(`http ${r.status}`))))
+          .then((d: { lat?: number; lng?: number } | null) => {
+            if (cancelled) return;
+            if (d && typeof d.lat === 'number' && typeof d.lng === 'number') {
+              console.log('[plan/map] tier-3 server geocoder hit for', location);
+              apply({ lat: d.lat, lng: d.lng });
+            } else {
+              console.error('[plan/map] all 3 tiers failed for', location, '(server returned)', d);
+            }
+          })
+          .catch(e => {
+            if (cancelled) return;
+            console.error('[plan/map] tier-3 server geocoder error for', location, e);
+          });
       });
     });
+
+    return () => { cancelled = true; };
   }, [location, mapReady]);
 
   // Sync markers with pins state

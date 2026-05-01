@@ -42,12 +42,27 @@ export const NAME_TO_COORDS: Record<string, { lat: number; lng: number }> = (() 
 })();
 
 /**
- * Returns coords for a known monument name (case- and whitespace-insensitive),
- * or null if the location isn't in the lookup table. Caller should fall back
- * to a Geocoder call when null is returned.
+ * Returns coords for a known monument name (case- and whitespace-insensitive,
+ * fuzzy substring match). Caller should fall back to a Geocoder call when
+ * null is returned.
+ *
+ * Match strategy (in order):
+ *   1. Exact lowercase match on the trimmed input
+ *   2. Substring match: input *contains* a known name
+ *      (e.g. "Taj Mahal, Agra" → tajMahal)
+ *   3. Substring match: known name *contains* input
+ *      (rare; safety net for very short inputs)
  */
 export function lookupKnownCoords(location: string | null | undefined): { lat: number; lng: number } | null {
   if (!location) return null;
   const key = location.trim().toLowerCase();
-  return NAME_TO_COORDS[key] ?? null;
+  if (!key) return null;
+  if (NAME_TO_COORDS[key]) return NAME_TO_COORDS[key];
+  for (const [name, coords] of Object.entries(NAME_TO_COORDS)) {
+    if (key.includes(name)) return coords;
+  }
+  for (const [name, coords] of Object.entries(NAME_TO_COORDS)) {
+    if (name.includes(key) && key.length >= 4) return coords;
+  }
+  return null;
 }
