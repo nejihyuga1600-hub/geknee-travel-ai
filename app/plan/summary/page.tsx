@@ -1,12 +1,15 @@
 import { redirect } from 'next/navigation';
+import { auth } from '@/auth';
+import { prisma } from '@/lib/prisma';
 import SummaryView from './SummaryView';
 
-// Legacy /plan/summary route. When the URL carries a savedTripId/tripId,
-// rewrite to the canonical tab route at /plan/<id>/itinerary so users land
-// inside the new tabbed shell. Without an id (very early in the planning
-// flow, before /api/trips persistence), fall through to the same SummaryView
-// that powers the new tab — keeps the AI-generation entrypoint working
-// for users who haven't created a trip yet.
+// Legacy /plan/summary route. With a savedTripId/tripId we route into
+// the canonical tab shell, picking the right tab based on whether the
+// trip already has an itinerary:
+//   - has itinerary ⇒ /plan/<id>/itinerary (show day cards)
+//   - empty itinerary ⇒ /plan/<id>/planning (curate pins → Generate)
+// Without an id we fall through to SummaryView so the pre-trip flow
+// (no DB row yet) still works.
 export default async function SummaryPage({
   searchParams,
 }: {
@@ -15,7 +18,18 @@ export default async function SummaryPage({
   const sp = await searchParams;
   const id = sp.savedTripId ?? sp.tripId;
   if (id) {
-    redirect(`/plan/${id}/itinerary`);
+    const session = await auth();
+    const userId = (session?.user as { id?: string })?.id;
+    if (userId) {
+      const trip = await prisma.tripDraft.findUnique({
+        where: { id },
+        select: { itinerary: true, userId: true },
+      });
+      if (trip && trip.userId === userId && trip.itinerary) {
+        redirect(`/plan/${id}/itinerary`);
+      }
+    }
+    redirect(`/plan/${id}/planning`);
   }
   return <SummaryView />;
 }

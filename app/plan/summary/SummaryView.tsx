@@ -103,9 +103,20 @@ const PLANNING_CATS: { key: BookmarkCategory; label: string; color: string }[] =
 // from the URL, behavior unchanged.
 export interface SummaryViewProps {
   tripIdOverride?: string;
+  // The new tabbed routes pass this so the planning tab boots in
+  // mainTab='planning' (pin destinations) and the itinerary tab boots
+  // in mainTab='itinerary' (day cards), keeping URL semantics aligned
+  // with what the user sees on first paint.
+  initialMainTab?: 'planning' | 'itinerary' | 'book';
+  // Whether to auto-fire /api/itinerary generation when the trip has
+  // no saved itinerary yet. The planning tab passes false so users get
+  // to curate pins before triggering generation manually. The itinerary
+  // tab leaves it true (default) so deep-linking to itinerary on a
+  // brand-new trip Just Works.
+  autoGenerate?: boolean;
 }
 
-function SummaryContent({ tripIdOverride }: SummaryViewProps) {
+function SummaryContent({ tripIdOverride, initialMainTab, autoGenerate = true }: SummaryViewProps) {
   const params = useSearchParams();
   const router = useRouter();
   const [isMobile, setIsMobile] = useState(false);
@@ -209,6 +220,15 @@ function SummaryContent({ tripIdOverride }: SummaryViewProps) {
   // Bumped to retrigger the generate-effect when the user clicks "Try again"
   // — useEffect deps need a reference change to re-run.
   const [retryNonce, setRetryNonce] = useState(0);
+  // Visible toast surface for the auto-retry safety net so users notice
+  // the system recovered for them. Auto-clears after 6 s so it doesn't
+  // linger over the actual content.
+  const [retryToast, setRetryToast] = useState<string | null>(null);
+  useEffect(() => {
+    if (!retryToast) return;
+    const id = setTimeout(() => setRetryToast(null), 6000);
+    return () => clearTimeout(id);
+  }, [retryToast]);
   const [upgradeModal, setUpgradeModal] = useState<{ open: boolean; feature?: string; reason?: string }>({ open: false });
   const bufferRef = useRef('');
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -292,13 +312,12 @@ function SummaryContent({ tripIdOverride }: SummaryViewProps) {
   // Default to planning so users land on the map first and choose what to
   // include before generating an itinerary. Itinerary tab populates after the
   // planning tab's "Generate Itinerary" CTA fires.
-  // Default depends on the entry route. The legacy /plan/summary path
-  // historically opens on 'planning' (pin destinations → Generate). The
-  // new tab route /plan/<id>/itinerary signals via `tripIdOverride` that
-  // the user is asking specifically for the itinerary view, so default
-  // to 'itinerary' there — keeps URL semantics aligned with content.
+  // Default mainTab in priority order:
+  //   1. Explicit initialMainTab prop (new tabbed routes pass this)
+  //   2. tripIdOverride present ⇒ user asked for itinerary semantically
+  //   3. Otherwise 'planning' (legacy /plan/summary entry, pre-generate)
   const [mainTab, setMainTab]         = useState<'itinerary' | 'planning' | 'book'>(
-    tripIdOverride ? 'itinerary' : 'planning'
+    initialMainTab ?? (tripIdOverride ? 'itinerary' : 'planning')
   );
   const [bookmarks, setBookmarks]     = useState<Bookmark[]>([]);
   const [planningFilter, setPlanningFilter] = useState<'all' | BookmarkCategory>('all');
@@ -347,6 +366,7 @@ function SummaryContent({ tripIdOverride }: SummaryViewProps) {
     if (loadingStage !== 'requesting' && loadingStage !== 'no-itinerary' && loadingStage !== 'streaming') return;
     autoRetriedRef.current = true;
     console.warn('[itinerary] auto-retrying after', elapsedSec, 's stuck at stage:', loadingStage);
+    setRetryToast('Connection looked stuck — retrying automatically.');
     loadedFromSave.current = false;
     setItineraryRequested(true);
     setStreaming(true);
@@ -403,18 +423,14 @@ function SummaryContent({ tripIdOverride }: SummaryViewProps) {
           setSections(parsed);
           setStreaming(false);
           setLoadingStage('done');
-        } else {
-          // Trip exists but no itinerary saved yet (e.g. just-created trip
-          // routed in via savedTripId). Without this fallback the page
-          // sat forever on "Crafting…" because the generate-effect's
-          // loadedFromSave check skipped the fetch. We:
-          //   1. Clear loadedFromSave so the early-return is bypassed.
-          //   2. Bump retryNonce so the generate-effect's deps actually
-          //      change. itineraryRequested is initialized to true on
-          //      mount when savedTripId is present, so a plain
-          //      setItineraryRequested(true) here would be a no-op and
-          //      React would never re-run the effect — that was the
-          //      "stuck on Trip loaded · starting AI generation…" bug.
+        } else if (autoGenerate) {
+          // Trip exists but no itinerary saved yet (e.g. just-created
+          // trip routed in via savedTripId) AND the caller wants
+          // generation to fire automatically (itinerary tab).
+          // Reset loadedFromSave so the generate-effect's early-return
+          // is bypassed, bump retryNonce so the effect's deps actually
+          // change (itineraryRequested is true at mount, so a plain
+          // setItineraryRequested(true) would be a React no-op).
           loadedFromSave.current = false;
           setItineraryRequested(true);
           setStreaming(true);
@@ -422,6 +438,14 @@ function SummaryContent({ tripIdOverride }: SummaryViewProps) {
           setSections([]);
           setLoadingStage('no-itinerary');
           setRetryNonce(n => n + 1);
+        } else {
+          // Planning tab: trip has no itinerary yet, but user is here
+          // to curate pins first. Don't auto-fire generation; clear
+          // loading state and let the explicit "Generate Itinerary"
+          // button in the planning surface drive things.
+          loadedFromSave.current = false;
+          setStreaming(false);
+          setLoadingStage('idle');
         }
       })
       .catch(() => {
@@ -906,6 +930,43 @@ function SummaryContent({ tripIdOverride }: SummaryViewProps) {
         reason={upgradeModal.reason}
         onClose={() => setUpgradeModal({ open: false })}
       />
+
+      {/* Auto-retry toast — surfaces when the safety net detects a stuck
+          load and kicks a retry. Auto-clears after 6 s. Sits top-center so
+          it doesn't fight with the masthead or sidebars. */}
+      {retryToast && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed',
+            top: 16,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 200,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            padding: '10px 16px',
+            borderRadius: 10,
+            background: 'rgba(56,189,248,0.12)',
+            border: '1px solid rgba(56,189,248,0.35)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            color: 'var(--brand-accent, #38bdf8)',
+            fontFamily: 'var(--font-mono-display), ui-monospace, monospace',
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: '0.12em',
+            textTransform: 'uppercase',
+            boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
+            animation: 'retryToastIn 240ms ease-out',
+          }}
+        >
+          <span aria-hidden style={{ width: 8, height: 8, borderRadius: '50%', background: '#38bdf8', animation: 'pulse 1.4s ease-in-out infinite' }} />
+          {retryToast}
+        </div>
+      )}
 
       {/* Background gradient */}
       <div style={{
@@ -1934,6 +1995,7 @@ function SummaryContent({ tripIdOverride }: SummaryViewProps) {
         @keyframes genieSpark  { 0%,100% { opacity:0; transform:scale(0.5); } 50% { opacity:1; transform:scale(1.2); } }
         @keyframes chatSlideUp { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:translateY(0); } }
         @keyframes shimmer     { 0% { background-position:-800px 0; } 100% { background-position:800px 0; } }
+        @keyframes retryToastIn { from { opacity:0; transform:translate(-50%,-12px); } to { opacity:1; transform:translate(-50%,0); } }
         @media print { [style*="position: fixed"] { display:none !important; } }
       `}</style>
     </main>

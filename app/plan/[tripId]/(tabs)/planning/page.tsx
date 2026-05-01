@@ -3,9 +3,11 @@
 import { useParams } from 'next/navigation';
 import dynamic from 'next/dynamic';
 
-// Lazy-load the heavy summary view (~1,700 lines, dynamic-imports a Map,
-// chart, BookView, etc). Renders client-side only — matches how the
-// legacy /plan/summary page behaves.
+// Same SummaryView the itinerary tab uses, but mounted with
+// initialMainTab='planning' so the user lands on the pin/bookmark
+// curation surface with a "Generate Itinerary" CTA — the canonical
+// pre-generation step. New trips redirected from /plan/summary land
+// here when their DB itinerary is empty.
 const SummaryView = dynamic(
   () => import('@/app/plan/summary/SummaryView'),
   {
@@ -21,14 +23,20 @@ const SummaryView = dynamic(
           textTransform: 'uppercase',
         }}
       >
-        Loading itinerary…
+        Loading planning surface…
       </div>
     ),
   }
 );
 
-export default function ItineraryTabPage() {
+export default function PlanningTabPage() {
   const params = useParams();
   const tripId = (params?.tripId as string) ?? '';
-  return <SummaryView tripIdOverride={tripId} initialMainTab="itinerary" />;
+  return (
+    <SummaryView
+      tripIdOverride={tripId}
+      initialMainTab="planning"
+      autoGenerate={false}
+    />
+  );
 }
