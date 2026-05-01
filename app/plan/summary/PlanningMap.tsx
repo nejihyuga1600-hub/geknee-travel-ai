@@ -140,6 +140,10 @@ export default function PlanningMap({
   const searchMarkerRef   = useRef<google.maps.Marker | null>(null);
   const resultMarkersRef  = useRef<google.maps.Marker[]>([]);
   const debounceRef       = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Thumbnail strip ref so we can auto-scroll the active thumb into view
+  // when the user clicks prev/next on the hero — otherwise the highlight
+  // disappears off the visible edge of the strip on photos 6–10.
+  const thumbStripRef     = useRef<HTMLDivElement | null>(null);
 
   const [query, setQuery]           = useState('');
   const [lastQuery, setLastQuery]   = useState('');
@@ -159,6 +163,16 @@ export default function PlanningMap({
   }, []);
 
   // ── Close panel ────────────────────────────────────────────────────────────
+  // Keep the active thumbnail in view as the user pages through photos
+  // via the prev/next hero arrows. Without this, photos 6+ stay
+  // highlighted in DOM but are scrolled off the visible strip.
+  useEffect(() => {
+    const strip = thumbStripRef.current;
+    if (!strip) return;
+    const el = strip.querySelector<HTMLElement>(`[data-thumb-index="${activePhoto}"]`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', inline: 'nearest', block: 'nearest' });
+  }, [activePhoto]);
+
   const closePanel = useCallback(() => {
     setDetail(null);
     setNoResult(false);
@@ -821,6 +835,53 @@ export default function PlanningMap({
                     </div>
                   )}
 
+                  {/* Prev / Next arrows on the hero — the only nav that
+                     reaches photos 6–10 when the thumbnail strip is wider
+                     than the panel and can't be scrolled with a desktop
+                     mouse. Cycle through detail.photos. */}
+                  {detail.photos.length > 1 && (
+                    <>
+                      <button
+                        onClick={() => setActivePhoto(p => (p - 1 + detail.photos.length) % detail.photos.length)}
+                        aria-label="Previous photo"
+                        title="Previous photo"
+                        style={{
+                          position: 'absolute', top: '50%', left: 8,
+                          transform: 'translateY(-50%)',
+                          width: 32, height: 32, borderRadius: '50%',
+                          background: 'rgba(0,0,0,0.55)',
+                          border: '1px solid rgba(255,255,255,0.18)',
+                          color: '#fff', fontSize: 16, fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          backdropFilter: 'blur(6px)',
+                          WebkitBackdropFilter: 'blur(6px)',
+                        }}
+                      >
+                        {String.fromCodePoint(0x2039)}
+                      </button>
+                      <button
+                        onClick={() => setActivePhoto(p => (p + 1) % detail.photos.length)}
+                        aria-label="Next photo"
+                        title="Next photo"
+                        style={{
+                          position: 'absolute', top: '50%', right: 8,
+                          transform: 'translateY(-50%)',
+                          width: 32, height: 32, borderRadius: '50%',
+                          background: 'rgba(0,0,0,0.55)',
+                          border: '1px solid rgba(255,255,255,0.18)',
+                          color: '#fff', fontSize: 16, fontWeight: 700,
+                          cursor: 'pointer',
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          backdropFilter: 'blur(6px)',
+                          WebkitBackdropFilter: 'blur(6px)',
+                        }}
+                      >
+                        {String.fromCodePoint(0x203A)}
+                      </button>
+                    </>
+                  )}
+
                   {/* Close button */}
                   <button
                     onClick={closePanel}
@@ -852,16 +913,27 @@ export default function PlanningMap({
 
                 {/* ── Thumbnail strip ────────────────────────────────────── */}
                 {detail.photos.length > 1 && (
-                  <div style={{
-                    display: 'flex', gap: 3, padding: '5px 6px',
-                    overflowX: 'auto', scrollbarWidth: 'none',
-                    background: 'rgba(0,0,0,0.5)', flexShrink: 0,
-                  }}>
+                  <div
+                    ref={thumbStripRef}
+                    style={{
+                      display: 'flex', gap: 3, padding: '5px 6px',
+                      overflowX: 'auto',
+                      // Was scrollbarWidth:'none' — but on a desktop mouse
+                      // there's no native horizontal-scroll gesture, so
+                      // hiding the scrollbar trapped users on thumbs 1–5.
+                      // Thin visible scrollbar + the new prev/next arrows
+                      // give two reliable nav paths.
+                      scrollbarWidth: 'thin',
+                      scrollbarColor: 'rgba(255,255,255,0.22) transparent',
+                      background: 'rgba(0,0,0,0.5)', flexShrink: 0,
+                    }}
+                  >
                     {detail.photos.map((url, i) => (
                       <img
                         key={i}
                         src={url}
                         alt=""
+                        data-thumb-index={i}
                         onClick={() => setActivePhoto(i)}
                         style={{
                           height: 46, width: 68, objectFit: 'cover', borderRadius: 5,
