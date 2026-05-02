@@ -5,6 +5,16 @@ import { checkAndIncrementGeneration } from "@/lib/plan";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+// Force per-request rendering and disable any layer of caching. Without
+// these, Next.js / Vercel can route the request through a buffering
+// path that delays the first byte arriving at the client until the
+// whole stream is collected. We need each chunk to flush as soon as
+// Anthropic emits it.
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
+export const maxDuration = 300;
+
 interface StopParam {
   city: string;
   startDate?: string;
@@ -206,6 +216,15 @@ export async function POST(req: Request) {
 
   const readable = new ReadableStream({
     async start(controller) {
+      // Immediate priming byte. Vercel's Node serverless runtime — and
+      // any reverse proxy in the path — will hold a streaming response
+      // in a buffer until enough bytes arrive to flush. Anthropic's
+      // first-token latency is 3-8 s, which means the user sees nothing
+      // for 3-8 s + buffer-fill time + network. By writing one byte
+      // synchronously at the top of `start`, we force the response head
+      // out immediately so the client transitions from
+      // "Reaching the AI" → "Receiving from AI" right away.
+      try { controller.enqueue(encoder.encode(" ")); } catch { /* aborted */ }
       try {
         const stream = await client.messages.create({
           model: "claude-sonnet-4-6",
@@ -274,7 +293,15 @@ export async function POST(req: Request) {
   return new Response(readable, {
     headers: {
       "Content-Type": "text/plain; charset=utf-8",
-      "Cache-Control": "no-cache",
+      // No-cache + no-buffering. `X-Accel-Buffering: no` is the magic
+      // header that tells nginx-style proxies (which Vercel uses in
+      // some paths) to stop holding the body — without it, even a
+      // properly-flushed ReadableStream can sit buffered for tens of
+      // seconds before the client gets the first byte.
+      "Cache-Control": "no-cache, no-transform",
+      "X-Accel-Buffering": "no",
+      "Transfer-Encoding": "chunked",
+      "Connection": "keep-alive",
     },
   });
 }
