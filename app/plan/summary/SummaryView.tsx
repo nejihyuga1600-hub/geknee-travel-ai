@@ -1663,6 +1663,29 @@ function SummaryContent({ tripIdOverride, initialMainTab, autoGenerate = true }:
           </div>
         )}
 
+        {/* Trip-wide weather strip — once at the top, replacing the
+            per-day WeatherBar that used to live inside each SectionCard.
+            Aggregates days across all stops, dedupes by date, sorts. */}
+        {(() => {
+          const merged: DayWeather[] = [];
+          const seen = new Set<string>();
+          for (const stop of allStops) {
+            const days = weatherByCity.get(stop.city);
+            if (!days) continue;
+            for (const d of days) {
+              if (seen.has(d.date)) continue;
+              seen.add(d.date);
+              merged.push(d);
+            }
+          }
+          merged.sort((a, b) => a.date.localeCompare(b.date));
+          return merged.length > 0 ? (
+            <div style={{ marginBottom: 22 }}>
+              <WeatherBar days={merged} unit={weatherUnit} />
+            </div>
+          ) : null;
+        })()}
+
         {/* Committed sections — shown as interactive SectionCards as soon as each day is complete */}
         {!error && sections.length > 0 && (
           <>

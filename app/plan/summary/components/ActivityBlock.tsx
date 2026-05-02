@@ -63,7 +63,7 @@ function PlaceThumb({ place, city }: { place: string; city?: string }) {
         disabled={!src}
         aria-label={src ? `View larger photo of ${place}` : place}
         style={{
-          width: 80, height: 80, borderRadius: 12, overflow: 'hidden', flexShrink: 0,
+          width: 96, height: 96, borderRadius: 12, overflow: 'hidden', flexShrink: 0,
           background: 'rgba(255,255,255,0.04)',
           border: '1px solid rgba(255,255,255,0.06)',
           cursor: src ? 'zoom-in' : 'default',
@@ -123,12 +123,77 @@ function PlaceThumb({ place, city }: { place: string; city?: string }) {
   );
 }
 
+// Pull scannable metadata out of the existing markdown the model already
+// emits, so we can render it as chips alongside the prose. Pure regex —
+// no prompt change required. Each helper returns `null` when the data
+// isn't there so chips degrade gracefully.
+
+const TRANSIT_LINE_RE = /^\s*(🚶|🚇|🚌|🚕|🚂|🚆|🚴|⛵|✈️|🛩|🛬|🚁|🚖|🛺|🚊|🚋)\s*~?\s*(\d+)\s*(?:min(?:ute)?s?|hrs?|hours?)/iu;
+
+function parseDuration(headline: string): string | null {
+  const m = headline.match(/\(\s*~?\s*(\d+(?:\.\d+)?)\s*(hrs?|hours?|mins?|minutes?)\s*\)/i);
+  if (!m) return null;
+  const unit = /^h/i.test(m[2]) ? 'hr' : 'min';
+  return `~${m[1]} ${unit}${m[1] === '1' ? '' : 's'}`;
+}
+
+function parseCost(details: { line: string }[]): string | null {
+  const text = details.map(d => d.line).join(' ');
+  // Currency match: $30, ¥1,800, €20, £15-25, including "30-50 USD"
+  const sym = text.match(/[$¥€£][\d,]+(?:[-–][\d,]+)?/);
+  if (sym) return sym[0];
+  const usd = text.match(/(\d{1,4}(?:[-–]\d{1,4})?)\s*(USD|EUR|GBP|JPY|YEN)/i);
+  if (usd) return `${usd[1]} ${usd[2].toUpperCase()}`;
+  return null;
+}
+
+function parseTransit(details: { line: string }[]): { icon: string; label: string } | null {
+  for (const { line } of details) {
+    const m = line.match(TRANSIT_LINE_RE);
+    if (!m) continue;
+    const mode = line
+      .replace(TRANSIT_LINE_RE, '')
+      .match(/(walk(?:ing)?|subway|metro|bus|taxi|cab|train|bike|cycle|ferry|tram|drive|driving|flight)/i)?.[0]
+      ?.toLowerCase();
+    return { icon: m[1], label: `${m[2]} min${mode ? ' · ' + mode : ''}` };
+  }
+  return null;
+}
+
+function Chip({ icon, label, accent }: { icon?: string; label: string; accent?: string }) {
+  return (
+    <span style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      fontSize: 10.5, lineHeight: 1.4,
+      color: accent ?? 'rgba(255,255,255,0.6)',
+      background: 'rgba(255,255,255,0.04)',
+      border: '1px solid rgba(255,255,255,0.08)',
+      borderRadius: 6, padding: '3px 8px',
+      fontFamily: 'var(--font-mono-display), ui-monospace, monospace',
+      letterSpacing: '0.03em',
+      whiteSpace: 'nowrap',
+    }}>
+      {icon && <span style={{ fontSize: 11 }}>{icon}</span>}
+      <span>{label}</span>
+    </span>
+  );
+}
+
 export function ActivityBlock({
   group, sectionIdx, editTarget, editValue,
   onStartEdit, onEditChange, onCommit, onCancel, onAskGenie, city, activityNumber,
 }: ActivityBlockProps) {
-  const hasDetails = group.details.some(d => d.line.trim());
   const place = extractPlace(group.headline);
+  const duration = parseDuration(group.headline);
+  const cost = parseCost(group.details);
+  const transit = parseTransit(group.details);
+  const hasAnyChip = !!(duration || cost || transit);
+
+  // Hide the raw transit line from the rendered detail prose since it's
+  // promoted to a chip. Cost may be embedded in a description sentence,
+  // so we leave those lines visible for context.
+  const visibleDetails = group.details.filter(d => !TRANSIT_LINE_RE.test(d.line));
+  const hasDetails = visibleDetails.some(d => d.line.trim());
 
   return (
     <div style={{ marginBottom: 14 }}>
@@ -162,13 +227,20 @@ export function ActivityBlock({
             onCancel={onCancel}
             onAskGenie={onAskGenie}
           />
+          {hasAnyChip && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+              {duration && <Chip icon="⏱" label={duration} />}
+              {transit && <Chip icon={transit.icon} label={transit.label} />}
+              {cost && <Chip label={cost} accent="rgba(125,211,252,0.85)" />}
+            </div>
+          )}
           {hasDetails && (
             <div style={{
-              marginTop: 2,
+              marginTop: 6,
               paddingLeft: 12,
               borderLeft: '2px solid rgba(56,189,248,0.2)',
             }}>
-              {group.details.map(({ line, idx }) => (
+              {visibleDetails.map(({ line, idx }) => (
                 <EditableLine
                   key={idx}
                   line={line}

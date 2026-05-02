@@ -195,7 +195,9 @@ export function SectionCard({
           </button>
         </div>
       )}
-      {weatherDays && <WeatherBar days={weatherDays} unit={weatherUnit} />}
+      {/* Per-section WeatherBar removed — the per-day weather is summarized
+          inline in the day heading (DAY 1 · 18°/9° · CLEAR) and the trip-wide
+          weather strip lives once at the top of SummaryView. */}
 
       {isDayOrCity ? (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 340px', gap: 20, alignItems: 'start' }}>
