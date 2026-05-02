@@ -17,9 +17,17 @@ export const metadata: Metadata = {
   },
 };
 
-// Cache the leaderboard for 60s. The board doesn't need to be live-second
-// accurate, and this keeps the home → leaderboard click instant for everyone.
-export const revalidate = 60;
+// Render at request time, never at build time. The page does a Prisma
+// query against Neon, and Vercel's build container occasionally can't
+// reach the pooler — when that happens with `revalidate = 60` (ISR),
+// the initial prerender fails and the whole build crashes. Switching
+// to force-dynamic moves the query to per-request, so transient DB
+// blips during build no longer take down the deploy.
+//
+// Trade-off: lose the 60-second static cache. If the leaderboard ends
+// up too chatty under load, swap to `unstable_cache` around the
+// prisma call to recover the cache without a build-time prerender.
+export const dynamic = 'force-dynamic';
 
 type LeaderRow = {
   userId: string;
