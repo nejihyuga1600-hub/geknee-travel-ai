@@ -156,6 +156,7 @@ export default function DayMap({
 
     async function geocode(address: string): Promise<[number, number] | null> {
       const cacheKey = `geo:${address}`;
+      // Layer 1: sessionStorage — instant, client-only.
       try {
         const hit = sessionStorage.getItem(cacheKey);
         if (hit) {
@@ -163,6 +164,9 @@ export default function DayMap({
           return [c.lng, c.lat];
         }
       } catch { /* sessionStorage unavailable */ }
+      // Layer 2: server-cached /api/geocode (Google Geocoding under the
+      // hood). Auth-gated, so silently fails for unauthed sessions or
+      // when the Google key is missing — that's fine, we have a backup.
       try {
         const res = await fetch(`/api/geocode?address=${encodeURIComponent(address)}`);
         if (res.ok) {
@@ -173,6 +177,27 @@ export default function DayMap({
           }
         }
       } catch { /* network */ }
+      // Layer 3: Mapbox Geocoding API direct, using the same public
+      // token already in use for the map tiles. Free up to ~100K
+      // req/month, no auth boundary, so it works even when /api/geocode
+      // is failing (auth lapse, missing Google key, etc.). This is the
+      // fix for the "map stuck in Tokyo (Shinjuku)" bug — without it,
+      // the map's hardcoded fallback center stayed visible.
+      const token = process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
+      if (token) {
+        try {
+          const url = `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(address)}.json?access_token=${token}&limit=1`;
+          const r = await fetch(url);
+          if (r.ok) {
+            const d = await r.json() as { features?: Array<{ center: [number, number] }> };
+            const center = d.features?.[0]?.center;
+            if (center && Number.isFinite(center[0]) && Number.isFinite(center[1])) {
+              try { sessionStorage.setItem(cacheKey, JSON.stringify({ lat: center[1], lng: center[0] })); } catch { /* ignore */ }
+              return center;
+            }
+          }
+        } catch { /* network */ }
+      }
       return null;
     }
 

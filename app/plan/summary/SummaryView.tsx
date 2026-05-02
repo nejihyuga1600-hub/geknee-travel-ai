@@ -1914,133 +1914,77 @@ function SummaryContent({ tripIdOverride, initialMainTab, autoGenerate = true }:
         {/* Action buttons — shown after streaming completes */}
         {!error && !streaming && sections.length > 0 && (
           <>
-            <div style={{ display: 'flex', gap: 12, marginTop: 24, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: 10, marginTop: 28, flexWrap: 'wrap', alignItems: 'center' }}>
               <button
                 onClick={() => router.push('/')}
                 style={{
-                  padding: '13px 24px', borderRadius: 12,
-                  background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)',
-                  color: 'rgba(255,255,255,0.7)', fontSize: 14, cursor: 'pointer',
+                  padding: '11px 18px', borderRadius: 999,
+                  background: 'transparent', border: '1px solid rgba(255,255,255,0.14)',
+                  color: 'rgba(255,255,255,0.65)', fontSize: 11, fontWeight: 600,
+                  fontFamily: 'var(--font-mono-display), ui-monospace, monospace',
+                  letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer',
                 }}
               >
-                Plan another trip
+                ← Plan another trip
               </button>
               <button
                 onClick={saveItinerary}
                 disabled={saveState === 'saving'}
                 style={{
-                  padding: '13px 24px', borderRadius: 12, fontSize: 14, fontWeight: 600,
-                  border: `1px solid ${saveState === 'saved' ? 'rgba(34,197,94,0.4)' : saveState === 'error' ? 'rgba(239,68,68,0.4)' : 'rgba(167,139,250,0.4)'}`,
-                  background: saveState === 'saved' ? 'rgba(34,197,94,0.12)' : saveState === 'error' ? 'rgba(239,68,68,0.12)' : 'rgba(167,139,250,0.12)',
-                  color: saveState === 'saved' ? '#86efac' : saveState === 'error' ? '#f87171' : '#c4b5fd',
-                  cursor: saveState === 'saving' ? 'not-allowed' : 'pointer',
-                  display: 'flex', alignItems: 'center', gap: 7,
+                  padding: '11px 18px', borderRadius: 999, cursor: saveState === 'saving' ? 'not-allowed' : 'pointer',
+                  fontSize: 11, fontWeight: 600,
+                  fontFamily: 'var(--font-mono-display), ui-monospace, monospace',
+                  letterSpacing: '0.08em', textTransform: 'uppercase',
+                  border: `1px solid ${saveState === 'saved' ? 'rgba(34,197,94,0.4)' : saveState === 'error' ? 'rgba(239,68,68,0.4)' : 'rgba(167,139,250,0.35)'}`,
+                  background: 'transparent',
+                  color: saveState === 'saved' ? '#86efac' : saveState === 'error' ? '#f87171' : 'rgba(167,139,250,0.85)',
+                  display: 'inline-flex', alignItems: 'center', gap: 7,
                 }}
               >
                 {saveState === 'saving' && (
-                  <span style={{ width: 12, height: 12, border: '2px solid rgba(167,139,250,0.3)', borderTopColor: '#a78bfa', borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block' }} />
+                  <span style={{ width: 9, height: 9, border: '1.5px solid rgba(167,139,250,0.3)', borderTopColor: '#a78bfa', borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block' }} />
                 )}
-                {saveState === 'saved'  ? String.fromCodePoint(0x2713) + ' Saved!' :
-                 saveState === 'error'  ? 'Error — retry' :
+                {saveState === 'saved'  ? String.fromCodePoint(0x2713) + ' Saved' :
+                 saveState === 'error'  ? 'Retry save' :
                  saveState === 'saving' ? 'Saving\u2026' :
-                 savedTripId            ? String.fromCodePoint(0x1F4BE) + ' Save changes' :
-                                          String.fromCodePoint(0x1F4BE) + ' Save itinerary'}
+                 savedTripId            ? 'Save changes' : 'Save itinerary'}
               </button>
               <button
                 onClick={() => window.print()}
                 style={{
-                  padding: '13px 24px', borderRadius: 12,
-                  background: 'linear-gradient(135deg, #38bdf8, #818cf8)',
-                  border: 'none', color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer',
+                  padding: '11px 18px', borderRadius: 999,
+                  background: 'transparent', border: '1px solid rgba(255,255,255,0.14)',
+                  color: 'rgba(255,255,255,0.65)', fontSize: 11, fontWeight: 600,
+                  fontFamily: 'var(--font-mono-display), ui-monospace, monospace',
+                  letterSpacing: '0.08em', textTransform: 'uppercase', cursor: 'pointer',
                 }}
               >
-                Print / Save as PDF
+                Print / PDF
               </button>
+              <div style={{ flex: 1 }} />
+              {/* Primary CTA — lavender pill matching the rest of the
+                  site's accent treatment (Generate, Replan, Save). One
+                  button to take the user from itinerary → booking. */}
               <button
                 onClick={() => setMainTab('book')}
                 style={{
-                  padding: '13px 28px', borderRadius: 12,
-                  background: 'linear-gradient(135deg, #f59e0b, #f97316)',
-                  border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer',
-                  boxShadow: '0 4px 20px rgba(249,115,22,0.4)',
+                  padding: '12px 24px', borderRadius: 999,
+                  background: 'var(--brand-accent)',
+                  border: 'none', color: 'var(--brand-bg)',
+                  fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                  fontFamily: 'var(--font-mono-display), ui-monospace, monospace',
+                  letterSpacing: '0.08em', textTransform: 'uppercase',
+                  boxShadow: '0 4px 18px rgba(167,139,250,0.32)',
+                  display: 'inline-flex', alignItems: 'center', gap: 8,
                 }}
               >
-                {String.fromCodePoint(0x1F4CB)} View Book tab
+                Continue to booking →
               </button>
             </div>
 
-            {/* ── Inline booking CTA banner ─────────────────────────────── */}
-            <div style={{
-              marginTop: 28, padding: '20px 24px',
-              background: 'linear-gradient(135deg, rgba(14,22,65,0.95) 0%, rgba(8,12,45,0.95) 100%)',
-              border: '1px solid rgba(140,180,255,0.2)',
-              borderRadius: 16,
-              boxShadow: '0 8px 32px rgba(0,20,120,0.3)',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                <span style={{ fontSize: 20 }}>{String.fromCodePoint(0x2708, 0xFE0F)}</span>
-                <span style={{ fontSize: 15, fontWeight: 700, color: '#e2e8f0' }}>Ready to book?</span>
-                <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', marginLeft: 4 }}>Quick links for {location}</span>
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
-                <a
-                  href={`https://www.google.com/travel/flights?q=${encodeURIComponent(`flights to ${location} ${startDate}`)}`}
-                  target="_blank" rel="noopener noreferrer"
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '10px 18px', borderRadius: 10, textDecoration: 'none',
-                    background: 'rgba(26,115,232,0.15)', border: '1px solid rgba(26,115,232,0.4)',
-                    color: '#93c5fd', fontSize: 13, fontWeight: 600, transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(26,115,232,0.28)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(26,115,232,0.15)')}
-                >
-                  ✈️ Google Flights
-                </a>
-                <a
-                  href={`https://www.booking.com/searchresults.html?ss=${encodeURIComponent(location)}&checkin=${startDate}&checkout=${endDate}&group_adults=2&no_rooms=1`}
-                  target="_blank" rel="noopener noreferrer"
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '10px 18px', borderRadius: 10, textDecoration: 'none',
-                    background: 'rgba(0,53,128,0.2)', border: '1px solid rgba(0,53,128,0.5)',
-                    color: '#93c5fd', fontSize: 13, fontWeight: 600, transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,53,128,0.35)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(0,53,128,0.2)')}
-                >
-                  🏨 Booking.com
-                </a>
-                <a
-                  href={`https://www.airbnb.com/s/${encodeURIComponent(location)}/homes?checkin=${startDate}&checkout=${endDate}&adults=2`}
-                  target="_blank" rel="noopener noreferrer"
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '10px 18px', borderRadius: 10, textDecoration: 'none',
-                    background: 'rgba(255,56,92,0.12)', border: '1px solid rgba(255,56,92,0.35)',
-                    color: '#fca5a5', fontSize: 13, fontWeight: 600, transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,56,92,0.24)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,56,92,0.12)')}
-                >
-                  🏠 Airbnb
-                </a>
-                <a
-                  href={`https://www.skyscanner.com/transport/flights/${encodeURIComponent(travelingFrom || '')}/${encodeURIComponent(location)}/${startDate?.replace(/-/g,'') ?? ''}/${endDate?.replace(/-/g,'') ?? ''}/?adultsv2=1&rtn=1`}
-                  target="_blank" rel="noopener noreferrer"
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 8,
-                    padding: '10px 18px', borderRadius: 10, textDecoration: 'none',
-                    background: 'rgba(7,112,227,0.12)', border: '1px solid rgba(7,112,227,0.35)',
-                    color: '#7dd3fc', fontSize: 13, fontWeight: 600, transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(7,112,227,0.24)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'rgba(7,112,227,0.12)')}
-                >
-                  🔍 Skyscanner
-                </a>
-              </div>
-            </div>
+            {/* "Ready to book?" affiliate banner removed — those same
+                links live in the Booking tab. The "Continue to booking"
+                button above is the single CTA. */}
           </>
         )}
 

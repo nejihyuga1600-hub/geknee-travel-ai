@@ -207,18 +207,23 @@ function stripDurationFromLine(line: string): string {
 //   bare "(~$7.80 USD)" parentheticals after a primary symbol-led price.
 function stripCostFromLine(line: string): string {
   return line
-    // "Cost: ~$2-3 per person." / "Entry: ₹650 (~$7.80 USD)." etc.
-    // Allows a leading ~ (model often writes "Cost: ~$30") and consumes
-    // any trailing "per person / pp / each" so the prose doesn't end up
-    // with orphan "per person." after the strip.
+    // Whole-clause: "Entry: ₹650 (~$7.80)." → "" (kills the whole word).
+    // Same set as before: keyword-prefixed price clauses get fully removed.
     .replace(
-      /\s*(?:Entry|Cost|Price|Admission|Ticket|Fee)s?:\s*~?\s*[$¥€£₹₩฿][\s]?[\d,]+(?:\.\d+)?(?:[-–][\d,]+(?:\.\d+)?)?(?:\s*\(\s*~?\s*[$¥€£₹₩฿]?[\s]?[\d,.]+\s*[A-Z]{0,4}\s*\))?(?:\s*(?:per\s+person|pp|p\.p\.|each))?\.?/gi,
+      /\s*(?:Entry|Cost|Price|Admission|Ticket|Fee|Tickets|Fees|Fares|Fare)s?:\s*~?\s*[$¥€£₹₩฿][\s]?[\d,]+(?:\.\d+)?(?:[-–]\s*[$¥€£₹₩฿]?[\s]?[\d,]+(?:\.\d+)?)?(?:\s*\([^)]*\))?(?:\s*(?:per\s+person|pp|p\.p\.|each))?\.?/gi,
       '',
     )
-    // Bare prefixed amounts: "$30 per person", "₹650 per person"
-    .replace(/\s*~?\s*[$¥€£₹₩฿][\s]?[\d,]+(?:\.\d+)?(?:[-–][\d,]+(?:\.\d+)?)?\s*(?:per\s+person|pp|p\.p\.|each)\.?/gi, '')
-    // Trailing parens like " (~£6.30)" or " (~$7.80 USD)"
-    .replace(/\s*\(\s*~?\s*[$¥€£₹₩฿]?[\s]?[\d,.]+\s*[A-Z]{0,4}\s*\)/g, '')
+    // Generic ": ₹600–₹900 (~$7.20–$10.80) [per person]." — keeps the
+    // preceding word so "fresh juice: ₹600..." becomes "fresh juice.".
+    // Catches the dual-currency formats the AI now emits.
+    .replace(
+      /:\s*~?\s*[$¥€£₹₩฿][\s]?[\d,]+(?:\.\d+)?(?:[-–]\s*[$¥€£₹₩฿]?[\s]?[\d,]+(?:\.\d+)?)?(?:\s*\([^)]*\))?(?:\s*(?:per\s+person|pp|p\.p\.|each))?/gi,
+      '',
+    )
+    // Bare amount + qualifier: "$30 per person", "₹650 each"
+    .replace(/\s*~?\s*[$¥€£₹₩฿][\s]?[\d,]+(?:\.\d+)?(?:[-–]\s*[$¥€£₹₩฿]?[\s]?[\d,]+(?:\.\d+)?)?\s*(?:per\s+person|pp|p\.p\.|each)\.?/gi, '')
+    // Trailing parens conversions: " (~£6.30)", " (~$7.80 USD)"
+    .replace(/\s*\(\s*~?\s*[$¥€£₹₩฿]?[\s]?[\d,.]+(?:[-–]\s*[$¥€£₹₩฿]?[\s]?[\d,.]+)?\s*[A-Z]{0,4}\s*\)/g, '')
     .replace(/\s+([.,;:!?])/g, '$1')
     .trim();
 }

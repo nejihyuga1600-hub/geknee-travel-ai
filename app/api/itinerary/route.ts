@@ -86,7 +86,7 @@ function buildPrompt(p: TripParams): string {
   };
   const homeCcy = p.currency && CCY_SYMBOL[p.currency] ? p.currency : "USD";
   const homeSymbol = CCY_SYMBOL[homeCcy];
-  const currencyInstruction = `\nCURRENCY: The traveler's home currency is ${homeCcy} (${homeSymbol}). For every price you mention, give the local currency (e.g., ₹650, ¥1,800, €20) followed by an approximate ${homeCcy} equivalent in parentheses, like "Entry: ₹650 (~${homeSymbol}6.30)" or "Lunch: ¥1,800 (~${homeSymbol}9.50)". At the end of each Day section, write one summary line in this exact format: "Estimated daily cost: ~${homeSymbol}XX per person" using a realistic sum of activity + food + local transit for the day.\n`;
+  const currencyInstruction = `\nCURRENCY: The traveler's home currency is ${homeCcy} (${homeSymbol}). For every price you mention, lead with the home currency (${homeSymbol}) and put the destination's local-currency amount in parentheses for reference. Example: "Entry: ${homeSymbol}7.80 (~₹650)", "Lunch: ${homeSymbol}9.50 (~¥1,800)", "Snacks: ${homeSymbol}3 (~₹250)". The user wants to see costs in their own currency at a glance — never lead with the foreign currency. At the end of each Day section, write one summary line in this exact format: "Estimated daily cost: ~${homeSymbol}XX per person" using a realistic sum of activity + food + local transit for the day.\n`;
 
   // Build must-visit section
   const mustVisitBlock = p.mustVisit && p.mustVisit.length > 0
