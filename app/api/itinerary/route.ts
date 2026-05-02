@@ -39,6 +39,7 @@ interface TripParams {
   stops?: StopParam[];
   mustVisit?: MustVisitPlace[];
   language?: string; // BCP-47 code e.g. "es", "ja", "ar"
+  currency?: string; // ISO 4217 e.g. "GBP", "EUR", "JPY"
   // Optional — when provided, the server accumulates the full streamed
   // text and writes it to TripDraft.itinerary on completion. This makes
   // generation durable across client disconnects (navigating away,
@@ -63,6 +64,23 @@ function buildPrompt(p: TripParams): string {
   const langInstruction = p.language && p.language !== "en" && LANG_NAMES[p.language]
     ? `\nIMPORTANT: Write your ENTIRE response in ${LANG_NAMES[p.language]}. Every heading, description, tip, and recommendation must be in ${LANG_NAMES[p.language]}.\n`
     : "";
+
+  // Currency instruction — give every price in BOTH the local currency
+  // (so the user knows what to hand over at the till) AND their home
+  // currency (so they immediately understand what it costs them).
+  // Example output for an INR trip with a GBP user: "Entry: ₹650 (~£6.30)".
+  // Also adds a per-day total in the user's currency at the bottom of
+  // each Day section so the chip aggregator on the client can pick it up.
+  const CCY_SYMBOL: Record<string, string> = {
+    USD: "$", GBP: "£", EUR: "€", JPY: "¥", CNY: "¥", CHF: "CHF",
+    AUD: "A$", CAD: "C$", NZD: "NZ$", INR: "₹", KRW: "₩", THB: "฿",
+    SGD: "S$", HKD: "HK$", TWD: "NT$", MYR: "RM", IDR: "Rp", VND: "₫",
+    PHP: "₱", AED: "AED ", SAR: "SAR ", ZAR: "R", BRL: "R$", MXN: "MX$",
+    ARS: "AR$", RUB: "₽", TRY: "₺", PLN: "zł", SEK: "kr", NOK: "kr", DKK: "kr",
+  };
+  const homeCcy = p.currency && CCY_SYMBOL[p.currency] ? p.currency : "USD";
+  const homeSymbol = CCY_SYMBOL[homeCcy];
+  const currencyInstruction = `\nCURRENCY: The traveler's home currency is ${homeCcy} (${homeSymbol}). For every price you mention, give the local currency (e.g., ₹650, ¥1,800, €20) followed by an approximate ${homeCcy} equivalent in parentheses, like "Entry: ₹650 (~${homeSymbol}6.30)" or "Lunch: ¥1,800 (~${homeSymbol}9.50)". At the end of each Day section, write one summary line in this exact format: "Estimated daily cost: ~${homeSymbol}XX per person" using a realistic sum of activity + food + local transit for the day.\n`;
 
   // Build must-visit section
   const mustVisitBlock = p.mustVisit && p.mustVisit.length > 0
@@ -96,7 +114,7 @@ function buildPrompt(p: TripParams): string {
       : `Cities to visit: ${route}\n\nIMPORTANT: The traveler has ${p.nights} nights total. You must decide the optimal number of nights at each city based on what each destination deserves and the traveler's interests. Recommend the best allocation.`;
 
     return `Plan a detailed multi-city trip: ${route} (${p.nights} nights total, ${p.startDate} to ${p.endDate}).
-${langInstruction}
+${langInstruction}${currencyInstruction}
 TRAVELER PERSONALITY (every decision — pace, restaurant tier, activity intensity, transport mode — must reflect this):
 ${personalityBlock}
 ${mustVisitBlock}
@@ -116,7 +134,7 @@ Write in an engaging, friendly tone. Be specific — real place names, dish name
   }
 
   return `Plan a detailed ${p.nights}-night trip to ${p.location}.
-${langInstruction}
+${langInstruction}${currencyInstruction}
 TRAVELER PERSONALITY (shape every recommendation — pace, venue tier, activity type, transport choice — around this profile):
 ${personalityBlock}
 ${mustVisitBlock}

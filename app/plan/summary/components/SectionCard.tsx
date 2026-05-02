@@ -50,7 +50,23 @@ export function SectionCard({
   const isTips = /tip|advice|practical|budget|packing|note|reminder|essential|important|safety|currency|visa|weather|transport|getting|overview|summary|introduction|highlight|must.do|must.see/i.test(section.heading);
   const isDayOrCity = isDay || isCity || (!isTips && section.lines.filter(l => l.trim()).length >= 3);
   const mapLocation = isCity ? section.heading.trim() : location;
-  const groups = isDayOrCity ? groupLines(section.lines) : null;
+
+  // Pull the AI-emitted "Estimated daily cost: ~£35 per person" summary
+  // line out of the day's lines so we can render it once as a chip in
+  // the day metadata instead of tucked at the bottom of the prose.
+  const DAILY_COST_RE = /(?:estimated\s+(?:daily|day)\s+cost|day\s+total|daily\s+total)\s*:?\s*~?\s*([$¥€£₹₩฿][\s]?[\d,]+(?:\.\d+)?(?:[-–][\d,]+(?:\.\d+)?)?)/i;
+  let dailyCost: string | null = null;
+  const filteredLines: string[] = [];
+  for (const l of section.lines) {
+    const m = l.match(DAILY_COST_RE);
+    if (m && !dailyCost) {
+      dailyCost = m[1].replace(/\s/g, '');
+      continue; // hide from prose
+    }
+    filteredLines.push(l);
+  }
+
+  const groups = isDayOrCity ? groupLines(filteredLines) : null;
   const [, setResolvedPlaces] = useState<string[]>([]);
 
   const activityGroups = groups?.filter(g => g.type === 'activity') ?? [];
@@ -158,7 +174,7 @@ export function SectionCard({
                   fontSize: 9, letterSpacing: '0.18em', textTransform: 'uppercase',
                   color: 'var(--brand-accent-2)', marginBottom: 4, fontWeight: 600,
                 }}>
-                  DAY {dayNum}{weatherSubLabel}
+                  DAY {dayNum}{weatherSubLabel}{dailyCost ? ` · ${dailyCost} / day` : ''}
                 </div>
               )}
               <h2 style={{

@@ -472,6 +472,28 @@ function SummaryContent({ tripIdOverride, initialMainTab, autoGenerate = true }:
         // Read language preference from localStorage
         let userLang = 'en';
         try { userLang = JSON.parse(localStorage.getItem('geknee_settings') ?? '{}').language ?? 'en'; } catch { /* ignore */ }
+        // Detect user's home currency from browser locale so the AI can
+        // include their currency next to local prices ("₹650 (~£6.30)").
+        const LOCALE_TO_CURRENCY: Record<string, string> = {
+          'en-US': 'USD', 'en-GB': 'GBP', 'en-CA': 'CAD', 'en-AU': 'AUD',
+          'en-NZ': 'NZD', 'en-IN': 'INR', 'en-IE': 'EUR', 'en-ZA': 'ZAR',
+          'ja': 'JPY', 'ja-JP': 'JPY',
+          'zh': 'CNY', 'zh-CN': 'CNY', 'zh-TW': 'TWD', 'zh-HK': 'HKD',
+          'ko': 'KRW', 'ko-KR': 'KRW',
+          'hi': 'INR', 'hi-IN': 'INR',
+          'es': 'EUR', 'es-ES': 'EUR', 'es-MX': 'MXN', 'es-AR': 'ARS',
+          'pt': 'EUR', 'pt-BR': 'BRL', 'pt-PT': 'EUR',
+          'fr': 'EUR', 'fr-FR': 'EUR', 'fr-CA': 'CAD',
+          'de': 'EUR', 'de-DE': 'EUR', 'de-CH': 'CHF',
+          'it': 'EUR', 'nl': 'EUR', 'sv': 'SEK', 'no': 'NOK', 'da': 'DKK',
+          'pl': 'PLN', 'tr': 'TRY', 'ru': 'RUB',
+          'ar': 'AED', 'th': 'THB', 'id': 'IDR', 'ms': 'MYR', 'vi': 'VND',
+        };
+        const lang = (typeof navigator !== 'undefined' ? navigator.language : 'en-US') || 'en-US';
+        const userCurrency =
+          LOCALE_TO_CURRENCY[lang]
+          ?? LOCALE_TO_CURRENCY[lang.split('-')[0]]
+          ?? 'USD';
         const res = await fetch('/api/itinerary', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -481,6 +503,7 @@ function SummaryContent({ tripIdOverride, initialMainTab, autoGenerate = true }:
             stops: stopsRaw ? JSON.parse(stopsRaw) : undefined,
             mustVisit: mustVisit.length > 0 ? mustVisit : undefined,
             language: userLang !== 'en' ? userLang : undefined,
+            currency: userCurrency,
             // Server-side persistence: with tripId set, the API saves
             // the accumulated itinerary to TripDraft.itinerary on
             // completion, so disconnects/navigates don't lose work.
