@@ -1,15 +1,14 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { EditableLine } from './EditableLine';
 import type { ActivityGroup } from '../lib/itinerary-parse';
 import type { EditTarget } from '../lib/types';
-import { extractPlace } from '../lib/places';
+import { extractPlace, fetchPlaceImage, imgCache } from '../lib/places';
 
 // Single activity row inside a day-card section. Numbered pin (lavender or
-// gold for monument quests), headline as an EditableLine, and a hover-to-
-// reveal details block. Calls onHoverPlace so the parent can swap the
-// place-image overlay on the day map.
+// gold for monument quests), headline as an EditableLine, always-visible
+// details, and a small lazy-loaded thumbnail of the place on the right.
 
 export interface ActivityBlockProps {
   group: Extract<ActivityGroup, { type: 'activity' }>;
@@ -21,25 +20,48 @@ export interface ActivityBlockProps {
   onCommit: () => void;
   onCancel: () => void;
   onAskGenie: (line: string) => void;
-  onHoverPlace: (place: string | null) => void;
+  city?: string;
   activityNumber?: number;
+}
+
+function PlaceThumb({ place, city }: { place: string; city?: string }) {
+  const cacheKey = city ? `${place}||${city}` : place;
+  const cached = imgCache.has(cacheKey) ? (imgCache.get(cacheKey) || null) : undefined;
+  const [src, setSrc] = useState<string | null | undefined>(cached);
+  useEffect(() => {
+    if (imgCache.has(cacheKey)) { setSrc(imgCache.get(cacheKey) || null); return; }
+    fetchPlaceImage(place, city).then(url => {
+      imgCache.set(cacheKey, url ?? '');
+      setSrc(url);
+    });
+  }, [cacheKey, place, city]);
+  return (
+    <div style={{
+      width: 56, height: 56, borderRadius: 10, overflow: 'hidden', flexShrink: 0,
+      background: 'rgba(255,255,255,0.04)',
+      border: '1px solid rgba(255,255,255,0.06)',
+    }}>
+      {src && (
+        <img
+          src={src} alt={place} loading="lazy"
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        />
+      )}
+    </div>
+  );
 }
 
 export function ActivityBlock({
   group, sectionIdx, editTarget, editValue,
-  onStartEdit, onEditChange, onCommit, onCancel, onAskGenie, onHoverPlace, activityNumber,
+  onStartEdit, onEditChange, onCommit, onCancel, onAskGenie, city, activityNumber,
 }: ActivityBlockProps) {
-  const [hovered, setHovered] = useState(false);
   const hasDetails = group.details.some(d => d.line.trim());
+  const place = extractPlace(group.headline);
 
   return (
-    <div
-      style={{ marginBottom: 6 }}
-      onMouseEnter={() => { setHovered(true); const p = extractPlace(group.headline); if (p) onHoverPlace(p); }}
-      onMouseLeave={() => { setHovered(false); onHoverPlace(null); }}
-    >
+    <div style={{ marginBottom: 14 }}>
       {/* Headline row */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
         {activityNumber !== undefined ? (() => {
           const isMonument = /monument|quest|⏚|temple|shrine|cathedral|landmark|tower|palace|castle/i.test(group.headline);
           return (
@@ -68,50 +90,30 @@ export function ActivityBlock({
             onCancel={onCancel}
             onAskGenie={onAskGenie}
           />
-        </div>
-      </div>
-
-      {/* Details — grid-row collapse: 0fr when closed (zero height, no layout shift) */}
-      {hasDetails && (
-        <div style={{
-          display: 'grid',
-          gridTemplateRows: hovered ? '1fr' : '0fr',
-          opacity: hovered ? 1 : 0,
-          transition: hovered
-            ? 'grid-template-rows 0.12s ease, opacity 0.12s ease'
-            : 'grid-template-rows 4s ease, opacity 4s ease',
-          pointerEvents: hovered ? 'auto' : 'none',
-        }}>
-          <div style={{ overflow: 'hidden' }}>
+          {hasDetails && (
             <div style={{
-              marginLeft: 24, marginTop: 2, marginBottom: 4,
+              marginTop: 2,
               paddingLeft: 12,
               borderLeft: '2px solid rgba(56,189,248,0.2)',
             }}>
-              {group.details.map(({ line, idx }) => {
-                const detailPlace = extractPlace(line);
-                return (
-                  <div
-                    key={idx}
-                    onMouseEnter={detailPlace ? () => onHoverPlace(detailPlace) : undefined}
-                  >
-                    <EditableLine
-                      line={line}
-                      isEditing={editTarget?.sectionIdx === sectionIdx && editTarget?.lineIdx === idx}
-                      editValue={editValue}
-                      onStartEdit={() => onStartEdit(sectionIdx, idx, line)}
-                      onEditChange={onEditChange}
-                      onCommit={onCommit}
-                      onCancel={onCancel}
-                      onAskGenie={onAskGenie}
-                    />
-                  </div>
-                );
-              })}
+              {group.details.map(({ line, idx }) => (
+                <EditableLine
+                  key={idx}
+                  line={line}
+                  isEditing={editTarget?.sectionIdx === sectionIdx && editTarget?.lineIdx === idx}
+                  editValue={editValue}
+                  onStartEdit={() => onStartEdit(sectionIdx, idx, line)}
+                  onEditChange={onEditChange}
+                  onCommit={onCommit}
+                  onCancel={onCancel}
+                  onAskGenie={onAskGenie}
+                />
+              ))}
             </div>
-          </div>
+          )}
         </div>
-      )}
+        {place && <PlaceThumb place={place} city={city} />}
+      </div>
     </div>
   );
 }

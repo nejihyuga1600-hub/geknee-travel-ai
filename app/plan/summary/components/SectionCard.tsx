@@ -1,12 +1,11 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useState } from 'react';
 import dynamic from 'next/dynamic';
 import { EditableLine } from './EditableLine';
 import { ActivityBlock } from './ActivityBlock';
 import { WeatherBar, type DayWeather } from './WeatherBar';
 import { DayImages } from './DayImages';
-import { PlaceImage } from './PlaceImage';
 import { extractDayNumber, stripDayPrefix, groupLines, type Section } from '../lib/itinerary-parse';
 import { extractPlace } from '../lib/places';
 import type { EditTarget, RouteStop } from '../lib/types';
@@ -53,23 +52,6 @@ export function SectionCard({
   const mapLocation = isCity ? section.heading.trim() : location;
   const groups = isDayOrCity ? groupLines(section.lines) : null;
   const [, setResolvedPlaces] = useState<string[]>([]);
-  const [hoveredPlace, setHoveredPlace] = useState<string | null>(null);
-  const [placeLeaving, setPlaceLeaving] = useState(false);
-  const hoverClearTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const hoverPlace = useCallback((place: string | null) => {
-    if (hoverClearTimer.current) clearTimeout(hoverClearTimer.current);
-    if (place !== null) {
-      setPlaceLeaving(false);
-      setHoveredPlace(place);
-    } else {
-      setPlaceLeaving(true);
-      hoverClearTimer.current = setTimeout(() => {
-        setHoveredPlace(null);
-        setPlaceLeaving(false);
-      }, 2000);
-    }
-  }, []);
 
   const activityGroups = groups?.filter(g => g.type === 'activity') ?? [];
   const activityNumberMap = new Map<number, number>(
@@ -81,27 +63,19 @@ export function SectionCard({
 
   function renderLines(linesToRender: typeof section.lines, baseIdx = 0) {
     if (!groups) {
-      return linesToRender.map((line, i) => {
-        const place = extractPlace(line);
-        return (
-          <div
-            key={i + baseIdx}
-            onMouseEnter={place ? () => hoverPlace(place) : undefined}
-            onMouseLeave={place ? () => hoverPlace(null) : undefined}
-          >
-            <EditableLine
-              line={line}
-              isEditing={editTarget?.sectionIdx === sectionIdx && editTarget?.lineIdx === i + baseIdx}
-              editValue={editValue}
-              onStartEdit={() => onStartEdit(sectionIdx, i + baseIdx, line)}
-              onEditChange={onEditChange}
-              onCommit={onCommit}
-              onCancel={onCancel}
-              onAskGenie={onAskGenie}
-            />
-          </div>
-        );
-      });
+      return linesToRender.map((line, i) => (
+        <EditableLine
+          key={i + baseIdx}
+          line={line}
+          isEditing={editTarget?.sectionIdx === sectionIdx && editTarget?.lineIdx === i + baseIdx}
+          editValue={editValue}
+          onStartEdit={() => onStartEdit(sectionIdx, i + baseIdx, line)}
+          onEditChange={onEditChange}
+          onCommit={onCommit}
+          onCancel={onCancel}
+          onAskGenie={onAskGenie}
+        />
+      ));
     }
     return groups.map(group =>
       group.type === 'activity' ? (
@@ -116,7 +90,7 @@ export function SectionCard({
           onCommit={onCommit}
           onCancel={onCancel}
           onAskGenie={onAskGenie}
-          onHoverPlace={hoverPlace}
+          city={mapLocation}
           activityNumber={activityNumberMap.get(group.headlineIdx)}
         />
       ) : (
@@ -244,33 +218,11 @@ export function SectionCard({
               namedPlaces={orderedActivityPlaces.length > 0 ? orderedActivityPlaces : undefined}
               onPlacesResolved={setResolvedPlaces}
             />
-            {hoveredPlace && (
-              <div style={{
-                position: 'absolute', inset: 0, borderRadius: 12, overflow: 'hidden',
-                opacity: placeLeaving ? 0 : 1,
-                transition: placeLeaving ? 'opacity 2s ease' : 'opacity 0.15s ease',
-                pointerEvents: 'none',
-              }}>
-                <PlaceImage place={hoveredPlace} height={340} city={mapLocation} />
-              </div>
-            )}
           </div>
         </div>
       ) : (
-        <div style={{ position: 'relative' }}>
+        <div>
           {renderLines(section.lines)}
-          {!isTips && hoveredPlace && (
-            <div style={{
-              position: 'absolute', top: 0, right: 0,
-              width: 220, height: 150, borderRadius: 12, overflow: 'hidden',
-              boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-              pointerEvents: 'none', zIndex: 10,
-              opacity: placeLeaving ? 0 : 1,
-              transition: placeLeaving ? 'opacity 2s ease' : 'opacity 0.15s ease',
-            }}>
-              <PlaceImage place={hoveredPlace} height={150} city={mapLocation} />
-            </div>
-          )}
         </div>
       )}
     </div>
