@@ -80,7 +80,7 @@ export function ChatPanel({
           }}>{String.fromCodePoint(0x00D7)}</button>
         </div>
         <div style={{ display: 'flex' }}>
-          {tabBtn('genie',   String.fromCodePoint(0x2726) + ' AI Genie')}
+          {tabBtn('genie',   String.fromCodePoint(0x2726) + ' AI Geknee')}
           {tabBtn('friends', String.fromCodePoint(0x1F465) + ' Friends')}
         </div>
       </div>

@@ -346,8 +346,8 @@ export default function SettingsPanel({ open, onClose }: Props) {
           </Section>
 
           {/* ── Privacy ── */}
-          <Section title="Privacy & AI Genie">
-            <Row label="AI Data Sharing" sub="Controls what context Genie receives">
+          <Section title="Privacy & AI Geknee">
+            <Row label="AI Data Sharing" sub="Controls what context Geknee receives">
               <Select
                 value={s.privacyAI}
                 options={[

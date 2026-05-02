@@ -312,9 +312,9 @@ function GlobalChatUI({ ctx }: { ctx: ReturnType<typeof usePageContext> }) {
               padding: 6, overflow: 'hidden',
               animation: 'geniePulse 2.5s ease-in-out infinite',
             }}
-            title="Open GeKnee AI Genie"
+            title="Open GeKnee AI"
           >
-            <span aria-label="GeKnee Genie" style={{ fontSize: 36, lineHeight: 1, filter: 'drop-shadow(0 0 8px rgba(167,139,250,0.7))' }}>{String.fromCodePoint(0x1F9DE)}</span>
+            <span aria-label="GeKnee AI" style={{ fontSize: 36, lineHeight: 1, filter: 'drop-shadow(0 0 8px rgba(167,139,250,0.7))' }}>{String.fromCodePoint(0x1F9DE)}</span>
           </button>
         )}
 
