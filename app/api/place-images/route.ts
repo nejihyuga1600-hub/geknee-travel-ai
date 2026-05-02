@@ -51,22 +51,20 @@ export async function GET(req: Request) {
         if (!p.width || !p.height) return false; // unknown dims = reject (was: accept)
         return p.width / p.height >= 1.05;
       });
-      // For selfie-prone types: only return if we found *at least one*
-      // landscape photo. For trustworthy types (museums, monuments,
-      // parks) we accept the whole pool since those rarely surface
-      // selfies. Either way, never return ranked-with-portraits as a
-      // last resort — let the fallback chain handle it.
-      const pool = isSelfieProne
-        ? landscape
-        : (landscape.length > 0 ? landscape : ranked.filter(p => p.width && p.height));
-      if (pool.length > 0) {
-        const images = pool.slice(0, 5).map(
+      // Only return Google Places photos that pass the landscape
+      // filter. Portraits are almost always selfies/headshots, not
+      // shots of the place. If no landscape qualifies, fall through to
+      // Foursquare / Wikipedia / Wikidata rather than returning a
+      // likely-bad portrait. The isSelfieProne check is kept as a
+      // soft signal in logs but no longer changes the gate.
+      void isSelfieProne;
+      if (landscape.length > 0) {
+        const images = landscape.slice(0, 5).map(
           (p) => `/api/place-photo?ref=${encodeURIComponent(p.photo_reference)}`
         );
         return Response.json({ images });
       }
-      // No qualifying photo from Google — fall through to Foursquare /
-      // empty rather than returning a likely-bad portrait.
+      // No landscape photo from Google — fall through.
     } catch (err) {
       console.error("Google Places error:", err);
     }

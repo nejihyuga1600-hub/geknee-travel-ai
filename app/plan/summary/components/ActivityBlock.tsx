@@ -132,7 +132,13 @@ function PlaceThumb({ place, city }: { place: string; city?: string }) {
 // no prompt change required. Each helper returns `null` when the data
 // isn't there so chips degrade gracefully.
 
-const TRANSIT_LINE_RE = /^\s*(🚶|🚇|🚌|🚕|🚂|🚆|🚴|⛵|✈️|🛩|🛬|🚁|🚖|🛺|🚊|🚋)\s*~?\s*(\d+)\s*(?:min(?:ute)?s?|hrs?|hours?)/iu;
+// Any line that begins with a transit-mode emoji is a "transit line".
+// Broad on purpose — catches "🚶 12 min walk", "🚶 short walk / 🚕 5 min",
+// "🚇 8 min subway (Ginza Line)", and the AI's occasional emoji-only
+// flourishes. We always promote these to a chip and hide the prose line
+// so the user reads the info once.
+const TRANSIT_EMOJI = '[🚶🚇🚌🚕🚂🚆🚴⛵✈️🛩🛬🚁🚖🛺🚊🚋]';
+const TRANSIT_LINE_RE = new RegExp(`^\\s*${TRANSIT_EMOJI}`, 'u');
 
 function parseDuration(headline: string): string | null {
   const m = headline.match(/\(\s*~?\s*(\d+(?:\.\d+)?)\s*(hrs?|hours?|mins?|minutes?)\s*\)/i);
@@ -152,20 +158,33 @@ function parseCost(details: { line: string }[], headline: string): string | null
   return null;
 }
 
+// Parse the first transit line into a single chip. Handles both formats:
+//   "🚶 12 min walk"               → chip "🚶 12 min walk → step 8"
+//   "🚶 short walk / 🚕 5 min"     → picks the segment with explicit
+//                                    minutes (5 min) and uses that emoji
+//                                    so we never lose actionable info.
+const SEG_RE = new RegExp(`(${TRANSIT_EMOJI})\\s*([^/|]+)`, 'gu');
+
 function parseTransit(
   details: { line: string }[],
   nextActivityNumber?: number,
 ): { icon: string; label: string } | null {
   for (const { line } of details) {
-    const m = line.match(TRANSIT_LINE_RE);
-    if (!m) continue;
-    const mode = line
-      .replace(TRANSIT_LINE_RE, '')
-      .match(/(walk(?:ing)?|subway|metro|bus|taxi|cab|train|bike|cycle|ferry|tram|drive|driving|flight)/i)?.[0]
-      ?.toLowerCase();
-    const base = `${m[2]} min${mode ? ' ' + mode : ''}`;
+    if (!TRANSIT_LINE_RE.test(line)) continue;
+    type Seg = { icon: string; text: string; hasMinutes: boolean };
+    const segs: Seg[] = [];
+    SEG_RE.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = SEG_RE.exec(line))) {
+      const text = m[2].replace(/[.,;!?]+\s*$/g, '').trim();
+      if (!text) continue;
+      segs.push({ icon: m[1], text, hasMinutes: /\d+\s*(min|hr|hour)/i.test(text) });
+    }
+    if (segs.length === 0) continue;
+    // Prefer a segment with explicit minutes; fall back to the first.
+    const pick = segs.find(s => s.hasMinutes) ?? segs[0];
     const target = nextActivityNumber !== undefined ? ` → step ${nextActivityNumber}` : '';
-    return { icon: m[1], label: base + target };
+    return { icon: pick.icon, label: pick.text + target };
   }
   return null;
 }
@@ -188,9 +207,18 @@ function stripDurationFromLine(line: string): string {
 //   bare "(~$7.80 USD)" parentheticals after a primary symbol-led price.
 function stripCostFromLine(line: string): string {
   return line
-    .replace(/\s*(?:Entry|Cost|Price|Admission|Ticket|Fee)s?:\s*[$¥€£₹₩฿][\s]?[\d,]+(?:[-–][\d,]+)?(?:\s*\(\s*~?\s*\$?[\d,.]+\s*[A-Z]{0,3}\s*\))?\.?/gi, '')
-    .replace(/\s*[$¥€£₹₩฿][\s]?[\d,]+\s*(?:per\s+person|pp|each|p\.p\.)\.?/gi, '')
-    .replace(/\s*\(\s*~?\s*\$?[\d,.]+\s*[A-Z]{2,4}\s*\)/g, '')
+    // "Cost: ~$2-3 per person." / "Entry: ₹650 (~$7.80 USD)." etc.
+    // Allows a leading ~ (model often writes "Cost: ~$30") and consumes
+    // any trailing "per person / pp / each" so the prose doesn't end up
+    // with orphan "per person." after the strip.
+    .replace(
+      /\s*(?:Entry|Cost|Price|Admission|Ticket|Fee)s?:\s*~?\s*[$¥€£₹₩฿][\s]?[\d,]+(?:\.\d+)?(?:[-–][\d,]+(?:\.\d+)?)?(?:\s*\(\s*~?\s*[$¥€£₹₩฿]?[\s]?[\d,.]+\s*[A-Z]{0,4}\s*\))?(?:\s*(?:per\s+person|pp|p\.p\.|each))?\.?/gi,
+      '',
+    )
+    // Bare prefixed amounts: "$30 per person", "₹650 per person"
+    .replace(/\s*~?\s*[$¥€£₹₩฿][\s]?[\d,]+(?:\.\d+)?(?:[-–][\d,]+(?:\.\d+)?)?\s*(?:per\s+person|pp|p\.p\.|each)\.?/gi, '')
+    // Trailing parens like " (~£6.30)" or " (~$7.80 USD)"
+    .replace(/\s*\(\s*~?\s*[$¥€£₹₩฿]?[\s]?[\d,.]+\s*[A-Z]{0,4}\s*\)/g, '')
     .replace(/\s+([.,;:!?])/g, '$1')
     .trim();
 }

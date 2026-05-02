@@ -63,6 +63,15 @@ export default function DayMap({
   const [isVisible, setIsVisible] = useState(false);
   const [mapReady, setMapReady] = useState(false);
   const [ready, setReady] = useState(false);
+
+  // Safety timeout: even if geocode and map.on('load') both stall, never
+  // leave the "Loading map…" overlay visible for more than 6 s. The dark
+  // base map is preferable to an indefinite spinner.
+  useEffect(() => {
+    if (ready) return;
+    const t = setTimeout(() => setReady(true), 6000);
+    return () => clearTimeout(t);
+  }, [ready]);
   const [tokenMissing, setTokenMissing] = useState(false);
 
   // Lazy-mount: only init the map when the card scrolls into view.
@@ -176,7 +185,15 @@ export default function DayMap({
       // SectionCard already passes the right city via `location` for
       // both single-stop and per-city sections, so trust it.
       const anchor = await geocode(location);
-      if (!anchor || cancelled || !mapRef.current) return;
+      if (cancelled || !mapRef.current) return;
+      if (!anchor) {
+        // Geocode failed (auth lapse, missing API key, network blip).
+        // Don't leave the user staring at "Loading map…" forever — flip
+        // ready so the overlay clears and the dark base map shows
+        // through. Pins won't render but at least the UI moves on.
+        setReady(true);
+        return;
+      }
       const center = anchor;
       const city = location;
 
@@ -277,11 +294,20 @@ export default function DayMap({
 
       {!ready && (
         <div style={{
-          position: 'absolute', inset: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'rgba(10,10,31,0.6)', pointerEvents: 'none',
+          position: 'absolute', top: 10, right: 10,
+          background: 'rgba(10,10,31,0.85)',
+          border: '1px solid rgba(255,255,255,0.08)',
+          borderRadius: 8, padding: '5px 10px',
+          color: 'rgba(255,255,255,0.6)', fontSize: 10.5,
+          fontFamily: 'var(--font-mono-display), ui-monospace, monospace',
+          letterSpacing: '0.06em', textTransform: 'uppercase',
+          pointerEvents: 'none', display: 'flex', alignItems: 'center', gap: 6,
         }}>
-          <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>Loading map…</span>
+          <span style={{
+            width: 6, height: 6, borderRadius: '50%',
+            background: '#a78bfa', animation: 'pulse 1.4s ease-in-out infinite',
+          }} />
+          Loading
         </div>
       )}
     </div>
