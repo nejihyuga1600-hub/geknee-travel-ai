@@ -26,6 +26,11 @@ interface MustVisitPlace {
   category: string; // food | activities | hotels | shopping | other
 }
 
+interface MonumentQuestPayload {
+  name: string;
+  quests: string[]; // human-readable quest objectives from quests.ts
+}
+
 interface TripParams {
   location: string;
   purpose: string;
@@ -38,6 +43,7 @@ interface TripParams {
   nights: string;
   stops?: StopParam[];
   mustVisit?: MustVisitPlace[];
+  monumentQuests?: MonumentQuestPayload[];
   language?: string; // BCP-47 code e.g. "es", "ja", "ar"
   currency?: string; // ISO 4217 e.g. "GBP", "EUR", "JPY"
   // Optional — when provided, the server accumulates the full streamed
@@ -87,6 +93,17 @@ function buildPrompt(p: TripParams): string {
     ? `\nMUST-INCLUDE PLACES (the traveler has specifically selected these — every one must appear in the itinerary on an appropriate day):\n${p.mustVisit.map(v => `- ${v.name} [${v.category}]`).join("\n")}\n`
     : "";
 
+  // Monument quest block — these are real collectible objectives from
+  // the user's monument-collection system. When the activity for one
+  // of these places appears, integrate ONE of the listed quests as a
+  // specific challenge in that activity's description, AND prefix the
+  // activity headline with the literal token "[MONUMENT QUEST]" so the
+  // client UI can render the gold badge styling. Pick the quest that
+  // best matches the time of day and pace of the visit.
+  const monumentQuestBlock = p.monumentQuests && p.monumentQuests.length > 0
+    ? `\nMONUMENT QUESTS — these places are part of the traveler's collectible-monument game. For each one, when the activity appears in the itinerary, weave ONE of its quests into the activity description as a concrete objective the traveler can do during the visit. CRITICAL: prefix the activity's time/place headline with the literal token "[MONUMENT QUEST]" — for example: "**6:00 AM** — [MONUMENT QUEST] Sunrise photograph at **Taj Mahal** *(~2 hrs)*". The UI uses this marker to render gold styling. Available quests:\n${p.monumentQuests.map(m => `- ${m.name}: ${m.quests.map(q => `"${q}"`).join(' / ')}`).join("\n")}\n`
+    : "";
+
   // Build personality emphasis block
   const personalityBlock = [
     p.purpose    && `Purpose: ${p.purpose}`,
@@ -117,7 +134,7 @@ function buildPrompt(p: TripParams): string {
 ${langInstruction}${currencyInstruction}
 TRAVELER PERSONALITY (every decision — pace, restaurant tier, activity intensity, transport mode — must reflect this):
 ${personalityBlock}
-${mustVisitBlock}
+${mustVisitBlock}${monumentQuestBlock}
 ${scheduleNote}
 
 Create a complete day-by-day itinerary covering ALL stops. For each city section use "## [City Name]" as a heading.
@@ -137,7 +154,7 @@ Write in an engaging, friendly tone. Be specific — real place names, dish name
 ${langInstruction}${currencyInstruction}
 TRAVELER PERSONALITY (shape every recommendation — pace, venue tier, activity type, transport choice — around this profile):
 ${personalityBlock}
-${mustVisitBlock}
+${mustVisitBlock}${monumentQuestBlock}
 Dates: ${p.startDate} to ${p.endDate} (${p.nights} nights)
 
 Create a complete day-by-day itinerary. Format your response clearly with:

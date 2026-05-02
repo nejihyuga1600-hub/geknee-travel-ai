@@ -469,6 +469,26 @@ function SummaryContent({ tripIdOverride, initialMainTab, autoGenerate = true }:
     async function fetch_() {
       try {
         const mustVisit = bookmarks.map(b => ({ name: b.name, category: b.category }));
+
+        // Build the monument-quest payload by name-matching destination
+        // and bookmarks against info.ts, then pulling the top quests
+        // for any matched monument from the quests engine. The AI uses
+        // these to integrate quest objectives into the activity for
+        // that monument, prefixing the line with [MONUMENT QUEST].
+        const { findMonumentKey } = await import('./lib/monument-match');
+        const { getQuests } = await import('@/app/plan/location/globe/quests');
+        type MonumentQuestPayload = { name: string; quests: string[] };
+        const monumentQuests: MonumentQuestPayload[] = [];
+        const seenMonumentKeys = new Set<string>();
+        const tryAdd = (name: string) => {
+          const key = findMonumentKey(name);
+          if (!key || seenMonumentKeys.has(key)) return;
+          seenMonumentKeys.add(key);
+          const quests = getQuests(key).slice(0, 3).map(q => q.label);
+          if (quests.length > 0) monumentQuests.push({ name, quests });
+        };
+        tryAdd(location);
+        for (const v of mustVisit) tryAdd(v.name);
         // Read language preference from localStorage
         let userLang = 'en';
         try { userLang = JSON.parse(localStorage.getItem('geknee_settings') ?? '{}').language ?? 'en'; } catch { /* ignore */ }
@@ -502,6 +522,7 @@ function SummaryContent({ tripIdOverride, initialMainTab, autoGenerate = true }:
             interests, constraints, startDate, endDate, nights,
             stops: stopsRaw ? JSON.parse(stopsRaw) : undefined,
             mustVisit: mustVisit.length > 0 ? mustVisit : undefined,
+            monumentQuests: monumentQuests.length > 0 ? monumentQuests : undefined,
             language: userLang !== 'en' ? userLang : undefined,
             currency: userCurrency,
             // Server-side persistence: with tripId set, the API saves

@@ -230,7 +230,13 @@ export function ActivityBlock({
   // group.details still hold the original text, so editing (via
   // onStartEdit's `current` arg, which is the raw line) keeps full
   // fidelity if the user clicks to edit.
-  const displayHeadline = duration ? stripDurationFromLine(group.headline) : group.headline;
+  // Detect the [MONUMENT QUEST] marker the AI emits when an activity
+  // is part of the traveler's monument-collection game. Strip it from
+  // the headline so the rendered text is clean, and use it to drive the
+  // gold pin + gold "+ MONUMENT QUEST" pill below.
+  const isMonumentQuest = /\[\s*MONUMENT\s*QUEST\s*\]/i.test(group.headline);
+  const headlineNoMarker = group.headline.replace(/\s*\[\s*MONUMENT\s*QUEST\s*\]\s*/gi, ' ').replace(/\s+/g, ' ').trim();
+  const displayHeadline = duration ? stripDurationFromLine(headlineNoMarker) : headlineNoMarker;
   const visibleDetails = group.details
     .filter(d => !TRANSIT_LINE_RE.test(d.line))
     .map(d => ({ ...d, displayLine: cost ? stripCostFromLine(d.line) : d.line }));
@@ -241,7 +247,7 @@ export function ActivityBlock({
       {/* Headline row */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12 }}>
         {activityNumber !== undefined ? (() => {
-          const isMonument = /monument|quest|⏚|temple|shrine|cathedral|landmark|tower|palace|castle/i.test(group.headline);
+          const isMonument = isMonumentQuest || /monument|quest|⏚|temple|shrine|cathedral|landmark|tower|palace|castle/i.test(group.headline);
           return (
             <div style={{
               flexShrink: 0, marginTop: 3,
@@ -268,8 +274,23 @@ export function ActivityBlock({
             onCancel={onCancel}
             onAskGenie={onAskGenie}
           />
-          {hasAnyChip && (
+          {(hasAnyChip || isMonumentQuest) && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+              {isMonumentQuest && (
+                <span style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 4,
+                  fontSize: 10, fontWeight: 700, lineHeight: 1.4,
+                  color: 'var(--brand-bg)', background: 'var(--brand-gold)',
+                  border: '1px solid rgba(0,0,0,0.15)',
+                  borderRadius: 6, padding: '3px 9px',
+                  fontFamily: 'var(--font-mono-display), ui-monospace, monospace',
+                  letterSpacing: '0.06em', whiteSpace: 'nowrap',
+                  textTransform: 'uppercase',
+                  boxShadow: '0 2px 8px rgba(251,191,36,0.25)',
+                }}>
+                  + Monument Quest
+                </span>
+              )}
               {duration && <Chip icon="⏱" label={duration} />}
               {/* Price sits next to time so the user reads "how long /
                   how much" as one scan. */}
