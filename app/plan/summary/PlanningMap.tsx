@@ -497,62 +497,71 @@ export default function PlanningMap({
   }, [query, fetchDetail, clearResultMarkers]);
 
   // ── Init map ───────────────────────────────────────────────────────────────
+  // Effect deps: [location, extraStops]. Runs on first mount AND whenever
+  // location resolves from null to a real value (trip fetch returns).
+  // PREVIOUS BUG: when mapRef.current was set, the effect early-returned
+  // before the auto-zoom block. So the camera was created at the global
+  // (lat 20, lng 0) fallback on first run (location was null), then
+  // when location updated the effect re-ran but bailed at the
+  // mapRef.current check — auto-zoom never executed and the camera was
+  // permanently stuck on Africa.
+  // Now: split map creation from camera framing. Creation only runs once
+  // (gated by mapRef.current). Framing runs on every invocation so
+  // location → coords always lands.
   useEffect(() => {
     let cancelled = false;
     async function init() {
       await loadGoogleMaps();
       if (cancelled || !divRef.current) return;
-      if (mapRef.current) {
-        // Strict-mode double-fire: map already exists, just wire up the control ref
-        if (mapControlRef) {
-          const m = mapRef.current;
-          mapControlRef.current = {
-            panTo: (coords: [number, number]) => { m.panTo({ lat: coords[1], lng: coords[0] }); m.setZoom(15); },
-            openPlace: (placeId: string, coords: [number, number]) => { m.panTo({ lat: coords[1], lng: coords[0] }); m.setZoom(15); fetchDetail(placeId); },
-          };
-        }
-        return;
+
+      // ── 1. Create map (once) ──────────────────────────────────────
+      let map = mapRef.current;
+      if (!map) {
+        map = new google.maps.Map(divRef.current, {
+          zoom: 3,
+          center: { lat: 20, lng: 0 },
+          disableDefaultUI: true,
+          zoomControl: true,
+          gestureHandling: 'greedy',
+          clickableIcons: true,
+        });
+        mapRef.current          = map;
+        placesRef.current       = new google.maps.places.PlacesService(map);
+        geocoderRef.current     = new google.maps.Geocoder();
+        autocompleteRef.current = new google.maps.places.AutocompleteService();
+
+        // POI click → show in panel. Only attach on creation; the
+        // re-attach effect below handles fetchDetail ref changes.
+        map.addListener('click', (e: google.maps.MapMouseEvent & { placeId?: string }) => {
+          if (e.placeId) {
+            (e as { stop?: () => void }).stop?.();
+            fetchDetail(e.placeId);
+          }
+        });
       }
 
-      const map = new google.maps.Map(divRef.current!, {
-        zoom: 3,
-        center: { lat: 20, lng: 0 },
-        disableDefaultUI: true,
-        zoomControl: true,
-        gestureHandling: 'greedy',
-        clickableIcons: true,
-      });
-      mapRef.current        = map;
-      placesRef.current     = new google.maps.places.PlacesService(map);
-      geocoderRef.current   = new google.maps.Geocoder();
-      autocompleteRef.current = new google.maps.places.AutocompleteService();
+      // ── 2. Imperative control ref (always idempotent) ─────────────
       if (mapControlRef) {
+        const m = map;
         mapControlRef.current = {
           panTo: (coords: [number, number]) => {
-            map.panTo({ lat: coords[1], lng: coords[0] });
-            map.setZoom(15);
+            m.panTo({ lat: coords[1], lng: coords[0] });
+            m.setZoom(15);
           },
           openPlace: (placeId: string, coords: [number, number]) => {
-            map.panTo({ lat: coords[1], lng: coords[0] });
-            map.setZoom(15);
+            m.panTo({ lat: coords[1], lng: coords[0] });
+            m.setZoom(15);
             fetchDetail(placeId);
           },
         };
       }
 
-      // POI click → show in panel
-      map.addListener('click', (e: google.maps.MapMouseEvent & { placeId?: string }) => {
-        if (e.placeId) {
-          (e as { stop?: () => void }).stop?.();
-          fetchDetail(e.placeId);
-        }
-      });
-
-      // Auto-zoom. Resolve each city via the known-monument fast path
-      // first (instant, no API call); fall back to Geocoder per-city
-      // only when the fast path misses. Saves Geocoder quota and lets
-      // the map land on the destination synchronously when the trip is
-      // pegged to a famous monument.
+      // ── 3. Frame the camera on the trip's destination(s) ──────────
+      // Resolve each city via the known-monument fast path first
+      // (instant, no API call); fall back to Geocoder per-city only
+      // when the fast path misses. Runs on every effect invocation so
+      // a location null → "Taj Mahal" transition lands the camera on
+      // the destination instead of leaving it on the global fallback.
       if (location && !cancelled) {
         const cities  = [location, ...(extraStops ?? [])].filter(Boolean);
         const isMulti = cities.length > 1;

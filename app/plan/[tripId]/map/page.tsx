@@ -96,7 +96,12 @@ export default function PlanMapPage() {
     let cancelled = false;
     fetch(`/api/trips/${encodeURIComponent(tripId)}`)
       .then(r => r.ok ? r.json() : null)
-      .then(d => { if (!cancelled && d?.trip) setTrip({ id: d.trip.id, location: d.trip.location ?? null }); });
+      .then(d => {
+        if (!cancelled && d?.trip) {
+          console.log('[plan/map] trip loaded — location =', JSON.stringify(d.trip.location));
+          setTrip({ id: d.trip.id, location: d.trip.location ?? null });
+        }
+      });
     try {
       const raw = localStorage.getItem(STORAGE(tripId));
       if (raw) setPins(JSON.parse(raw));
@@ -644,7 +649,71 @@ function PlanMap({
     });
   }, [pins, selectedPinId]);
 
-  return <div ref={containerRef} style={{ width: '100%', height: '100svh', background: '#0d1525' }} />;
+  // Manual recenter — gives the user an explicit escape hatch when the
+  // automatic 3-tier resolution chain doesn't land on the right spot.
+  // Click reproduces the same logic as the recenter effect.
+  const recenterOnDestination = () => {
+    const map = mapRef.current;
+    if (!map || !location) return;
+    const known = lookupKnownCoords(location);
+    if (known) {
+      console.log('[plan/map] manual recenter — tier-1 hit for', location, '→', known);
+      map.setCenter(known);
+      map.setZoom(13);
+      return;
+    }
+    const geocoder = new google.maps.Geocoder();
+    geocoder.geocode({ address: location }, (results, status) => {
+      if (status === 'OK' && results?.[0]?.geometry?.location) {
+        console.log('[plan/map] manual recenter — tier-2 hit for', location);
+        map.setCenter(results[0].geometry.location);
+        map.setZoom(13);
+        return;
+      }
+      console.warn('[plan/map] manual recenter — tier-2 failed, trying tier-3');
+      fetch(`/api/geocode?address=${encodeURIComponent(location)}`)
+        .then(r => (r.ok ? r.json() : null))
+        .then((d: { lat?: number; lng?: number } | null) => {
+          if (d && typeof d.lat === 'number' && typeof d.lng === 'number') {
+            console.log('[plan/map] manual recenter — tier-3 hit for', location);
+            map.setCenter({ lat: d.lat, lng: d.lng });
+            map.setZoom(13);
+          } else {
+            console.error('[plan/map] manual recenter — all tiers failed for', location);
+          }
+        });
+    });
+  };
+
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100svh' }}>
+      <div ref={containerRef} style={{ width: '100%', height: '100%', background: '#0d1525' }} />
+      {location && (
+        <button
+          onClick={recenterOnDestination}
+          aria-label={`Center map on ${location}`}
+          title={`Center map on ${location}`}
+          style={{
+            position: 'absolute', bottom: 24, left: 24, zIndex: 18,
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 14px', borderRadius: 999,
+            background: 'rgba(13,13,36,0.92)',
+            border: '1px solid rgba(56,189,248,0.4)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            color: '#38bdf8',
+            fontFamily: 'var(--font-mono-display), ui-monospace, monospace',
+            fontSize: 11, fontWeight: 700, letterSpacing: '0.14em',
+            textTransform: 'uppercase', cursor: 'pointer',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.4)',
+          }}
+        >
+          <span aria-hidden>{String.fromCodePoint(0x1F4CD)}</span>
+          Center on {location}
+        </button>
+      )}
+    </div>
+  );
 }
 
 function pinSvgIcon(num: number, category: Category, selected: boolean): google.maps.Icon {
