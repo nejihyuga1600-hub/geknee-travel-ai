@@ -216,15 +216,33 @@ export async function POST(req: Request) {
 
   const readable = new ReadableStream({
     async start(controller) {
-      // Immediate priming byte. Vercel's Node serverless runtime — and
-      // any reverse proxy in the path — will hold a streaming response
-      // in a buffer until enough bytes arrive to flush. Anthropic's
-      // first-token latency is 3-8 s, which means the user sees nothing
-      // for 3-8 s + buffer-fill time + network. By writing one byte
-      // synchronously at the top of `start`, we force the response head
-      // out immediately so the client transitions from
-      // "Reaching the AI" → "Receiving from AI" right away.
-      try { controller.enqueue(encoder.encode(" ")); } catch { /* aborted */ }
+      // Break through Vercel/Node/proxy small-write buffering. A 1-byte
+      // prime is below TCP/Nagle and edge-buffer thresholds — it queues
+      // and waits for the next write. We need a chunk large enough to
+      // (a) saturate the initial TCP segment, (b) exceed the edge
+      // proxy's hold-until-N-bytes threshold (~4 KB on most paths),
+      // and (c) wake the browser's body reader.
+      //
+      // 8 KB of whitespace + newline does it. The whitespace is benign
+      // on the client: the line-splitter sees one giant blank line that
+      // renders as an empty MarkdownLine in the in-flight box.
+      const PRIME = " ".repeat(8192) + "\n";
+      try { controller.enqueue(encoder.encode(PRIME)); } catch { /* aborted */ }
+
+      // Heartbeats during Anthropic's 3-8 s first-token latency. Without
+      // these, the connection sits idle long enough for the platform to
+      // re-coalesce buffers and the next real write can get held again.
+      // We send a small whitespace+newline burst every 500 ms until the
+      // first real content delta arrives, then stop (the deltas
+      // themselves keep pressure on the stream).
+      let firstDeltaSeen = false;
+      const HEARTBEAT = " ".repeat(64) + "\n";
+      const heartbeat = setInterval(() => {
+        if (firstDeltaSeen || !clientStillConnected) return;
+        try { controller.enqueue(encoder.encode(HEARTBEAT)); }
+        catch { clientStillConnected = false; }
+      }, 500);
+
       try {
         const stream = await client.messages.create({
           model: "claude-sonnet-4-6",
@@ -239,6 +257,7 @@ export async function POST(req: Request) {
             event.type === "content_block_delta" &&
             event.delta.type === "text_delta"
           ) {
+            firstDeltaSeen = true;
             accumulated += event.delta.text;
             if (clientStillConnected) {
               try {
@@ -260,6 +279,7 @@ export async function POST(req: Request) {
           );
         } catch { /* client already disconnected */ }
       } finally {
+        clearInterval(heartbeat);
         // Persist the accumulated itinerary to the trip's DB row so it
         // survives client disconnects. Only saves if we got a non-empty
         // result and the request carries a tripId the user owns.

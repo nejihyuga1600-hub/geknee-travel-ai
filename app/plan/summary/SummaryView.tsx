@@ -231,6 +231,7 @@ function SummaryContent({ tripIdOverride, initialMainTab, autoGenerate = true }:
   }, [retryToast]);
   const [upgradeModal, setUpgradeModal] = useState<{ open: boolean; feature?: string; reason?: string }>({ open: false });
   const bufferRef = useRef('');
+  const [inFlightTail, setInFlightTail] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
   const userScrolledRef = useRef(false);
 
@@ -517,11 +518,15 @@ function SummaryContent({ tripIdOverride, initialMainTab, autoGenerate = true }:
           const all = bufferRef.current.split('\n');
           bufferRef.current = all.pop() ?? '';
           setLines(prev => [...prev, ...all]);
+          // Surface the unfinished trailing line so users see Anthropic's
+          // tokens arrive char-by-char instead of waiting for the next \n.
+          setInFlightTail(bufferRef.current);
         }
         if (bufferRef.current) {
           setLines(prev => [...prev, bufferRef.current]);
           bufferRef.current = '';
         }
+        setInFlightTail('');
       } catch {
         if (!cancelled) {
           setError('Network error. Please try again.');
@@ -1820,6 +1825,7 @@ function SummaryContent({ tripIdOverride, initialMainTab, autoGenerate = true }:
                   </h2>
                 )}
                 {streamingLines.map((line, i) => <MarkdownLine key={i} line={line} />)}
+                {inFlightTail.trim() && <MarkdownLine line={inFlightTail} />}
                 <span style={{
                   display: 'inline-block', width: 2, height: 16,
                   background: '#38bdf8', marginLeft: 2,
