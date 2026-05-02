@@ -480,6 +480,10 @@ function SummaryContent({ tripIdOverride, initialMainTab, autoGenerate = true }:
             stops: stopsRaw ? JSON.parse(stopsRaw) : undefined,
             mustVisit: mustVisit.length > 0 ? mustVisit : undefined,
             language: userLang !== 'en' ? userLang : undefined,
+            // Server-side persistence: with tripId set, the API saves
+            // the accumulated itinerary to TripDraft.itinerary on
+            // completion, so disconnects/navigates don't lose work.
+            tripId: savedTripId ?? undefined,
           }),
         });
         if (!res.ok || !res.body) {

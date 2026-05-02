@@ -1,5 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { auth } from "@/auth";
+import { prisma } from "@/lib/prisma";
 import { checkAndIncrementGeneration } from "@/lib/plan";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -28,6 +29,13 @@ interface TripParams {
   stops?: StopParam[];
   mustVisit?: MustVisitPlace[];
   language?: string; // BCP-47 code e.g. "es", "ja", "ar"
+  // Optional — when provided, the server accumulates the full streamed
+  // text and writes it to TripDraft.itinerary on completion. This makes
+  // generation durable across client disconnects (navigating away,
+  // closing the tab, network blip mid-stream): the AI's output is
+  // persisted server-side regardless of whether the reader is still
+  // attached.
+  tripId?: string;
 }
 
 const LANG_NAMES: Record<string, string> = {
@@ -189,6 +197,13 @@ export async function POST(req: Request) {
 
   const encoder = new TextEncoder();
 
+  // Accumulate the full text server-side. Even if the client disconnects
+  // mid-stream, the AI continues generating and we persist the complete
+  // result to the TripDraft row at the end — so navigating away no
+  // longer loses work.
+  let accumulated = "";
+  let clientStillConnected = true;
+
   const readable = new ReadableStream({
     async start(controller) {
       try {
@@ -205,11 +220,16 @@ export async function POST(req: Request) {
             event.type === "content_block_delta" &&
             event.delta.type === "text_delta"
           ) {
-            try {
-              controller.enqueue(encoder.encode(event.delta.text));
-            } catch {
-              // Client disconnected — stop streaming
-              break;
+            accumulated += event.delta.text;
+            if (clientStillConnected) {
+              try {
+                controller.enqueue(encoder.encode(event.delta.text));
+              } catch {
+                // Client disconnected — stop pushing chunks but KEEP
+                // consuming the upstream stream so we accumulate the
+                // full text and can persist it below.
+                clientStillConnected = false;
+              }
             }
           }
         }
@@ -221,6 +241,31 @@ export async function POST(req: Request) {
           );
         } catch { /* client already disconnected */ }
       } finally {
+        // Persist the accumulated itinerary to the trip's DB row so it
+        // survives client disconnects. Only saves if we got a non-empty
+        // result and the request carries a tripId the user owns.
+        if (body.tripId && userId && accumulated.trim().length > 0) {
+          try {
+            const trip = await prisma.tripDraft.findUnique({
+              where: { id: body.tripId },
+              select: { userId: true },
+            });
+            if (trip && trip.userId === userId) {
+              await prisma.tripDraft.update({
+                where: { id: body.tripId },
+                data: {
+                  itinerary: accumulated,
+                  itineraryUpdatedAt: new Date(),
+                },
+              });
+              console.log(`[itinerary] saved ${accumulated.length} chars for trip ${body.tripId}`);
+            } else {
+              console.warn(`[itinerary] tripId ${body.tripId} ownership mismatch — not saving`);
+            }
+          } catch (e) {
+            console.error("[itinerary] DB save failed:", e);
+          }
+        }
         try { controller.close(); } catch { /* already closed */ }
       }
     },
