@@ -170,6 +170,31 @@ function parseTransit(
   return null;
 }
 
+// Strip the parenthetical duration token from a headline so the rendered
+// text doesn't repeat what the chip already shows. e.g.
+//   "Activity at **Place** *(~2 hrs)*."  →  "Activity at **Place**."
+function stripDurationFromLine(line: string): string {
+  return line
+    .replace(/\s*\*?\(\s*~?\s*\d+(?:\.\d+)?\s*(?:hrs?|hours?|mins?|minutes?)\s*\)\*?/gi, '')
+    .replace(/\s+([.,;:!?])/g, '$1') // tidy up dangling space-before-punct
+    .trim();
+}
+
+// Strip cost mentions from descriptive text once we've chipped the price.
+// Handles:
+//   "Entry: ₹650 (~$7.80 USD)."
+//   "Cost: $30 per person."
+//   "₹650 per person."
+//   bare "(~$7.80 USD)" parentheticals after a primary symbol-led price.
+function stripCostFromLine(line: string): string {
+  return line
+    .replace(/\s*(?:Entry|Cost|Price|Admission|Ticket|Fee)s?:\s*[$¥€£₹₩฿][\s]?[\d,]+(?:[-–][\d,]+)?(?:\s*\(\s*~?\s*\$?[\d,.]+\s*[A-Z]{0,3}\s*\))?\.?/gi, '')
+    .replace(/\s*[$¥€£₹₩฿][\s]?[\d,]+\s*(?:per\s+person|pp|each|p\.p\.)\.?/gi, '')
+    .replace(/\s*\(\s*~?\s*\$?[\d,.]+\s*[A-Z]{2,4}\s*\)/g, '')
+    .replace(/\s+([.,;:!?])/g, '$1')
+    .trim();
+}
+
 function Chip({ icon, label, accent }: { icon?: string; label: string; accent?: string }) {
   return (
     <span style={{
@@ -200,11 +225,16 @@ export function ActivityBlock({
   const transit = parseTransit(group.details, nextActivityNumber);
   const hasAnyChip = !!(duration || cost || transit);
 
-  // Hide the raw transit line from the rendered detail prose since it's
-  // promoted to a chip. Cost may be embedded in a description sentence,
-  // so we leave those lines visible for context.
-  const visibleDetails = group.details.filter(d => !TRANSIT_LINE_RE.test(d.line));
-  const hasDetails = visibleDetails.some(d => d.line.trim());
+  // Display-side strips: hide the data we already chipped so the user
+  // doesn't read the same number twice. The underlying group.headline /
+  // group.details still hold the original text, so editing (via
+  // onStartEdit's `current` arg, which is the raw line) keeps full
+  // fidelity if the user clicks to edit.
+  const displayHeadline = duration ? stripDurationFromLine(group.headline) : group.headline;
+  const visibleDetails = group.details
+    .filter(d => !TRANSIT_LINE_RE.test(d.line))
+    .map(d => ({ ...d, displayLine: cost ? stripCostFromLine(d.line) : d.line }));
+  const hasDetails = visibleDetails.some(d => d.displayLine.trim());
 
   return (
     <div style={{ marginBottom: 14 }}>
@@ -229,7 +259,7 @@ export function ActivityBlock({
         )}
         <div style={{ flex: 1, minWidth: 0 }}>
           <EditableLine
-            line={group.headline}
+            line={displayHeadline}
             isEditing={editTarget?.sectionIdx === sectionIdx && editTarget?.lineIdx === group.headlineIdx}
             editValue={editValue}
             onStartEdit={() => onStartEdit(sectionIdx, group.headlineIdx, group.headline)}
@@ -253,10 +283,10 @@ export function ActivityBlock({
               paddingLeft: 12,
               borderLeft: '2px solid rgba(56,189,248,0.2)',
             }}>
-              {visibleDetails.map(({ line, idx }) => (
+              {visibleDetails.map(({ line, idx, displayLine }) => (
                 <EditableLine
                   key={idx}
-                  line={line}
+                  line={displayLine}
                   isEditing={editTarget?.sectionIdx === sectionIdx && editTarget?.lineIdx === idx}
                   editValue={editValue}
                   onStartEdit={() => onStartEdit(sectionIdx, idx, line)}
