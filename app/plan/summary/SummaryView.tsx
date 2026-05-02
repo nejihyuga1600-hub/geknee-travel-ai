@@ -726,7 +726,14 @@ function SummaryContent({ tripIdOverride, initialMainTab, autoGenerate = true }:
       // Guard against stops with no city — was hitting /api/weather?city= and
       // burning a 400 per missing-city stop. Found via headless audit.
       if (!stop.city || !stop.city.trim()) continue;
-      fetch(`/api/weather?city=${encodeURIComponent(stop.city)}`)
+      // Pass the trip's per-stop dates so the API can switch to climate
+      // normals (3-year averages) when the trip is more than 14 days
+      // out or in the past — gives users a real "what's it usually
+      // like?" answer instead of "Weather unavailable".
+      const params = new URLSearchParams({ city: stop.city });
+      if (stop.startDate) params.set('start', stop.startDate);
+      if (stop.endDate)   params.set('end',   stop.endDate);
+      fetch(`/api/weather?${params}`)
         .then(r => r.json())
         .then(d => {
           if (d.days) setWeatherByCity(prev => new Map(prev).set(stop.city, d.days));
