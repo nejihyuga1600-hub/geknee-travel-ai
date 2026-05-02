@@ -25,6 +25,10 @@ export interface ActivityBlockProps {
   onAskGenie: (line: string) => void;
   city?: string;
   activityNumber?: number;
+  // Number of the activity this transit segment leads to. When present,
+  // the transit chip suffixes "→ step N" so users can see exactly which
+  // step they're heading to next.
+  nextActivityNumber?: number;
 }
 
 function PlaceThumb({ place, city }: { place: string; city?: string }) {
@@ -137,17 +141,21 @@ function parseDuration(headline: string): string | null {
   return `~${m[1]} ${unit}${m[1] === '1' ? '' : 's'}`;
 }
 
-function parseCost(details: { line: string }[]): string | null {
-  const text = details.map(d => d.line).join(' ');
-  // Currency match: $30, ¥1,800, €20, £15-25, including "30-50 USD"
-  const sym = text.match(/[$¥€£][\d,]+(?:[-–][\d,]+)?/);
-  if (sym) return sym[0];
-  const usd = text.match(/(\d{1,4}(?:[-–]\d{1,4})?)\s*(USD|EUR|GBP|JPY|YEN)/i);
-  if (usd) return `${usd[1]} ${usd[2].toUpperCase()}`;
+function parseCost(details: { line: string }[], headline: string): string | null {
+  const text = headline + ' ' + details.map(d => d.line).join(' ');
+  // Symbol-led match including ₹ (rupee), ₩ (won), ฿ (baht), zł, kr.
+  const sym = text.match(/[$¥€£₹₩฿][\s]?[\d,]+(?:[-–][\d,]+)?/);
+  if (sym) return sym[0].replace(/\s/g, '');
+  // Trailing-currency phrasing: "30 USD", "1,500 yen", "650 INR"
+  const trailing = text.match(/(\d{1,4}(?:,\d{3})*(?:[-–]\d{1,4}(?:,\d{3})*)?)\s*(USD|EUR|GBP|JPY|YEN|INR|KRW|THB|RMB|CNY|RUB|MXN|CAD|AUD)\b/i);
+  if (trailing) return `${trailing[1]} ${trailing[2].toUpperCase()}`;
   return null;
 }
 
-function parseTransit(details: { line: string }[]): { icon: string; label: string } | null {
+function parseTransit(
+  details: { line: string }[],
+  nextActivityNumber?: number,
+): { icon: string; label: string } | null {
   for (const { line } of details) {
     const m = line.match(TRANSIT_LINE_RE);
     if (!m) continue;
@@ -155,7 +163,9 @@ function parseTransit(details: { line: string }[]): { icon: string; label: strin
       .replace(TRANSIT_LINE_RE, '')
       .match(/(walk(?:ing)?|subway|metro|bus|taxi|cab|train|bike|cycle|ferry|tram|drive|driving|flight)/i)?.[0]
       ?.toLowerCase();
-    return { icon: m[1], label: `${m[2]} min${mode ? ' · ' + mode : ''}` };
+    const base = `${m[2]} min${mode ? ' ' + mode : ''}`;
+    const target = nextActivityNumber !== undefined ? ` → step ${nextActivityNumber}` : '';
+    return { icon: m[1], label: base + target };
   }
   return null;
 }
@@ -181,12 +191,13 @@ function Chip({ icon, label, accent }: { icon?: string; label: string; accent?: 
 
 export function ActivityBlock({
   group, sectionIdx, editTarget, editValue,
-  onStartEdit, onEditChange, onCommit, onCancel, onAskGenie, city, activityNumber,
+  onStartEdit, onEditChange, onCommit, onCancel, onAskGenie,
+  city, activityNumber, nextActivityNumber,
 }: ActivityBlockProps) {
   const place = extractPlace(group.headline);
   const duration = parseDuration(group.headline);
-  const cost = parseCost(group.details);
-  const transit = parseTransit(group.details);
+  const cost = parseCost(group.details, group.headline);
+  const transit = parseTransit(group.details, nextActivityNumber);
   const hasAnyChip = !!(duration || cost || transit);
 
   // Hide the raw transit line from the rendered detail prose since it's
@@ -230,8 +241,10 @@ export function ActivityBlock({
           {hasAnyChip && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
               {duration && <Chip icon="⏱" label={duration} />}
+              {/* Price sits next to time so the user reads "how long /
+                  how much" as one scan. */}
+              {cost && <Chip label={cost} accent="#fbbf24" />}
               {transit && <Chip icon={transit.icon} label={transit.label} />}
-              {cost && <Chip label={cost} accent="rgba(125,211,252,0.85)" />}
             </div>
           )}
           {hasDetails && (

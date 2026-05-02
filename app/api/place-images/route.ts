@@ -23,11 +23,24 @@ export async function GET(req: Request) {
         `https://maps.googleapis.com/maps/api/place/textsearch/json?query=${encodeURIComponent(query)}&key=${GOOGLE_KEY}`
       );
       const data = await res.json() as {
-        results?: Array<{ photos?: Array<{ photo_reference: string }> }>;
+        results?: Array<{ photos?: Array<{ photo_reference: string; width?: number; height?: number }> }>;
       };
       const photos = data.results?.[0]?.photos ?? [];
-      if (photos.length > 0) {
-        const images = photos.slice(0, 5).map(
+      // Prefer landscape photos: portrait orientation is a strong signal
+      // of a user-uploaded selfie/headshot rather than a real shot of
+      // the place. Sort landscape-first; fall back to any if none qualify.
+      const ranked = [...photos].sort((a, b) => {
+        const ar = (a.width ?? 0) / Math.max(1, a.height ?? 0);
+        const br = (b.width ?? 0) / Math.max(1, b.height ?? 0);
+        return br - ar;
+      });
+      const landscape = ranked.filter(p => {
+        if (!p.width || !p.height) return true;
+        return p.width / p.height >= 1.05;
+      });
+      const pool = landscape.length > 0 ? landscape : ranked;
+      if (pool.length > 0) {
+        const images = pool.slice(0, 5).map(
           (p) => `/api/place-photo?ref=${encodeURIComponent(p.photo_reference)}`
         );
         return Response.json({ images });

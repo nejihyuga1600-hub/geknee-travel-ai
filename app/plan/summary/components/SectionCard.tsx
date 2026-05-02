@@ -57,6 +57,13 @@ export function SectionCard({
   const activityNumberMap = new Map<number, number>(
     activityGroups.map((g, i) => [g.headlineIdx, i + 1])
   );
+  // For each activity, the 1-based number of the *next* activity in the
+  // day. Last activity has no "next" — undefined. Used to suffix
+  // "→ step N" on the transit chip so it's obvious which step the
+  // walking/taxi leg leads to.
+  const nextActivityNumberMap = new Map<number, number>(
+    activityGroups.flatMap((g, i) => i < activityGroups.length - 1 ? [[g.headlineIdx, i + 2]] : [])
+  );
   const orderedActivityPlaces = activityGroups
     .map(g => extractPlace(g.headline))
     .filter((p): p is string => p !== null);
@@ -92,6 +99,7 @@ export function SectionCard({
           onAskGenie={onAskGenie}
           city={mapLocation}
           activityNumber={activityNumberMap.get(group.headlineIdx)}
+          nextActivityNumber={nextActivityNumberMap.get(group.headlineIdx)}
         />
       ) : (
         <EditableLine

@@ -11,8 +11,6 @@ import 'mapbox-gl/dist/mapbox-gl.css';
 // directions API call — the dashed segment between numbered pins reads as
 // "this day's stops" without trying to mimic actual road routing.
 
-type TransportMode = 'walking' | 'cycling' | 'driving' | 'transit' | 'flight';
-
 const GENERIC_WORDS = new Set([
   'Morning', 'Afternoon', 'Evening', 'Night', 'Midnight',
   'Breakfast', 'Lunch', 'Dinner', 'Snack', 'Brunch',
@@ -24,24 +22,6 @@ const GENERIC_WORDS = new Set([
   'Option', 'Optional', 'Alternative', 'Recommendation',
   'Activities', 'Accommodation', 'Hotel', 'Hostel',
 ]);
-
-const MODE_LABEL: Record<TransportMode, string> = {
-  walking: 'Walking route',
-  cycling: 'Cycling route',
-  transit: 'Transit route',
-  driving: 'Driving route',
-  flight:  'Flight path',
-};
-
-function detectMode(lines: string[]): TransportMode {
-  const text = lines.join(' ').toLowerCase();
-  const flightKeywords = /\b(take.*flight|board.*plane|depart.*airport|fly from|flight from|fly to)\b/;
-  if (flightKeywords.test(text)) return 'flight';
-  if (/\b(subway|metro|tube|underground|tram|train|rail|bus|transit|shuttle)\b/.test(text)) return 'transit';
-  if (/\b(bike|cycling|cycle|bicycle|scooter)\b/.test(text)) return 'cycling';
-  if (/\b(walk|stroll|on foot|hike|hiking|pedestrian|wander|wanders|strolling)\b/.test(text)) return 'walking';
-  return 'driving';
-}
 
 function extractPlaces(lines: string[]): Array<{ name: string }> {
   const seen = new Set<string>();
@@ -84,8 +64,6 @@ export default function DayMap({
   const [mapReady, setMapReady] = useState(false);
   const [ready, setReady] = useState(false);
   const [tokenMissing, setTokenMissing] = useState(false);
-  const [mode, setMode] = useState<TransportMode>('driving');
-  const [stopCount, setStopCount] = useState(0);
 
   // Lazy-mount: only init the map when the card scrolls into view.
   useEffect(() => {
@@ -190,22 +168,17 @@ export default function DayMap({
     }
 
     async function loadData() {
-      const detectedMode = detectMode(lines);
-      if (!cancelled) setMode(detectedMode);
-
+      // Always anchor to the destination passed in. The previous
+      // heading-regex fallback was matching descriptive day titles
+      // ("Day 1: Arrival & The Iconic Sunrise at the Taj") and treating
+      // them as cities — which sent geocoding all over the country and
+      // produced the "3 cities in one day" pin spread the user saw.
+      // SectionCard already passes the right city via `location` for
+      // both single-stop and per-city sections, so trust it.
       const anchor = await geocode(location);
       if (!anchor || cancelled || !mapRef.current) return;
-
-      const cityMatch = heading.match(/:\s*([^—–\-|,\n]+)/);
-      const rawCity = cityMatch ? cityMatch[1].trim() : '';
-      const city = rawCity || location;
-
-      let center = anchor;
-      if (rawCity && rawCity.toLowerCase() !== location.toLowerCase()) {
-        const cc = await geocode(city);
-        if (cc) center = cc;
-      }
-      if (cancelled) return;
+      const center = anchor;
+      const city = location;
 
       const rawPlaces = namedPlaces
         ? namedPlaces.map(n => ({ name: n }))
@@ -213,9 +186,11 @@ export default function DayMap({
 
       const results = await Promise.all(rawPlaces.map(async p => {
         const coords = await geocode(`${p.name}, ${city}`);
-        // Continent guard: reject anything more than ~1.5° lat / 2° lng off
-        // the city anchor — stops "Space Needle" landing in Europe.
-        if (coords && Math.abs(coords[1] - center[1]) < 1.5 && Math.abs(coords[0] - center[0]) < 2.0) {
+        // Tight bias: reject anything more than ~0.6° lat / 0.9° lng off
+        // the city anchor (~65 km radius). A single day's stops should
+        // fit within that — anything outside is almost certainly a
+        // wrong-city geocode hit and would visually destroy the day map.
+        if (coords && Math.abs(coords[1] - center[1]) < 0.6 && Math.abs(coords[0] - center[0]) < 0.9) {
           return { name: p.name, coords } as Place;
         }
         return null;
@@ -224,7 +199,6 @@ export default function DayMap({
 
       const resolved = results.filter((p): p is Place => !!p);
       onPlacesResolved?.(resolved.map(p => p.name));
-      setStopCount(resolved.length);
 
       if (resolved.length === 0) {
         // Center on city, no markers.
@@ -300,21 +274,6 @@ export default function DayMap({
   return (
     <div style={{ position: 'relative', borderRadius: 12, overflow: 'hidden' }}>
       <div ref={divRef} style={{ width: '100%', height }} />
-
-      {ready && stopCount > 0 && (
-        <div style={{
-          position: 'absolute', bottom: 10, left: 10,
-          background: 'rgba(10,10,31,0.88)',
-          border: '1px solid rgba(167,139,250,0.4)',
-          borderRadius: 6, padding: '4px 10px',
-          color: '#a78bfa', fontSize: 10.5, fontWeight: 700,
-          fontFamily: 'var(--font-mono-display), ui-monospace, monospace',
-          letterSpacing: '0.08em', textTransform: 'uppercase',
-          pointerEvents: 'none',
-        }}>
-          {stopCount} stop{stopCount === 1 ? '' : 's'} · {MODE_LABEL[mode]}
-        </div>
-      )}
 
       {!ready && (
         <div style={{

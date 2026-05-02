@@ -60,10 +60,31 @@ export function extractPlace(text: string): string | null {
 export const imgCache = new Map<string, string>();
 
 const _FOOD_DESC_RE = /\b(dish|cuisine|food|recipe|meal|dessert|drink|beverage|cocktail|snack|sauce|bread|cake|soup|noodle|rice dish|pasta)\b/i;
+// Wikipedia descriptions starting with these strongly imply the article is
+// about a person, not a place. The fallback chain was returning portrait
+// shots / selfies for ambiguous queries like "Sadar Bazaar" because the
+// matching Wikipedia article happened to be a person with that name. Skip.
+const _PERSON_DESC_RE = /\b(person|man|woman|politician|actor|actress|musician|singer|writer|author|athlete|scientist|director|player|artist|painter|sculptor|chef|prime minister|president|king|queen|emperor|monk|priest|philosopher|warrior|general|ruler|spouse|wife|husband|son of|daughter of|fictional character|character in|composer|poet|journalist|activist|footballer|basketball|cricketer|model|youtuber|streamer|rapper|dj|guitarist)\b/i;
+// Files whose names hint at people-shots (selfies, portraits, headshots)
+// — Commons fallback occasionally surfaces these for market/bazaar
+// queries; reject by name-match before we ever load them.
+const _PERSON_FILE_RE = /(selfie|portrait|headshot|profile.?pic|me_at|me-at|me\.jpg|wedding|family|posing|posed|profilbild)/i;
 
 function _landscapeScore(w?: number, h?: number): number {
   if (!w || !h) return 0;
   return w / h;
+}
+
+// Reject anything taller than wide × 1.0 (portrait). Place photos are
+// almost always landscape; portrait orientation is a strong signal of a
+// person/selfie. Returns true when safe to use.
+function _isLandscapeEnough(w?: number, h?: number): boolean {
+  if (!w || !h) return true; // unknown — don't reject
+  return w / h >= 1.05;
+}
+
+function _isClean(desc: string): boolean {
+  return !_FOOD_DESC_RE.test(desc) && !_PERSON_DESC_RE.test(desc);
 }
 
 export async function fetchPlaceImage(place: string, city?: string): Promise<string | null> {
@@ -82,31 +103,41 @@ export async function fetchPlaceImage(place: string, city?: string): Promise<str
     const sp = new URLSearchParams({ action:'wbsearchentities', search: q, language:'en', limit:'3', format:'json', origin:'*' });
     const r = await fetch(`https://www.wikidata.org/w/api.php?${sp}`);
     const d = await r.json();
-    for (const entity of (d.search ?? []).slice(0, 3) as {id:string}[]) {
+    type WikidataEntity = { id: string; description?: string };
+    for (const entity of (d.search ?? []).slice(0, 3) as WikidataEntity[]) {
+      // Skip person entities outright — Wikidata's `description` says
+      // things like "American actress", "Indian politician" for those.
+      if (entity.description && _PERSON_DESC_RE.test(entity.description)) continue;
       const r2 = await fetch(`https://www.wikidata.org/wiki/Special:EntityData/${entity.id}.json`);
       const d2 = await r2.json();
       const p18 = d2.entities?.[entity.id]?.claims?.P18;
       const filename: string | undefined = p18?.[0]?.mainsnak?.datavalue?.value;
-      if (filename) {
+      if (filename && !_PERSON_FILE_RE.test(filename)) {
         const slug = encodeURIComponent(filename.replace(/\s+/g, '_'));
         return `https://commons.wikimedia.org/wiki/Special:FilePath/${slug}?width=800`;
       }
     }
   } catch {}
 
-  // 2. Wikipedia REST summary — skip if description is food
+  // 3. Wikipedia REST summary — skip if description is food OR person, and
+  //    reject portrait-aspect images (selfies are almost always portrait).
   try {
     const slug = encodeURIComponent(place.replace(/\s+/g, '_'));
     const r = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${slug}`);
     if (r.ok) {
       const d = await r.json();
       const desc: string = d.description ?? '';
-      const url: string | null = d.originalimage?.source ?? d.thumbnail?.source ?? null;
-      if (url && !_FOOD_DESC_RE.test(desc)) return url;
+      const orig = d.originalimage as { source: string; width?: number; height?: number } | undefined;
+      const thumb = d.thumbnail as { source: string; width?: number; height?: number } | undefined;
+      const candidate = orig ?? thumb;
+      if (candidate && _isClean(desc) && _isLandscapeEnough(candidate.width, candidate.height)
+          && !_PERSON_FILE_RE.test(candidate.source)) {
+        return candidate.source;
+      }
     }
   } catch {}
 
-  // 3. Wikipedia search (with city context) → top 3 results
+  // 4. Wikipedia search (with city context) → top 3 results, same filters
   try {
     const p = new URLSearchParams({ action:'query', list:'search', srsearch: q, srlimit:'3', format:'json', origin:'*' });
     const r = await fetch(`https://en.wikipedia.org/w/api.php?${p}`);
@@ -117,13 +148,18 @@ export async function fetchPlaceImage(place: string, city?: string): Promise<str
       if (r2.ok) {
         const d2 = await r2.json();
         const desc: string = d2.description ?? '';
-        const url: string | null = d2.originalimage?.source ?? d2.thumbnail?.source ?? null;
-        if (url && !_FOOD_DESC_RE.test(desc)) return url;
+        const orig = d2.originalimage as { source: string; width?: number; height?: number } | undefined;
+        const thumb = d2.thumbnail as { source: string; width?: number; height?: number } | undefined;
+        const candidate = orig ?? thumb;
+        if (candidate && _isClean(desc) && _isLandscapeEnough(candidate.width, candidate.height)
+            && !_PERSON_FILE_RE.test(candidate.source)) {
+          return candidate.source;
+        }
       }
     }
   } catch {}
 
-  // 4. Wikimedia Commons — search with exterior/location bias, prefer landscape images
+  // 5. Wikimedia Commons — exterior bias + reject portrait + reject person filenames
   try {
     const searchTerm = `${q} (exterior OR building OR street OR entrance OR facade OR view)`;
     const p = new URLSearchParams({
@@ -137,7 +173,10 @@ export async function fetchPlaceImage(place: string, city?: string): Promise<str
     const pages = (Object.values(d.query?.pages ?? {}) as PageInfo[])
       .filter(pg => {
         const info = pg.imageinfo?.[0];
-        return info && info.mime.startsWith('image/') && !info.url.endsWith('.svg');
+        if (!info || !info.mime.startsWith('image/') || info.url.endsWith('.svg')) return false;
+        if (_PERSON_FILE_RE.test(info.url)) return false;
+        if (!_isLandscapeEnough(info.width, info.height)) return false;
+        return true;
       })
       .sort((a, b) =>
         _landscapeScore(b.imageinfo![0].width, b.imageinfo![0].height) -
