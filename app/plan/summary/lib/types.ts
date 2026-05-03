@@ -31,4 +31,12 @@ export interface BookTabProps {
   stops?: string;
   travelingFrom?: string;
   fullItinerary?: string;
+  /** Trip ID — required for the slot-in adjust endpoint to find the
+   *  trip in the DB. When absent, the Add-to-itinerary action stays
+   *  disabled. */
+  tripId?: string;
+  /** Called after a successful /api/itinerary/adjust round trip with
+   *  the updated full itinerary. SummaryView uses this to refresh the
+   *  rendered day cards in place without a page reload. */
+  onItineraryAdjusted?: (newItinerary: string) => void;
 }

@@ -1992,6 +1992,13 @@ function SummaryContent({ tripIdOverride, initialMainTab, autoGenerate = true }:
             stops={stopsRaw}
             travelingFrom={travelingFrom}
             fullItinerary={fullItinerary}
+            tripId={savedTripId ?? undefined}
+            onItineraryAdjusted={(newItinerary) => {
+              // Splice the freshly-edited itinerary into the line buffer
+              // so the day-card view re-renders in place. Keep the same
+              // line-by-line shape the streaming pipeline produces.
+              setLines(newItinerary.split('\n'));
+            }}
           />
         </div>
 

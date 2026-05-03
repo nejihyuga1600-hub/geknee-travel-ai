@@ -394,13 +394,13 @@ export default function BookView(props: BookTabProps) {
           Couldn&apos;t load booking suggestions ({loadError}). Try again in a moment.
         </div>
       )}
-      {!loading && !loadError && tab === 'stays'      && <StaysSection hotels={hotels} location={props.location} startDate={props.startDate} endDate={props.endDate} nights={props.nights} />}
+      {!loading && !loadError && tab === 'stays'      && <StaysSection hotels={hotels} location={props.location} startDate={props.startDate} endDate={props.endDate} nights={props.nights} tripId={props.tripId} onItineraryAdjusted={props.onItineraryAdjusted} />}
       {!loading && !loadError && tab === 'flights' && (
         flightOptions.length > 0
           ? <FlightOptionsSection options={flightOptions} startDate={props.startDate} endDate={props.endDate} homeAirport={homeAirport} onChangeHome={changeHomeAirport} />
           : (flight && <FlightsSection flight={flight} startDate={props.startDate} endDate={props.endDate} />)
       )}
-      {!loading && !loadError && tab === 'activities' && <ActivitiesSection activities={activities} />}
+      {!loading && !loadError && tab === 'activities' && <ActivitiesSection activities={activities} tripId={props.tripId} onItineraryAdjusted={props.onItineraryAdjusted} />}
       {tab === 'transport'  && <PlaceholderSection title="Local transport" detail="Suica/Pasmo IC card setup, day passes, and intercity train suggestions land here once you confirm dates." />}
       {tab === 'insurance'  && (
         <InsuranceSection
@@ -416,8 +416,10 @@ export default function BookView(props: BookTabProps) {
 
 // ─── Stays ─────────────────────────────────────────────────────────────────
 
-function StaysSection({ hotels, location, startDate, endDate, nights }: {
+function StaysSection({ hotels, location, startDate, endDate, nights, tripId, onItineraryAdjusted }: {
   hotels: Hotel[]; location: string; startDate: string; endDate: string; nights: string;
+  tripId?: string;
+  onItineraryAdjusted?: (next: string) => void;
 }) {
   const datesLabel = startDate && endDate
     ? `APR ${new Date(startDate).getDate()}–${new Date(endDate).getDate()}`
@@ -452,7 +454,7 @@ function StaysSection({ hotels, location, startDate, endDate, nights }: {
         gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
         gap: 16,
       }}>
-        {hotels.map((h, i) => <HotelCard key={i} hotel={h} city={location} startDate={startDate} endDate={endDate} />)}
+        {hotels.map((h, i) => <HotelCard key={i} hotel={h} city={location} startDate={startDate} endDate={endDate} tripId={tripId} onItineraryAdjusted={onItineraryAdjusted} />)}
       </div>
     </section>
   );
@@ -483,9 +485,45 @@ const TIER_COLOR: Record<Hotel['tier'], string> = {
 // session doesn't re-hit /api/place-images. Keyed on "<name>||<city>".
 const galleryCache = new Map<string, string[]>();
 
-function HotelCard({ hotel, city, startDate, endDate }: {
+function HotelCard({ hotel, city, startDate, endDate, tripId, onItineraryAdjusted }: {
   hotel: Hotel; city: string; startDate?: string; endDate?: string;
+  tripId?: string;
+  onItineraryAdjusted?: (next: string) => void;
 }) {
+  // Slot-in to itinerary state. fromItinerary cards already match
+  // something in the plan so the button hides; everything else can
+  // be added with a single round-trip.
+  const [adjusting, setAdjusting] = useState(false);
+  const [adjusted, setAdjusted] = useState(false);
+  const [adjustError, setAdjustError] = useState<string | null>(null);
+  async function addToItinerary() {
+    if (!tripId || adjusting) return;
+    setAdjusting(true); setAdjustError(null);
+    try {
+      const r = await fetch('/api/itinerary/adjust', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tripId,
+          kind: 'hotel',
+          name: hotel.name,
+          district: hotel.district,
+          price: `${hotel.currency}${hotel.price.toLocaleString()} / night`,
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok || !data?.itinerary) {
+        setAdjustError(data?.error ?? 'Failed to update itinerary');
+      } else {
+        onItineraryAdjusted?.(data.itinerary);
+        setAdjusted(true);
+      }
+    } catch {
+      setAdjustError('Network error');
+    } finally {
+      setAdjusting(false);
+    }
+  }
   // Booking.com search URL — works for any hotel name. Booking's search
   // engine fuzzy-matches `ss=` to known properties, so a real hotel
   // lands on its detail page; an unknown name lands on a results list
@@ -831,22 +869,53 @@ function HotelCard({ hotel, city, startDate, endDate }: {
               PER NIGHT
             </div>
           </div>
-          <a
-            href={bookingHref}
-            target="_blank"
-            rel="noopener noreferrer sponsored"
-            style={{
-              padding: '8px 14px', borderRadius: 10,
-              background: hotel.booked ? 'transparent' : 'var(--brand-accent)',
-              color: hotel.booked ? 'var(--brand-accent)' : 'var(--brand-bg)',
-              border: hotel.booked ? '1px solid var(--brand-border-hi)' : 'none',
-              fontFamily: 'inherit', fontSize: 12, fontWeight: 700,
-              cursor: 'pointer', whiteSpace: 'nowrap',
-              textDecoration: 'none', display: 'inline-block',
-            }}
-          >
-            {hotel.booked ? 'Manage' : `Book ${String.fromCodePoint(0x2192)}`}
-          </a>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'flex-end' }}>
+            <a
+              href={bookingHref}
+              target="_blank"
+              rel="noopener noreferrer sponsored"
+              style={{
+                padding: '8px 14px', borderRadius: 10,
+                background: hotel.booked ? 'transparent' : 'var(--brand-accent)',
+                color: hotel.booked ? 'var(--brand-accent)' : 'var(--brand-bg)',
+                border: hotel.booked ? '1px solid var(--brand-border-hi)' : 'none',
+                fontFamily: 'inherit', fontSize: 12, fontWeight: 700,
+                cursor: 'pointer', whiteSpace: 'nowrap',
+                textDecoration: 'none', display: 'inline-block',
+              }}
+            >
+              {hotel.booked ? 'Manage' : `Book ${String.fromCodePoint(0x2192)}`}
+            </a>
+            {tripId && onItineraryAdjusted && !hotel.fromItinerary && (
+              <button
+                type="button"
+                onClick={addToItinerary}
+                disabled={adjusting || adjusted}
+                title="Slot this hotel into the existing itinerary"
+                style={{
+                  padding: '5px 11px', borderRadius: 999,
+                  background: adjusted ? 'rgba(34,197,94,0.12)' : 'transparent',
+                  border: `1px solid ${adjusted ? 'rgba(34,197,94,0.5)' : 'rgba(167,139,250,0.32)'}`,
+                  color: adjusted ? '#86efac' : 'var(--brand-accent)',
+                  fontFamily: MONO, fontSize: 9, fontWeight: 700,
+                  letterSpacing: '0.08em', textTransform: 'uppercase',
+                  cursor: adjusting || adjusted ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap',
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                }}
+              >
+                {adjusting && (
+                  <span style={{ width: 8, height: 8, border: '1.4px solid rgba(167,139,250,0.3)', borderTopColor: '#a78bfa', borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block' }} />
+                )}
+                {adjusted ? '✓ Added' : adjusting ? 'Adding…' : '+ Add to itinerary'}
+              </button>
+            )}
+            {adjustError && (
+              <span style={{ fontSize: 9, color: '#fca5a5', fontFamily: MONO, letterSpacing: '0.06em' }}>
+                {adjustError}
+              </span>
+            )}
+          </div>
         </div>
       </div>
     </div>
@@ -1513,7 +1582,11 @@ function FlightOptionAggregator({ option, startDate, endDate }: {
   );
 }
 
-function ActivitiesSection({ activities }: { activities: Activity[] }) {
+function ActivitiesSection({ activities, tripId, onItineraryAdjusted }: {
+  activities: Activity[];
+  tripId?: string;
+  onItineraryAdjusted?: (next: string) => void;
+}) {
   return (
     <section>
       <div style={{
@@ -1534,67 +1607,141 @@ function ActivitiesSection({ activities }: { activities: Activity[] }) {
         gap: 14,
       }}>
         {activities.map((a, i) => (
-          <div key={i} style={{
-            padding: '16px 18px',
-            background: 'rgba(255,255,255,0.03)',
-            border: `1px solid ${a.booked ? 'var(--brand-border-hi)' : 'var(--brand-border)'}`,
-            borderRadius: 14,
-            display: 'flex', flexDirection: 'column', gap: 8,
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{
-                fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em',
-                color: 'var(--brand-accent-2)', fontWeight: 700,
-              }}>
-                {a.tag}
-              </div>
-              {a.fromItinerary ? (
-                <div style={{
-                  fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em',
-                  color: 'var(--brand-gold, #fbbf24)', fontWeight: 700,
-                }}>★ FROM ITINERARY</div>
-              ) : a.booked ? (
-                <div style={{
-                  fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em',
-                  color: 'var(--brand-success)', fontWeight: 700,
-                }}>{String.fromCodePoint(0x2713)} BOOKED</div>
-              ) : null}
-            </div>
-            <div style={{
-              fontFamily: DISPLAY, fontSize: 18, fontWeight: 400,
-              letterSpacing: '-0.005em', lineHeight: 1.25, color: 'var(--brand-ink)',
-            }}>
-              {a.name}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--brand-ink-dim)', lineHeight: 1.5 }}>
-              {a.meta}
-            </div>
-            <div style={{
-              marginTop: 6, paddingTop: 10,
-              borderTop: '1px solid var(--brand-border)',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            }}>
-              <div style={{
-                fontFamily: DISPLAY, fontSize: 18, fontWeight: 400,
-                color: 'var(--brand-ink)',
-              }}>
-                {a.currency}{a.price.toLocaleString()}
-              </div>
-              <button style={{
-                padding: '6px 12px', borderRadius: 8,
-                background: a.booked ? 'transparent' : 'var(--brand-accent)',
-                color: a.booked ? 'var(--brand-accent)' : 'var(--brand-bg)',
-                border: a.booked ? '1px solid var(--brand-border-hi)' : 'none',
-                fontFamily: 'inherit', fontSize: 11, fontWeight: 700,
-                cursor: 'pointer',
-              }}>
-                {a.booked ? 'Manage' : 'Book'}
-              </button>
-            </div>
-          </div>
+          <ActivityCard key={i} activity={a} tripId={tripId} onItineraryAdjusted={onItineraryAdjusted} />
         ))}
       </div>
     </section>
+  );
+}
+
+// Per-card slot-in handler. Extracted from the inline render so each
+// card can carry its own adjusting/adjusted/error state.
+function ActivityCard({ activity: a, tripId, onItineraryAdjusted }: {
+  activity: Activity;
+  tripId?: string;
+  onItineraryAdjusted?: (next: string) => void;
+}) {
+  const [adjusting, setAdjusting] = useState(false);
+  const [adjusted, setAdjusted] = useState(false);
+  const [adjustError, setAdjustError] = useState<string | null>(null);
+  async function addToItinerary() {
+    if (!tripId || adjusting) return;
+    setAdjusting(true); setAdjustError(null);
+    try {
+      const r = await fetch('/api/itinerary/adjust', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tripId,
+          kind: 'activity',
+          name: a.name,
+          meta: a.meta,
+          price: `${a.currency}${a.price.toLocaleString()}`,
+        }),
+      });
+      const data = await r.json();
+      if (!r.ok || !data?.itinerary) {
+        setAdjustError(data?.error ?? 'Failed to update itinerary');
+      } else {
+        onItineraryAdjusted?.(data.itinerary);
+        setAdjusted(true);
+      }
+    } catch {
+      setAdjustError('Network error');
+    } finally {
+      setAdjusting(false);
+    }
+  }
+  return (
+    <div style={{
+      padding: '16px 18px',
+      background: 'rgba(255,255,255,0.03)',
+      border: `1px solid ${a.booked ? 'var(--brand-border-hi)' : 'var(--brand-border)'}`,
+      borderRadius: 14,
+      display: 'flex', flexDirection: 'column', gap: 8,
+    }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{
+          fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em',
+          color: 'var(--brand-accent-2)', fontWeight: 700,
+        }}>
+          {a.tag}
+        </div>
+        {a.fromItinerary ? (
+          <div style={{
+            fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em',
+            color: 'var(--brand-gold, #fbbf24)', fontWeight: 700,
+          }}>★ FROM ITINERARY</div>
+        ) : a.booked ? (
+          <div style={{
+            fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em',
+            color: 'var(--brand-success)', fontWeight: 700,
+          }}>{String.fromCodePoint(0x2713)} BOOKED</div>
+        ) : null}
+      </div>
+      <div style={{
+        fontFamily: DISPLAY, fontSize: 18, fontWeight: 400,
+        letterSpacing: '-0.005em', lineHeight: 1.25, color: 'var(--brand-ink)',
+      }}>
+        {a.name}
+      </div>
+      <div style={{ fontSize: 12, color: 'var(--brand-ink-dim)', lineHeight: 1.5 }}>
+        {a.meta}
+      </div>
+      <div style={{
+        marginTop: 6, paddingTop: 10,
+        borderTop: '1px solid var(--brand-border)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8,
+      }}>
+        <div style={{
+          fontFamily: DISPLAY, fontSize: 18, fontWeight: 400,
+          color: 'var(--brand-ink)',
+        }}>
+          {a.currency}{a.price.toLocaleString()}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end' }}>
+          <button style={{
+            padding: '6px 12px', borderRadius: 8,
+            background: a.booked ? 'transparent' : 'var(--brand-accent)',
+            color: a.booked ? 'var(--brand-accent)' : 'var(--brand-bg)',
+            border: a.booked ? '1px solid var(--brand-border-hi)' : 'none',
+            fontFamily: 'inherit', fontSize: 11, fontWeight: 700,
+            cursor: 'pointer',
+          }}>
+            {a.booked ? 'Manage' : 'Book'}
+          </button>
+          {tripId && onItineraryAdjusted && !a.fromItinerary && (
+            <button
+              type="button"
+              onClick={addToItinerary}
+              disabled={adjusting || adjusted}
+              title="Slot this activity into the existing itinerary"
+              style={{
+                padding: '4px 10px', borderRadius: 999,
+                background: adjusted ? 'rgba(34,197,94,0.12)' : 'transparent',
+                border: `1px solid ${adjusted ? 'rgba(34,197,94,0.5)' : 'rgba(167,139,250,0.32)'}`,
+                color: adjusted ? '#86efac' : 'var(--brand-accent)',
+                fontFamily: MONO, fontSize: 9, fontWeight: 700,
+                letterSpacing: '0.08em', textTransform: 'uppercase',
+                cursor: adjusting || adjusted ? 'not-allowed' : 'pointer',
+                whiteSpace: 'nowrap',
+                display: 'inline-flex', alignItems: 'center', gap: 5,
+              }}
+            >
+              {adjusting && (
+                <span style={{ width: 8, height: 8, border: '1.4px solid rgba(167,139,250,0.3)', borderTopColor: '#a78bfa', borderRadius: '50%', animation: 'spin 0.8s linear infinite', display: 'inline-block' }} />
+              )}
+              {adjusted ? '✓ Added' : adjusting ? 'Adding…' : '+ Add'}
+            </button>
+          )}
+          {adjustError && (
+            <span style={{ fontSize: 9, color: '#fca5a5', fontFamily: MONO, letterSpacing: '0.06em' }}>
+              {adjustError}
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
