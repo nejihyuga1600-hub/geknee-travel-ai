@@ -28,6 +28,33 @@ function detectUserCurrency(): string {
   return LOCALE_TO_CURRENCY[lang] ?? LOCALE_TO_CURRENCY[lang.split('-')[0]] ?? 'USD';
 }
 
+// Locale → country name. Used as a fallback origin when the user
+// didn't fill in `travelingFrom` during trip planning. Without this,
+// the AI defaults to domestic flights at the destination (e.g. DEL→AGR
+// for a US user planning Taj Mahal) instead of an international trip
+// from a hub in the user's home country.
+const LOCALE_TO_ORIGIN: Record<string, string> = {
+  'en-US': 'United States', 'en-GB': 'United Kingdom', 'en-CA': 'Canada',
+  'en-AU': 'Australia', 'en-NZ': 'New Zealand', 'en-IN': 'India',
+  'en-IE': 'Ireland', 'en-ZA': 'South Africa',
+  'ja': 'Japan', 'ja-JP': 'Japan',
+  'zh': 'China', 'zh-CN': 'China', 'zh-TW': 'Taiwan', 'zh-HK': 'Hong Kong',
+  'ko': 'South Korea', 'ko-KR': 'South Korea', 'hi': 'India', 'hi-IN': 'India',
+  'es': 'Spain', 'es-ES': 'Spain', 'es-MX': 'Mexico', 'es-AR': 'Argentina',
+  'pt': 'Portugal', 'pt-BR': 'Brazil', 'pt-PT': 'Portugal',
+  'fr': 'France', 'fr-FR': 'France', 'fr-CA': 'Canada',
+  'de': 'Germany', 'de-DE': 'Germany', 'de-CH': 'Switzerland',
+  'it': 'Italy', 'nl': 'Netherlands', 'sv': 'Sweden', 'no': 'Norway', 'da': 'Denmark',
+  'pl': 'Poland', 'tr': 'Turkey', 'ru': 'Russia',
+  'th': 'Thailand', 'id': 'Indonesia', 'ms': 'Malaysia', 'vi': 'Vietnam',
+  'ar': 'United Arab Emirates',
+};
+function detectUserOrigin(): string {
+  if (typeof navigator === 'undefined') return 'United States';
+  const lang = navigator.language || 'en-US';
+  return LOCALE_TO_ORIGIN[lang] ?? LOCALE_TO_ORIGIN[lang.split('-')[0]] ?? 'United States';
+}
+
 // Build a Google Flights deep-link that populates origin / destination
 // AND dates. Google's q= parser is finicky:
 //   - ISO dates ("2026-04-28") often get dropped or misread
@@ -182,6 +209,10 @@ export default function BookView(props: BookTabProps) {
         budget: props.budget,
         style: props.style,
         travelingFrom: props.travelingFrom,
+        // Fallback origin if the trip didn't capture one. Locale-derived
+        // country name lets the AI pick a real hub airport instead of
+        // defaulting to a domestic flight at the destination.
+        userHomeCountry: detectUserOrigin(),
         currency: detectUserCurrency(),
       }),
     })

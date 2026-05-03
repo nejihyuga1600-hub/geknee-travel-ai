@@ -24,6 +24,7 @@ interface SuggestionsRequest {
   budget?: string;
   style?: string;
   travelingFrom?: string;
+  userHomeCountry?: string; // fallback origin from client locale
   currency?: string; // ISO code, used as a hint for the secondary price
 }
 
@@ -43,7 +44,11 @@ function buildPrompt(p: SuggestionsRequest): string {
   return `Generate booking suggestions for a ${p.nights || "?"}-night trip to ${p.location} (${p.startDate ?? "TBD"} to ${p.endDate ?? "TBD"}).
 Travel style: ${p.style || "balanced"}.
 Budget level: ${p.budget || "mid-range"}.
-${p.travelingFrom ? `Departing from: ${p.travelingFrom}.` : ""}
+${(() => {
+  const origin = p.travelingFrom?.trim() || p.userHomeCountry?.trim();
+  if (!origin) return '';
+  return `Departing from: ${origin}.\nORIGIN RULE: Every flight option below MUST originate from a major international hub airport in/near "${origin}", NOT from the destination country. If the user is traveling internationally, the outbound flight is from the user's region to the destination, and the return is the reverse. Do not suggest a domestic flight at the destination unless the user's home is in the same country as the destination.`;
+})()}
 User's home currency: ${homeCcy} (${homeSymbol}). All prices below MUST be in ${homeCcy}; convert from local currency to ${homeCcy} using current approximate rates. Use the symbol "${homeSymbol}" for every \`currency\` field.
 
 Return ONLY a JSON object with this exact shape:
