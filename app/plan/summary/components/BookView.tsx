@@ -77,6 +77,37 @@ interface Flight {
   status?: 'CONFIRMED' | 'PENDING';
 }
 
+// Rich flight option shape — used by the in-site flight-deal UI.
+// AI emits 3 of these per trip, each with a different trade-off
+// highlighted by `dealBadge`.
+type DealBadge = 'BEST PRICE' | 'FASTEST' | 'GREENEST' | 'BEST VALUE';
+interface Layover {
+  airport: string;  // IATA
+  city: string;
+  duration: string; // "2h 15m"
+}
+interface FlightLeg {
+  from: string;
+  to: string;
+  date?: string;
+  departTime: string;
+  arriveTime: string;
+  duration: string;
+  layovers: Layover[];
+}
+interface FlightOption {
+  carrier: string;
+  flightNumbers: string[];
+  totalPrice: number;
+  currency: Currency;
+  totalDuration: string;
+  cabin?: 'economy' | 'premium' | 'business' | 'first';
+  co2Kg?: number;
+  dealBadge?: DealBadge;
+  outbound: FlightLeg;
+  return: FlightLeg;
+}
+
 interface Activity {
   tag: 'TEA' | 'CULTURE' | 'FOOD' | 'NATURE' | 'NIGHTLIFE';
   name: string;
@@ -95,6 +126,7 @@ export default function BookView(props: BookTabProps) {
   const [tab, setTab] = useState<Tab>('stays');
   const [hotels, setHotels] = useState<Hotel[]>([]);
   const [flight, setFlight] = useState<Flight | null>(null);
+  const [flightOptions, setFlightOptions] = useState<FlightOption[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -129,6 +161,7 @@ export default function BookView(props: BookTabProps) {
           setHotels(d.hotels);
           setFlight(d.flight);
           setActivities(d.activities);
+          if (Array.isArray(d.flightOptions)) setFlightOptions(d.flightOptions);
         } else {
           setLoadError(d?.error ?? 'No suggestions returned');
         }
@@ -248,7 +281,11 @@ export default function BookView(props: BookTabProps) {
         </div>
       )}
       {!loading && !loadError && tab === 'stays'      && <StaysSection hotels={hotels} location={props.location} startDate={props.startDate} endDate={props.endDate} nights={props.nights} />}
-      {!loading && !loadError && tab === 'flights'    && flight && <FlightsSection flight={flight} startDate={props.startDate} endDate={props.endDate} />}
+      {!loading && !loadError && tab === 'flights' && (
+        flightOptions.length > 0
+          ? <FlightOptionsSection options={flightOptions} startDate={props.startDate} endDate={props.endDate} />
+          : (flight && <FlightsSection flight={flight} startDate={props.startDate} endDate={props.endDate} />)
+      )}
       {!loading && !loadError && tab === 'activities' && <ActivitiesSection activities={activities} />}
       {tab === 'transport'  && <PlaceholderSection title="Local transport" detail="Suica/Pasmo IC card setup, day passes, and intercity train suggestions land here once you confirm dates." />}
       {tab === 'insurance'  && (
@@ -908,6 +945,316 @@ function FlightAggregatorButtons({ flight, startDate, endDate }: {
 }
 
 // ─── Activities ────────────────────────────────────────────────────────────
+
+// ─── Flight options (rich, multi-card deal UI) ────────────────────────────
+
+const DEAL_BADGE_COLOR: Record<DealBadge, string> = {
+  'BEST PRICE': '#fbbf24',  // gold
+  'FASTEST':    '#7dd3fc',  // sky
+  'GREENEST':   '#86efac',  // green
+  'BEST VALUE': '#a78bfa',  // lavender
+};
+
+function FlightOptionsSection({ options, startDate, endDate }: {
+  options: FlightOption[]; startDate?: string; endDate?: string;
+}) {
+  return (
+    <section>
+      <div style={{
+        fontFamily: MONO, fontSize: 10, letterSpacing: '0.22em',
+        color: 'var(--brand-ink-mute)', fontWeight: 700, marginBottom: 14,
+      }}>
+        {String.fromCodePoint(0x00A7)} FLIGHTS · {options.length} OPTIONS · ROUND TRIP
+      </div>
+      <h2 style={{
+        fontFamily: DISPLAY, fontSize: 'clamp(24px, 3vw, 32px)', fontWeight: 400,
+        letterSpacing: '-0.02em', lineHeight: 1.1, margin: '0 0 8px',
+      }}>
+        How will you get there?
+      </h2>
+      <p style={{
+        fontSize: 13, color: 'var(--brand-ink-dim)', lineHeight: 1.55,
+        maxWidth: 640, margin: '0 0 22px',
+      }}>
+        Three options ranked on the trade-offs that matter — price,
+        speed, and emissions. Click any card to compare live fares
+        across Google Flights, Skyscanner, Kayak, or Expedia.
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {options.map((o, i) => (
+          <FlightOptionCard key={i} option={o} startDate={startDate} endDate={endDate} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function FlightOptionCard({ option, startDate, endDate }: {
+  option: FlightOption; startDate?: string; endDate?: string;
+}) {
+  const badgeColor = option.dealBadge ? DEAL_BADGE_COLOR[option.dealBadge] : null;
+  const co2 = typeof option.co2Kg === 'number' ? Math.round(option.co2Kg) : null;
+  return (
+    <div style={{
+      background: 'rgba(255,255,255,0.03)',
+      border: `1px solid ${badgeColor ?? 'var(--brand-border)'}`,
+      borderRadius: 14, padding: '20px 22px',
+      display: 'grid',
+      gridTemplateColumns: '1fr auto',
+      gap: 24, alignItems: 'stretch',
+    }}>
+      <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', gap: 14 }}>
+        {/* Top metadata strip */}
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap',
+          fontFamily: MONO, fontSize: 10, letterSpacing: '0.16em',
+          color: 'var(--brand-ink-mute)', fontWeight: 700, textTransform: 'uppercase',
+        }}>
+          <span style={{ color: 'var(--brand-ink)' }}>{option.carrier}</span>
+          {option.flightNumbers?.length ? <span>· {option.flightNumbers.join(' / ')}</span> : null}
+          {option.cabin && <span>· {option.cabin}</span>}
+          {option.dealBadge && (
+            <span style={{
+              padding: '3px 10px', borderRadius: 4,
+              background: 'rgba(10,10,31,0.7)',
+              color: badgeColor!, border: `1px solid ${badgeColor!}`,
+              fontSize: 9, letterSpacing: '0.18em',
+            }}>
+              {option.dealBadge}
+            </span>
+          )}
+        </div>
+
+        {/* Outbound + Return legs */}
+        <FlightLegRow label="OUTBOUND" leg={option.outbound} />
+        <FlightLegRow label="RETURN"   leg={option.return} />
+
+        {/* Bottom chips strip */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+          <FlightChip icon="⏱" label={option.totalDuration} />
+          {co2 !== null && (
+            <FlightChip
+              icon="🌱"
+              label={`${co2} kg CO₂`}
+              accent={co2 < 400 ? '#86efac' : co2 < 900 ? '#fbbf24' : '#fb7185'}
+              hint="Estimated round-trip emissions per passenger"
+            />
+          )}
+          <FlightChip
+            icon={layoverCount(option) === 0 ? '✈' : '🔁'}
+            label={layoverSummary(option)}
+            accent={layoverCount(option) === 0 ? '#86efac' : undefined}
+          />
+        </div>
+      </div>
+
+      {/* Right rail: price + book button + aggregator search */}
+      <div style={{
+        textAlign: 'right',
+        borderLeft: '1px solid var(--brand-border)',
+        paddingLeft: 24,
+        display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+        gap: 12, minWidth: 180,
+      }}>
+        <div>
+          <div style={{
+            fontFamily: DISPLAY, fontSize: 32, fontWeight: 400,
+            letterSpacing: '-0.015em', color: 'var(--brand-ink)', lineHeight: 1,
+          }}>
+            {option.currency}{option.totalPrice.toLocaleString()}
+          </div>
+          <div style={{
+            fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em',
+            color: 'var(--brand-ink-mute)', marginTop: 6, fontWeight: 700,
+          }}>
+            ROUND TRIP · TOTAL
+          </div>
+        </div>
+        <FlightOptionAggregator option={option} startDate={startDate} endDate={endDate} />
+      </div>
+    </div>
+  );
+}
+
+function FlightLegRow({ label, leg }: { label: string; leg: FlightLeg }) {
+  return (
+    <div style={{
+      display: 'grid',
+      gridTemplateColumns: '110px 1fr auto',
+      alignItems: 'center', gap: 14,
+    }}>
+      <div style={{
+        fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em',
+        color: 'var(--brand-ink-mute)', fontWeight: 700,
+      }}>
+        {label}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
+        <div>
+          <div style={{
+            fontFamily: DISPLAY, fontSize: 22, fontWeight: 400,
+            color: 'var(--brand-ink)', lineHeight: 1,
+          }}>
+            {leg.from}
+          </div>
+          <div style={{ fontFamily: MONO, fontSize: 10, color: 'var(--brand-ink-dim)', marginTop: 4 }}>
+            {leg.departTime}
+          </div>
+        </div>
+        {/* Arrow + layovers visualization */}
+        <div style={{ flex: 1, position: 'relative', minWidth: 60, paddingTop: 6 }}>
+          <div style={{ height: 1, background: 'var(--brand-border)' }} />
+          {leg.layovers && leg.layovers.length > 0 && (
+            <div style={{
+              position: 'absolute', top: 1, left: 0, right: 0,
+              display: 'flex', justifyContent: 'space-around',
+              transform: 'translateY(-50%)',
+            }}>
+              {leg.layovers.map((l, i) => (
+                <span key={i} style={{
+                  width: 7, height: 7, borderRadius: '50%',
+                  background: 'var(--brand-accent-2)',
+                  border: '1.5px solid var(--brand-bg)',
+                }} title={`${l.duration} in ${l.airport}`} />
+              ))}
+            </div>
+          )}
+          <div style={{
+            position: 'absolute', top: 8, left: 0, right: 0,
+            textAlign: 'center',
+            fontFamily: MONO, fontSize: 9, color: 'var(--brand-ink-mute)',
+            fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase',
+          }}>
+            {leg.duration}
+            {leg.layovers && leg.layovers.length > 0 && (
+              <span style={{ marginLeft: 6 }}>
+                · {leg.layovers.map(l => `${l.airport} ${l.duration}`).join(' · ')}
+              </span>
+            )}
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{
+            fontFamily: DISPLAY, fontSize: 22, fontWeight: 400,
+            color: 'var(--brand-ink)', lineHeight: 1,
+          }}>
+            {leg.to}
+          </div>
+          <div style={{ fontFamily: MONO, fontSize: 10, color: 'var(--brand-ink-dim)', marginTop: 4 }}>
+            {leg.arriveTime}
+          </div>
+        </div>
+      </div>
+      <div />
+    </div>
+  );
+}
+
+function FlightChip({ icon, label, accent, hint }: {
+  icon: string; label: string; accent?: string; hint?: string;
+}) {
+  return (
+    <span title={hint} style={{
+      display: 'inline-flex', alignItems: 'center', gap: 5,
+      fontSize: 10.5, lineHeight: 1.4,
+      color: accent ?? 'rgba(255,255,255,0.62)',
+      background: 'rgba(255,255,255,0.04)',
+      border: `1px solid ${accent ? `${accent}66` : 'rgba(255,255,255,0.08)'}`,
+      borderRadius: 6, padding: '3px 8px',
+      fontFamily: MONO, letterSpacing: '0.03em', whiteSpace: 'nowrap',
+    }}>
+      <span style={{ fontSize: 11 }}>{icon}</span>
+      <span>{label}</span>
+    </span>
+  );
+}
+
+function layoverCount(o: FlightOption): number {
+  return (o.outbound.layovers?.length ?? 0) + (o.return.layovers?.length ?? 0);
+}
+function layoverSummary(o: FlightOption): string {
+  const out = o.outbound.layovers?.length ?? 0;
+  const ret = o.return.layovers?.length ?? 0;
+  if (out === 0 && ret === 0) return 'Direct both ways';
+  const cities = new Set<string>();
+  for (const l of o.outbound.layovers ?? []) cities.add(l.airport);
+  for (const l of o.return.layovers ?? []) cities.add(l.airport);
+  const total = out + ret;
+  return `${total} stop${total === 1 ? '' : 's'} · ${[...cities].join(' / ')}`;
+}
+
+function FlightOptionAggregator({ option, startDate, endDate }: {
+  option: FlightOption; startDate?: string; endDate?: string;
+}) {
+  const from = option.outbound.from;
+  const to   = option.outbound.to;
+  if (!from || !to) return null;
+
+  const isoStart = startDate || '';
+  const isoEnd   = endDate   || '';
+  const skyDate  = (iso: string) => iso ? iso.slice(2,4) + iso.slice(5,7) + iso.slice(8,10) : '';
+
+  const links = [
+    {
+      name: 'Google',
+      href: `https://www.google.com/travel/flights?q=` +
+            encodeURIComponent(`Flights from ${from} to ${to}${isoStart ? ` on ${isoStart}` : ''}${isoEnd ? ` returning ${isoEnd}` : ''} ${option.carrier}`),
+    },
+    {
+      name: 'Skyscanner',
+      href: `https://www.skyscanner.com/transport/flights/${from.toLowerCase()}/${to.toLowerCase()}/` +
+            `${skyDate(isoStart) || ''}${skyDate(isoEnd) ? `/${skyDate(isoEnd)}` : ''}/?adults=1&rtn=1`,
+    },
+    {
+      name: 'Kayak',
+      href: `https://www.kayak.com/flights/${from}-${to}` +
+            `${isoStart ? `/${isoStart}` : ''}${isoEnd ? `/${isoEnd}` : ''}`,
+    },
+  ];
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <a
+        href={links[0].href}
+        target="_blank"
+        rel="noopener noreferrer sponsored"
+        style={{
+          padding: '10px 16px', borderRadius: 999,
+          background: 'var(--brand-accent)', color: 'var(--brand-bg)',
+          textDecoration: 'none',
+          fontFamily: MONO, fontSize: 11, fontWeight: 700,
+          letterSpacing: '0.08em', textTransform: 'uppercase',
+          textAlign: 'center', whiteSpace: 'nowrap',
+          boxShadow: '0 4px 14px rgba(167,139,250,0.28)',
+        }}
+      >
+        Book on {links[0].name} →
+      </a>
+      <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
+        {links.slice(1).map(l => (
+          <a
+            key={l.name}
+            href={l.href}
+            target="_blank"
+            rel="noopener noreferrer sponsored"
+            style={{
+              padding: '6px 10px', borderRadius: 6,
+              background: 'transparent',
+              border: '1px solid rgba(255,255,255,0.12)',
+              color: 'var(--brand-ink-dim)',
+              textDecoration: 'none',
+              fontFamily: MONO, fontSize: 9, fontWeight: 700,
+              letterSpacing: '0.12em', textTransform: 'uppercase',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {l.name}
+          </a>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function ActivitiesSection({ activities }: { activities: Activity[] }) {
   return (

@@ -62,24 +62,59 @@ Return ONLY a JSON object with this exact shape:
     }
     // EXACTLY 4 hotels: 1 EDITORS' PICK luxury, 2 LOCAL mid-range, 1 BUDGET
   ],
+  "flightOptions": [
+    {
+      "carrier": "real major airline serving this route",
+      "flightNumbers": ["e.g. UA 824", "e.g. UA 875"],
+      "totalPrice": number (round-trip total, IN ${homeCcy}),
+      "currency": "${homeSymbol}",
+      "totalDuration": "e.g. 13h 45m (sum of both legs incl layovers)",
+      "cabin": "economy",
+      "co2Kg": number (estimated round-trip CO₂ in kilograms per passenger; ballpark realistic for distance and aircraft type),
+      "dealBadge": "BEST PRICE" | "FASTEST" | "GREENEST" | "BEST VALUE" | omit,
+      "outbound": {
+        "from": "3-letter IATA",
+        "to": "3-letter IATA",
+        "date": "yyyy-mm-dd",
+        "departTime": "e.g. 11:30 PM",
+        "arriveTime": "e.g. 5:50 AM next day",
+        "duration": "e.g. 11h 20m",
+        "layovers": [
+          { "airport": "3-letter IATA", "city": "city name", "duration": "e.g. 2h 15m" }
+          // 0-2 layovers; empty array for direct flights
+        ]
+      },
+      "return": {
+        "from": "3-letter IATA",
+        "to": "3-letter IATA",
+        "date": "yyyy-mm-dd",
+        "departTime": "e.g. 8:40 PM",
+        "arriveTime": "e.g. 12:25 PM next day",
+        "duration": "e.g. 9h 45m",
+        "layovers": [ /* same shape; empty for direct */ ]
+      }
+    }
+    // EXACTLY 3 options, each with a DIFFERENT trade-off:
+    //   - one cheapest (BEST PRICE) — likely 1-2 stops, longer duration
+    //   - one fastest (FASTEST) — direct or single short layover, higher price
+    //   - one greenest (GREENEST) — newest aircraft / direct routing, may be mid-priced
+    // The 4th badge "BEST VALUE" is optional for a balanced 4th option.
+    // Use real airlines that fly the route in 2026. Compute CO2 honestly:
+    // ~115g per passenger-km for typical narrow-body, less for direct,
+    // more for connecting flights with extra distance.
+  ],
   "flight": {
-    "date": "two date labels separated by an en-dash, like 'APR 28–MAY 1' or 'OCT 15–22'. Each label must include the month abbreviation. Used as: split by '–' to label outbound and return.",
-    "carrier": "real major airline serving this route",
+    "date": "two date labels separated by an en-dash, like 'APR 28–MAY 1'. Used by legacy single-flight UI; copy the BEST VALUE option's date range here.",
+    "carrier": "the BEST VALUE option's carrier",
     "segments": [
       {
-        "from": "3-letter IATA code",
-        "to": "3-letter IATA code",
-        "departTime": "e.g. 11:30 PM",
-        "arriveTime": "e.g. 5:50 AM",
-        "duration": "e.g. 11h 20m",
-        "via": "connecting city if not non-stop, omit field for direct flights"
+        "from": "from-IATA", "to": "to-IATA",
+        "departTime": "...", "arriveTime": "...",
+        "duration": "..."
       }
-      // EXACTLY 2 segments: outbound + return.
-      // If you don't know the routing for sure, OMIT the "via" field —
-      // do NOT guess a connecting city. The UI defaults to "Direct"
-      // when via is missing.
+      // 2 segments mirroring the BEST VALUE option's outbound + return
     ],
-    "total": number (round-trip total, IN ${homeCcy}),
+    "total": number,
     "currency": "${homeSymbol}",
     "status": "PENDING"
   },
@@ -117,7 +152,7 @@ export async function POST(req: Request) {
   try {
     const resp = await client.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 2048,
+      max_tokens: 4096,
       system: SYSTEM,
       messages: [{ role: "user", content: buildPrompt(body) }],
     });
