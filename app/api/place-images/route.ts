@@ -30,41 +30,55 @@ export async function GET(req: Request) {
       };
       const top = data.results?.[0];
       const photos = top?.photos ?? [];
-      // Bias against generic POI types where Google Places returns lots
-      // of user-uploaded portrait selfies (markets, bazaars, restaurants
-      // where customers pose). For those we'd rather skip Google entirely
-      // and fall through to Wikipedia / Wikidata which give exterior
-      // shots. Type list per Google Places API.
+      // Type-driven filtering. We have three buckets:
+      //   - SELFIE_PRONE: markets, cafes, bars, etc. — Google's user-
+      //     uploaded photos are dominated by portraits/selfies. Strict
+      //     landscape only.
+      //   - TRUSTED: lodging, museums, attractions, parks, religious
+      //     sites — pro-quality photos, portraits are usually room
+      //     shots / interior verticals (totally fine). Accept all
+      //     dimensioned photos so the slideshow has variety.
+      //   - UNKNOWN: split the difference — landscape preferred,
+      //     dimensioned photos as fallback.
       const SELFIE_PRONE_TYPES = new Set([
         'restaurant', 'cafe', 'bar', 'food', 'meal_takeaway', 'meal_delivery',
-        'bakery', 'night_club', 'beauty_salon', 'hair_care', 'spa', 'gym',
+        'bakery', 'night_club', 'beauty_salon', 'hair_care', 'gym',
         'clothing_store', 'shopping_mall', 'store',
       ]);
-      const isSelfieProne = (top?.types ?? []).some(t => SELFIE_PRONE_TYPES.has(t));
+      const TRUSTED_TYPES = new Set([
+        'lodging', 'hotel', 'spa', 'resort',
+        'tourist_attraction', 'museum', 'art_gallery',
+        'park', 'natural_feature', 'campground', 'amusement_park',
+        'place_of_worship', 'church', 'hindu_temple', 'mosque', 'synagogue',
+        'stadium', 'aquarium', 'zoo',
+      ]);
+      const types = top?.types ?? [];
+      const isSelfieProne = types.some(t => SELFIE_PRONE_TYPES.has(t));
+      const isTrusted = types.some(t => TRUSTED_TYPES.has(t));
+
       // Sort landscape-first by width/height ratio.
       const ranked = [...photos].sort((a, b) => {
         const ar = (a.width ?? 0) / Math.max(1, a.height ?? 0);
         const br = (b.width ?? 0) / Math.max(1, b.height ?? 0);
         return br - ar;
       });
-      const landscape = ranked.filter(p => {
-        if (!p.width || !p.height) return false; // unknown dims = reject (was: accept)
-        return p.width / p.height >= 1.05;
-      });
-      // Only return Google Places photos that pass the landscape
-      // filter. Portraits are almost always selfies/headshots, not
-      // shots of the place. If no landscape qualifies, fall through to
-      // Foursquare / Wikipedia / Wikidata rather than returning a
-      // likely-bad portrait. The isSelfieProne check is kept as a
-      // soft signal in logs but no longer changes the gate.
-      void isSelfieProne;
-      if (landscape.length > 0) {
-        const images = landscape.slice(0, 5).map(
+      const dimensioned = ranked.filter(p => p.width && p.height);
+      const landscape = dimensioned.filter(p => p.width! / p.height! >= 1.05);
+
+      const pool = isSelfieProne
+        ? landscape
+        : (isTrusted
+            ? dimensioned                                            // hotels etc — accept everything dimensioned
+            : (landscape.length > 0 ? landscape : dimensioned));     // unknown — prefer landscape
+
+      if (pool.length > 0) {
+        // Up to 8 images so the inline slideshow has real variety.
+        const images = pool.slice(0, 8).map(
           (p) => `/api/place-photo?ref=${encodeURIComponent(p.photo_reference)}`
         );
         return Response.json({ images });
       }
-      // No landscape photo from Google — fall through.
+      // Nothing qualified — fall through to Foursquare / empty.
     } catch (err) {
       console.error("Google Places error:", err);
     }
