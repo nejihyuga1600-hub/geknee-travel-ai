@@ -13,12 +13,14 @@ export default function TripTabsLayout({ children }: { children: ReactNode }) {
 
   const tabs = [
     // Planning sits first — it's the pin/curate step users land on for
-    // brand-new trips before an itinerary exists. Itinerary becomes the
-    // default destination once generation has produced one. Vault holds
-    // passports / tickets / bookings for the trip, scoped to this tripId.
+    // brand-new trips before an itinerary exists. Booking comes second so
+    // users can lock down hotels/flights/activities before (or alongside)
+    // the day-by-day. Itinerary then renders the day plan around those
+    // commitments. Vault holds passports / tickets / bookings for the
+    // trip, scoped to this tripId.
     { href: `/plan/${tripId}/planning`,  label: 'Planning' },
-    { href: `/plan/${tripId}/itinerary`, label: 'Itinerary' },
     { href: `/plan/${tripId}/booking`,   label: 'Booking' },
+    { href: `/plan/${tripId}/itinerary`, label: 'Itinerary' },
     { href: `/plan/${tripId}/vault`,     label: 'Vault' },
   ];
 

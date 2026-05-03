@@ -27,13 +27,24 @@ interface SuggestionsRequest {
   currency?: string; // ISO code, used as a hint for the secondary price
 }
 
-const SYSTEM = `You are a travel-booking assistant generating realistic, well-known booking options for a destination. Respond with ONLY a single JSON object — no markdown fences, no commentary, no leading/trailing prose. Use real venues that a knowledgeable concierge would name. Use the destination's local currency for all prices. Match the budget level: a luxury traveler should not see hostels; a budget traveler should not see Park Hyatt.`;
+const SYSTEM = `You are a travel-booking assistant generating realistic, well-known booking options for a destination. Respond with ONLY a single JSON object — no markdown fences, no commentary, no leading/trailing prose. Use real venues that a knowledgeable concierge would name. Match the budget level: a luxury traveler should not see hostels; a budget traveler should not see Park Hyatt.`;
+
+const CCY_SYMBOL: Record<string, string> = {
+  USD: "$", GBP: "£", EUR: "€", JPY: "¥", CNY: "¥", CHF: "CHF",
+  AUD: "A$", CAD: "C$", NZD: "NZ$", INR: "₹", KRW: "₩", THB: "฿",
+  SGD: "S$", HKD: "HK$", TWD: "NT$", MYR: "RM", IDR: "Rp", VND: "₫",
+  PHP: "₱", AED: "AED", SAR: "SAR", ZAR: "R", BRL: "R$", MXN: "MX$",
+  ARS: "AR$", RUB: "₽", TRY: "₺", PLN: "zł", SEK: "kr", NOK: "kr", DKK: "kr",
+};
 
 function buildPrompt(p: SuggestionsRequest): string {
+  const homeCcy = p.currency && CCY_SYMBOL[p.currency] ? p.currency : "USD";
+  const homeSymbol = CCY_SYMBOL[homeCcy];
   return `Generate booking suggestions for a ${p.nights || "?"}-night trip to ${p.location} (${p.startDate ?? "TBD"} to ${p.endDate ?? "TBD"}).
 Travel style: ${p.style || "balanced"}.
 Budget level: ${p.budget || "mid-range"}.
 ${p.travelingFrom ? `Departing from: ${p.travelingFrom}.` : ""}
+User's home currency: ${homeCcy} (${homeSymbol}). All prices below MUST be in ${homeCcy}; convert from local currency to ${homeCcy} using current approximate rates. Use the symbol "${homeSymbol}" for every \`currency\` field.
 
 Return ONLY a JSON object with this exact shape:
 
@@ -42,12 +53,12 @@ Return ONLY a JSON object with this exact shape:
     {
       "tier": "EDITORS' PICK" | "LOCAL" | "BUDGET",
       "district": "neighborhood or area name",
-      "tag": "HOTEL" | "RYOKAN" | "HOSTEL" | "INN" | "BNB",
+      "tag": "HOTEL" | "RYOKAN" | "HOSTEL" | "INN" | "BNB" | "RIAD" | "RESORT",
       "name": "real, well-known property in the area",
       "rating": 4 or 5,
       "features": ["short feature 1", "short feature 2", "short feature 3"],
-      "price": number (per night, in destination's local currency),
-      "currency": single char from "¥ $ € £ ₹"
+      "price": number (per night, IN ${homeCcy}),
+      "currency": "${homeSymbol}"
     }
     // EXACTLY 4 hotels: 1 EDITORS' PICK luxury, 2 LOCAL mid-range, 1 BUDGET
   ],
@@ -64,8 +75,8 @@ Return ONLY a JSON object with this exact shape:
       }
       // EXACTLY 2 segments: outbound + return
     ],
-    "total": number (round-trip total),
-    "currency": single char,
+    "total": number (round-trip total, IN ${homeCcy}),
+    "currency": "${homeSymbol}",
     "status": "PENDING"
   },
   "activities": [
@@ -73,8 +84,8 @@ Return ONLY a JSON object with this exact shape:
       "tag": "TEA" | "CULTURE" | "FOOD" | "NATURE" | "NIGHTLIFE",
       "name": "real bookable experience or venue",
       "meta": "date · time · duration",
-      "price": number,
-      "currency": single char
+      "price": number (IN ${homeCcy}),
+      "currency": "${homeSymbol}"
     }
     // EXACTLY 4 activities, varied tags, fitting the budget level
   ]

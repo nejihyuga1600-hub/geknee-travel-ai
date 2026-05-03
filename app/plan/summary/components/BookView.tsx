@@ -2,6 +2,30 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { BookTabProps } from '../lib/types';
+import { fetchPlaceImage, imgCache } from '../lib/places';
+
+// Locale → ISO 4217 currency map. Mirrors the SummaryView logic; kept
+// inline rather than shared because BookView is its own dynamic import
+// chunk and dragging in the bigger file's export would balloon it.
+const LOCALE_TO_CURRENCY: Record<string, string> = {
+  'en-US': 'USD', 'en-GB': 'GBP', 'en-CA': 'CAD', 'en-AU': 'AUD',
+  'en-NZ': 'NZD', 'en-IN': 'INR', 'en-IE': 'EUR', 'en-ZA': 'ZAR',
+  'ja': 'JPY', 'ja-JP': 'JPY',
+  'zh': 'CNY', 'zh-CN': 'CNY', 'zh-TW': 'TWD', 'zh-HK': 'HKD',
+  'ko': 'KRW', 'ko-KR': 'KRW', 'hi': 'INR', 'hi-IN': 'INR',
+  'es': 'EUR', 'es-ES': 'EUR', 'es-MX': 'MXN', 'es-AR': 'ARS',
+  'pt': 'EUR', 'pt-BR': 'BRL', 'pt-PT': 'EUR',
+  'fr': 'EUR', 'fr-FR': 'EUR', 'fr-CA': 'CAD',
+  'de': 'EUR', 'de-DE': 'EUR', 'de-CH': 'CHF',
+  'it': 'EUR', 'nl': 'EUR', 'sv': 'SEK', 'no': 'NOK', 'da': 'DKK',
+  'pl': 'PLN', 'tr': 'TRY', 'ru': 'RUB',
+  'ar': 'AED', 'th': 'THB', 'id': 'IDR', 'ms': 'MYR', 'vi': 'VND',
+};
+function detectUserCurrency(): string {
+  if (typeof navigator === 'undefined') return 'USD';
+  const lang = navigator.language || 'en-US';
+  return LOCALE_TO_CURRENCY[lang] ?? LOCALE_TO_CURRENCY[lang.split('-')[0]] ?? 'USD';
+}
 
 // Design-handoff booking surface: tabbed layout (Stays / Flights / Activities
 // / Transport / Insurance) with badge counts, 3-column hotel cards, wide
@@ -87,6 +111,7 @@ export default function BookView(props: BookTabProps) {
         budget: props.budget,
         style: props.style,
         travelingFrom: props.travelingFrom,
+        currency: detectUserCurrency(),
       }),
     })
       .then(r => r.json())
@@ -261,7 +286,7 @@ function StaysSection({ hotels, location, startDate, endDate, nights }: {
         gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
         gap: 16,
       }}>
-        {hotels.map((h, i) => <HotelCard key={i} hotel={h} />)}
+        {hotels.map((h, i) => <HotelCard key={i} hotel={h} city={location} />)}
       </div>
     </section>
   );
@@ -288,8 +313,26 @@ const TIER_COLOR: Record<Hotel['tier'], string> = {
   'BUDGET':         'var(--brand-ink-dim)',
 };
 
-function HotelCard({ hotel }: { hotel: Hotel }) {
+function HotelCard({ hotel, city }: { hotel: Hotel; city: string }) {
   const tierColor = TIER_COLOR[hotel.tier];
+  // Lazy-load a real photo of the hotel via the existing fetchPlaceImage
+  // chain (Google Places → Wikidata → Wikipedia → Commons), keyed on
+  // hotel name + city. Same imgCache as the day-card thumbs so a hotel
+  // referenced in the itinerary is already warm.
+  const cacheKey = `${hotel.name}||${city}`;
+  const cachedImg = imgCache.has(cacheKey) ? (imgCache.get(cacheKey) || null) : undefined;
+  const [imgSrc, setImgSrc] = useState<string | null | undefined>(cachedImg);
+  useEffect(() => {
+    if (imgCache.has(cacheKey)) { setImgSrc(imgCache.get(cacheKey) || null); return; }
+    let cancelled = false;
+    fetchPlaceImage(hotel.name, city).then(url => {
+      if (cancelled) return;
+      imgCache.set(cacheKey, url ?? '');
+      setImgSrc(url);
+    });
+    return () => { cancelled = true; };
+  }, [cacheKey, hotel.name, city]);
+
   return (
     <div style={{
       borderRadius: 14, overflow: 'hidden',
@@ -297,23 +340,34 @@ function HotelCard({ hotel }: { hotel: Hotel }) {
       border: `1px solid ${hotel.booked ? 'var(--brand-border-hi)' : 'var(--brand-border)'}`,
       display: 'flex', flexDirection: 'column',
     }}>
-      {/* Image area placeholder — design renders a flat color block until
-          /api/place-images returns. Wiring image fetch is a follow-up. */}
       <div style={{
         position: 'relative',
         aspectRatio: '16/10',
-        background: 'linear-gradient(135deg, rgba(167,139,250,0.10), rgba(125,211,252,0.06))',
+        background: imgSrc
+          ? '#0a0a1f'
+          : 'linear-gradient(135deg, rgba(167,139,250,0.10), rgba(125,211,252,0.06))',
         display: 'grid', placeItems: 'center',
         color: 'rgba(167,139,250,0.4)', fontSize: 28,
-        fontFamily: DISPLAY,
+        fontFamily: DISPLAY, overflow: 'hidden',
       }}>
-        {String.fromCodePoint(0x25EC)}
+        {imgSrc ? (
+          <img
+            src={imgSrc} alt={hotel.name} loading="lazy"
+            style={{
+              position: 'absolute', inset: 0,
+              width: '100%', height: '100%', objectFit: 'cover', display: 'block',
+            }}
+          />
+        ) : (
+          String.fromCodePoint(0x25EC)
+        )}
         <div style={{
           position: 'absolute', top: 12, left: 12,
           fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em',
           padding: '4px 10px', borderRadius: 4,
-          background: 'rgba(10,10,31,0.7)', color: tierColor,
+          background: 'rgba(10,10,31,0.78)', color: tierColor,
           border: `1px solid ${tierColor}`, fontWeight: 700,
+          backdropFilter: 'blur(6px)',
         }}>{hotel.tier}</div>
         {hotel.booked && (
           <div style={{
