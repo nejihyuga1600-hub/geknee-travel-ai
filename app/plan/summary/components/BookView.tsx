@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { BookTabProps } from '../lib/types';
 import { fetchPlaceImage, imgCache } from '../lib/places';
+import { loadUserHome } from '@/lib/userHome';
 
 // Locale → ISO 4217 currency map. Mirrors the SummaryView logic; kept
 // inline rather than shared because BookView is its own dynamic import
@@ -209,9 +210,15 @@ export default function BookView(props: BookTabProps) {
         budget: props.budget,
         style: props.style,
         travelingFrom: props.travelingFrom,
-        // Fallback origin if the trip didn't capture one. Locale-derived
-        // country name lets the AI pick a real hub airport instead of
-        // defaulting to a domestic flight at the destination.
+        // Strongest origin signal first: a captured home airport (set
+        // when user grants location on the globe page → resolves to
+        // nearest IATA via lib/airport-coords). Server-side this beats
+        // travelingFrom and userHomeCountry when present.
+        userHomeAirport: (() => {
+          const h = loadUserHome();
+          return h ? { iata: h.iata, city: h.city, country: h.country } : undefined;
+        })(),
+        // Locale-derived country fallback when geolocation wasn't given.
         userHomeCountry: detectUserOrigin(),
         currency: detectUserCurrency(),
       }),

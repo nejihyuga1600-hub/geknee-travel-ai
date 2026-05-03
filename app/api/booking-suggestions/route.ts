@@ -24,6 +24,7 @@ interface SuggestionsRequest {
   budget?: string;
   style?: string;
   travelingFrom?: string;
+  userHomeAirport?: { iata: string; city: string; country: string };
   userHomeCountry?: string; // fallback origin from client locale
   currency?: string; // ISO code, used as a hint for the secondary price
 }
@@ -45,6 +46,16 @@ function buildPrompt(p: SuggestionsRequest): string {
 Travel style: ${p.style || "balanced"}.
 Budget level: ${p.budget || "mid-range"}.
 ${(() => {
+  // Strongest signal first: a captured home airport (browser geolocation
+  // → nearest IATA in lib/airport-coords). Use it as the LITERAL "from"
+  // IATA for every flight option's outbound and the "to" for every
+  // return. Falls back to travelingFrom string, then locale-derived
+  // country name. Same-country trips still work because we instruct
+  // the model to allow it explicitly.
+  if (p.userHomeAirport?.iata) {
+    const a = p.userHomeAirport;
+    return `Departing from: ${a.city}, ${a.country} (airport code ${a.iata}).\nORIGIN RULE — STRICT: For every flight option, outbound.from MUST be "${a.iata}" (or a co-located airport in the same metro), and return.to MUST be "${a.iata}". The traveler is starting from ${a.city} — do not suggest domestic flights at the destination as the primary option. If origin and destination happen to share a country, normal rules apply.`;
+  }
   const origin = p.travelingFrom?.trim() || p.userHomeCountry?.trim();
   if (!origin) return '';
   return `Departing from: ${origin}.\nORIGIN RULE: Every flight option below MUST originate from a major international hub airport in/near "${origin}", NOT from the destination country. If the user is traveling internationally, the outbound flight is from the user's region to the destination, and the return is the reverse. Do not suggest a domestic flight at the destination unless the user's home is in the same country as the destination.`;

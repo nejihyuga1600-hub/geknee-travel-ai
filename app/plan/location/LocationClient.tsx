@@ -15,6 +15,7 @@ const isMobile = typeof window !== "undefined" && (
 import * as THREE from "three";
 import { useRouter } from "next/navigation";
 import { consumeGlobeTarget, consumeCameraZoom, flyToGlobe, zoomCamera, resetGlobeTilt, consumeResetTilt } from "@/lib/globeAnim";
+import HomeAirportBanner from "@/app/components/HomeAirportBanner";
 import { track } from "@/lib/analytics";
 import { R, geo, geoPos, type SurfPos } from "./globe/geo";
 import { INFO, type LmInfo } from "./globe/info";
@@ -2508,6 +2509,10 @@ export default function LocationPage({ chromeless = false }: { chromeless?: bool
       background: chromeless ? "transparent" : "#060816",
       touchAction: "none",
     }}>
+      {/* One-time geolocation prompt — saves the closest airport so the
+          Flights tab can pre-fill origin on every trip the user plans.
+          Self-dismissing; only mounts when not already asked/captured. */}
+      {!chromeless && <HomeAirportBanner />}
 
       {/* Deep-space gradient background. Hidden when chromeless so the host
           surface (AtlasShell) provides its own backdrop. */}
