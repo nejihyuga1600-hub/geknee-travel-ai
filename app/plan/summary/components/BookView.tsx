@@ -28,6 +28,27 @@ function detectUserCurrency(): string {
   return LOCALE_TO_CURRENCY[lang] ?? LOCALE_TO_CURRENCY[lang.split('-')[0]] ?? 'USD';
 }
 
+// Build a Google Flights deep-link that actually populates origin /
+// destination / dates. Two layers:
+//   1) Direct `?q=` on /travel/flights — works when Google's parser
+//      can match the IATA codes + ISO dates. We use the phrasing
+//      "flights to X from Y on YYYY-MM-DD through YYYY-MM-DD" because
+//      Google's parser keys on "to <dest>" first.
+//   2) Fallback `gtt=` "search the web" param appended so if /travel/
+//      flights' parser fails, the page still shows the right SERP
+//      with a flight widget pre-filled.
+// Carrier name intentionally omitted — when present, Google often
+// drops the date filters and just searches the airline's home page.
+function buildGoogleFlightsHref(
+  from: string, to: string, isoStart: string, isoEnd: string,
+): string {
+  const parts = [`flights to ${to} from ${from}`];
+  if (isoStart) parts.push(`on ${isoStart}`);
+  if (isoEnd)   parts.push(`through ${isoEnd}`);
+  parts.push('1 adult');
+  return `https://www.google.com/travel/flights?hl=en&q=${encodeURIComponent(parts.join(' '))}`;
+}
+
 // Design-handoff booking surface: tabbed layout (Stays / Flights / Activities
 // / Transport / Insurance) with badge counts, 3-column hotel cards, wide
 // flight card. Built as a parallel implementation alongside the legacy
@@ -869,9 +890,12 @@ function FlightAggregatorButtons({ flight, startDate, endDate }: {
   const skyEnd   = skyDate(isoEnd);
 
   // Search URLs — all accept query params we know to encode.
-  const googleHref =
-    `https://www.google.com/travel/flights?q=` +
-    encodeURIComponent(`Flights from ${from} to ${to}${isoStart ? ` on ${isoStart}` : ''}${isoEnd ? ` returning ${isoEnd}` : ''}`);
+  // Google Flights `q=` parsing prefers "to <dest> from <origin>" over
+  // "from X to Y", and parses ISO YYYY-MM-DD reliably. We DON'T add the
+  // carrier here — the parser misclassifies trailing airline names and
+  // sometimes drops the date filters entirely. Carrier filtering is a
+  // 1-click on the destination page.
+  const googleHref = buildGoogleFlightsHref(from, to, isoStart, isoEnd);
   const skyscannerHref =
     `https://www.skyscanner.com/transport/flights/${from.toLowerCase()}/${to.toLowerCase()}/` +
     `${skyStart || ''}${skyEnd ? `/${skyEnd}` : ''}/?adults=1&rtn=${ret ? 1 : 0}`;
@@ -1197,8 +1221,7 @@ function FlightOptionAggregator({ option, startDate, endDate }: {
   const links = [
     {
       name: 'Google',
-      href: `https://www.google.com/travel/flights?q=` +
-            encodeURIComponent(`Flights from ${from} to ${to}${isoStart ? ` on ${isoStart}` : ''}${isoEnd ? ` returning ${isoEnd}` : ''} ${option.carrier}`),
+      href: buildGoogleFlightsHref(from, to, isoStart, isoEnd),
     },
     {
       name: 'Skyscanner',
