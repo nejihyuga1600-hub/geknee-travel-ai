@@ -105,41 +105,6 @@ export default function TripTabsLayout({ children }: { children: ReactNode }) {
           );
         })}
         </div>
-        {/* Globe home button on the right — same destination as the
-            back pill, visualized as an icon for a cleaner top-right
-            anchor. Acts as the universal "home" affordance. */}
-        <Link
-          href="/plan/location"
-          prefetch
-          aria-label="Back to globe"
-          title="Back to globe"
-          style={{
-            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-            width: 36, height: 36, borderRadius: '50%',
-            background: 'rgba(255,255,255,0.04)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            color: 'rgba(255,255,255,0.78)',
-            textDecoration: 'none', flexShrink: 0,
-            transition: 'background 150ms, border-color 150ms, color 150ms',
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.background = 'rgba(167,139,250,0.14)';
-            e.currentTarget.style.borderColor = 'rgba(167,139,250,0.4)';
-            e.currentTarget.style.color = 'var(--brand-accent, #a78bfa)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
-            e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
-            e.currentTarget.style.color = 'rgba(255,255,255,0.78)';
-          }}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            <circle cx="12" cy="12" r="10" />
-            <ellipse cx="12" cy="12" rx="10" ry="4" />
-            <line x1="2" y1="12" x2="22" y2="12" />
-            <line x1="12" y1="2" x2="12" y2="22" />
-          </svg>
-        </Link>
       </nav>
       <main>{children}</main>
     </div>

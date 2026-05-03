@@ -1050,21 +1050,9 @@ function SummaryContent({ tripIdOverride, initialMainTab, autoGenerate = true }:
           marginBottom: 24, gap: 12,
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, minWidth: 0 }}>
-            <Link href="/plan/location" style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6,
-              padding: mainTab === 'planning' ? '5px 12px' : 0,
-              borderRadius: 999,
-              border: mainTab === 'planning' ? '1px solid var(--brand-border)' : 'none',
-              background: mainTab === 'planning' ? 'rgba(255,255,255,0.04)' : 'transparent',
-              color: 'var(--brand-accent)', fontSize: mainTab === 'planning' ? 11 : 13,
-              fontWeight: mainTab === 'planning' ? 700 : 400,
-              letterSpacing: mainTab === 'planning' ? '0.08em' : 'normal',
-              textTransform: mainTab === 'planning' ? 'uppercase' as const : 'none' as const,
-              textDecoration: 'none',
-              fontFamily: 'var(--font-ui), system-ui, sans-serif',
-            }}>
-              {String.fromCodePoint(0x2190)} {mainTab === 'planning' ? 'Back to globe' : 'Plan'}
-            </Link>
+            {/* "← Back to globe" / "← Plan" masthead link removed — the
+                tabs layout above already exposes a persistent
+                "Back to globe" pill, no need to repeat it here. */}
             <span style={{
               fontFamily: 'var(--font-display), Georgia, serif',
               fontSize: 16, color: 'var(--brand-ink)',
