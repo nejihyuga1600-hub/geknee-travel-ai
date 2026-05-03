@@ -119,11 +119,17 @@ Return ONLY a JSON object with this exact shape:
         "layovers": [ /* same shape; empty for direct */ ]
       }
     }
-    // EXACTLY 3 options, each with a DIFFERENT trade-off:
-    //   - one cheapest (BEST PRICE) — likely 1-2 stops, longer duration
-    //   - one fastest (FASTEST) — direct or single short layover, higher price
-    //   - one greenest (GREENEST) — newest aircraft / direct routing, may be mid-priced
-    // The 4th badge "BEST VALUE" is optional for a balanced 4th option.
+    // EXACTLY 5 options, each with a DIFFERENT carrier and a clear
+    // trade-off. Cover the spread:
+    //   - BEST PRICE  — cheapest, likely 1-2 stops, longer duration
+    //   - FASTEST     — direct or single short layover, higher fare
+    //   - GREENEST    — newest aircraft / shortest distance
+    //   - BEST VALUE  — balanced mid-priced direct
+    //   - one more from a different alliance for variety (any unused
+    //     badge or none if no obvious one applies)
+    // Use REAL airlines that fly the route in 2026; vary alliances
+    // (Star Alliance / Oneworld / SkyTeam / unaligned) so users see
+    // real choices.
     // Use real airlines that fly the route in 2026. Compute CO2 honestly:
     // ~115g per passenger-km for typical narrow-body, less for direct,
     // more for connecting flights with extra distance.
@@ -182,7 +188,7 @@ export async function POST(req: Request) {
   try {
     const resp = await client.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 4096,
+      max_tokens: 5120,
       system: SYSTEM,
       messages: [{ role: "user", content: buildPrompt(body) }],
     });

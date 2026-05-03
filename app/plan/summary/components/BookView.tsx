@@ -88,6 +88,141 @@ function extractItineraryPlaces(text?: string): string[] {
   return out;
 }
 
+// Carrier → real-deep-link booking URL builders. Each rule matches the
+// AI-emitted carrier name and produces a URL that lands on the airline's
+// own booking page with origin/dest/dates pre-filled. When no rule
+// matches we fall through to Google Flights as a search aggregator.
+const CARRIER_BOOK_RULES: Array<{
+  match: RegExp;
+  display: string;
+  build: (from: string, to: string, depart: string, ret: string) => string;
+}> = [
+  {
+    match: /\b(united\s*airlines?|^united$|^ua$)\b/i, display: 'United',
+    build: (f, t, d, r) => `https://www.united.com/en-us/book/search?f=${f}&t=${t}&d=${d}${r ? `&r=${r}&tt=1` : '&tt=2'}&px=1`,
+  },
+  {
+    match: /\b(delta(\s+air(\s*lines?)?)?|^dl$)\b/i, display: 'Delta',
+    build: (f, t, d, r) => `https://www.delta.com/flight-search/book-a-flight?tripType=ROUND_TRIP&originCity=${f}&destinationCity=${t}&departureDate=${d}&returnDate=${r}&passengerCount=1`,
+  },
+  {
+    match: /\b(american(\s+airlines?)?|^aa$)\b/i, display: 'American',
+    build: (f, t, d, r) => `https://www.aa.com/booking/find-flights?tripType=roundTrip&adult=1&originAirport=${f}&destinationAirport=${t}&departDate=${d}&returnDate=${r}`,
+  },
+  {
+    match: /\b(jetblue|^b6$)\b/i, display: 'JetBlue',
+    build: (f, t, d, r) => `https://www.jetblue.com/booking/flights?from=${f}&to=${t}&depart=${d}&return=${r}&isMultiCity=false&adults=1`,
+  },
+  {
+    match: /\b(southwest|^wn$)\b/i, display: 'Southwest',
+    build: (f, t, d, r) => `https://www.southwest.com/air/booking/select-depart.html?adultPassengersCount=1&departureDate=${d}&destinationAirportCode=${t}&originationAirportCode=${f}&returnDate=${r}&tripType=roundtrip`,
+  },
+  {
+    match: /\b(alaska(\s+airlines?)?|^as$)\b/i, display: 'Alaska',
+    build: (f, t, d, r) => `https://www.alaskaair.com/search/results?A=1&O=${f}&D=${t}&OD=${d}&RD=${r}&RT=true`,
+  },
+  {
+    match: /\b(emirates|^ek$)\b/i, display: 'Emirates',
+    build: (f, t, d, r) => `https://www.emirates.com/english/book-a-flight/results.aspx?Origin=${f}&Destination=${t}&DepartureDate=${d}&ReturnDate=${r}&Adults=1`,
+  },
+  {
+    match: /\b(qatar(\s+airways)?|^qr$)\b/i, display: 'Qatar Airways',
+    build: (f, t, d, r) => `https://www.qatarairways.com/en-us/homepage.html?origin=${f}&destination=${t}&departureDate=${d}&returnDate=${r}&tripType=R&adults=1`,
+  },
+  {
+    match: /\b(etihad|^ey$)\b/i, display: 'Etihad',
+    build: (f, t, d, r) => `https://www.etihad.com/en-us/book/flights?travelType=R&from=${f}&to=${t}&departureDate=${d}&returnDate=${r}&adults=1`,
+  },
+  {
+    match: /\b(british\s*airways|^ba$)\b/i, display: 'British Airways',
+    build: (f, t, d, r) => `https://www.britishairways.com/travel/redeem/execclub/_gf/en_us?from=${f}&to=${t}&dep=${d}&ret=${r}&adults=1`,
+  },
+  {
+    match: /\b(lufthansa|^lh$)\b/i, display: 'Lufthansa',
+    build: (f, t, d, r) => `https://www.lufthansa.com/us/en/flight-search?travelers=ADT-1&origin=${f}&destination=${t}&outboundDate=${d}&returnDate=${r}&tripType=R`,
+  },
+  {
+    match: /\b(air\s*france|^af$)\b/i, display: 'Air France',
+    build: (f, t, d, r) => `https://wwws.airfrance.us/search/advanced?bookingFlow=LEISURE&from=${f}&to=${t}&forwardDate=${d}&returnDate=${r}&adults=1`,
+  },
+  {
+    match: /\b(klm|^kl$)\b/i, display: 'KLM',
+    build: (f, t, d, r) => `https://www.klm.com/search/advanced?bookingFlow=LEISURE&origin=${f}&destination=${t}&departureDate=${d}&returnDate=${r}&adults=1`,
+  },
+  {
+    match: /\b(iberia|^ib$)\b/i, display: 'Iberia',
+    build: (f, t, d, r) => `https://www.iberia.com/us/?market=ES&from=${f}&to=${t}&fromDate=${d}&toDate=${r}&pax=1`,
+  },
+  {
+    match: /\b(swiss(\s+international)?|^lx$)\b/i, display: 'SWISS',
+    build: (f, t, d, r) => `https://www.swiss.com/us/en/flights?travelers=ADT-1&origin=${f}&destination=${t}&outboundDate=${d}&returnDate=${r}&tripType=R`,
+  },
+  {
+    match: /\b(turkish(\s+airlines?)?|^tk$)\b/i, display: 'Turkish Airlines',
+    build: (f, t, d, r) => `https://www.turkishairlines.com/en-us/flights/booking/index.html?bookerCode=01&adultNumber=1&departureDate=${d}&returnDate=${r}&fromAirportCode=${f}&toAirportCode=${t}&tripKind=2`,
+  },
+  {
+    match: /\b(singapore\s*airlines?|^sq$)\b/i, display: 'Singapore Airlines',
+    build: (f, t, d, r) => `https://www.singaporeair.com/en_UK/us/plan-travel/book-a-flight/?TripType=R&Adults=1&FromCode=${f}&ToCode=${t}&DepartDate=${d}&ReturnDate=${r}`,
+  },
+  {
+    match: /\b(cathay\s*pacific|^cx$)\b/i, display: 'Cathay Pacific',
+    build: (f, t, d, r) => `https://book.cathaypacific.com/CathayPacific/dyn/air/booking/availability?TRIP_TYPE=R&ADT=1&DEPART_AIRPORT_0=${f}&ARRIVE_AIRPORT_0=${t}&DEPART_DATE_0=${d}&DEPART_AIRPORT_1=${t}&ARRIVE_AIRPORT_1=${f}&DEPART_DATE_1=${r}`,
+  },
+  {
+    match: /\b(jal|japan\s*airlines?|^jl$)\b/i, display: 'Japan Airlines',
+    build: (f, t, d, r) => `https://www.jal.co.jp/en/inter/book/?org=${f}&dst=${t}&out=${d}&ret=${r}&pax=1`,
+  },
+  {
+    match: /\b(ana|^nh$|all\s*nippon)\b/i, display: 'ANA',
+    build: (f, t, d, r) => `https://www.ana.co.jp/en/us/book-plan/book/?from=${f}&to=${t}&dep=${d}&ret=${r}`,
+  },
+  {
+    match: /\b(korean\s*air|^ke$)\b/i, display: 'Korean Air',
+    build: (f, t, d, r) => `https://www.koreanair.com/us/en/booking/booking-gate?from=${f}&to=${t}&depart=${d}&return=${r}&pax=1`,
+  },
+  {
+    match: /\b(asiana|^oz$)\b/i, display: 'Asiana',
+    build: (f, t, d, r) => `https://flyasiana.com/C/US/EN/index?from=${f}&to=${t}&depart=${d}&return=${r}`,
+  },
+  {
+    match: /\b(air\s*india|^ai$)\b/i, display: 'Air India',
+    build: (f, t, d, r) => `https://www.airindia.com/in/en/book-flight.html?from=${f}&to=${t}&departure=${d}&return=${r}&adults=1`,
+  },
+  {
+    match: /\b(indigo|^6e$)\b/i, display: 'IndiGo',
+    build: (f, t, d, r) => `https://www.goindigo.in/?#?origin=${f}&destination=${t}&departureDate=${d}&returnDate=${r}&adults=1`,
+  },
+  {
+    match: /\b(vistara|^uk$)\b/i, display: 'Vistara',
+    build: (f, t, d, r) => `https://www.airvistara.com/in/en/book/flights?origin=${f}&destination=${t}&departure=${d}&return=${r}`,
+  },
+  {
+    match: /\b(qantas|^qf$)\b/i, display: 'Qantas',
+    build: (f, t, d, r) => `https://www.qantas.com/au/en/book-a-trip/flights.html?from=${f}&to=${t}&departure=${d}&return=${r}&adults=1`,
+  },
+  {
+    match: /\b(virgin\s*atlantic|virgin\s*airways|^vs$)\b/i, display: 'Virgin Atlantic',
+    build: (f, t, d, r) => `https://flights.virginatlantic.com/en-us/flights?origin=${f}&destination=${t}&departure=${d}&return=${r}&adults=1`,
+  },
+  {
+    match: /\b(aer\s*lingus|^ei$)\b/i, display: 'Aer Lingus',
+    build: (f, t, d, r) => `https://www.aerlingus.com/booking/?origin=${f}&destination=${t}&departureDate=${d}&returnDate=${r}&adults=1`,
+  },
+  {
+    match: /\b(air\s*canada|^ac$)\b/i, display: 'Air Canada',
+    build: (f, t, d, r) => `https://www.aircanada.com/en-us/aco/home.html#/bound=&trip-type=roundtrip&origin=${f}&destination=${t}&departure=${d}&return=${r}&adults=1`,
+  },
+];
+
+function carrierBookingLink(carrier: string, from: string, to: string, depart: string, ret: string) {
+  if (!carrier) return null;
+  for (const rule of CARRIER_BOOK_RULES) {
+    if (rule.match.test(carrier)) return { name: rule.display, href: rule.build(from, to, depart, ret) };
+  }
+  return null;
+}
+
 // Build a Google Flights deep-link that populates origin / destination
 // AND dates. Google's q= parser is finicky:
 //   - ISO dates ("2026-04-28") often get dropped or misread
@@ -1538,11 +1673,17 @@ function FlightOptionAggregator({ option, startDate, endDate }: {
   const isoEnd   = endDate   || '';
   const skyDate  = (iso: string) => iso ? iso.slice(2,4) + iso.slice(5,7) + iso.slice(8,10) : '';
 
-  const links = [
-    {
-      name: 'Google',
-      href: buildGoogleFlightsHref(from, to, isoStart, isoEnd),
-    },
+  // Primary booking link — direct to the carrier's own booking page
+  // when we know it. Falls back to Google Flights search if the
+  // carrier isn't in CARRIER_BOOK_RULES. The user can always pick
+  // an aggregator from the secondary row.
+  const carrierLink = carrierBookingLink(option.carrier, from, to, isoStart, isoEnd);
+  const primary = carrierLink ?? {
+    name: 'Google Flights',
+    href: buildGoogleFlightsHref(from, to, isoStart, isoEnd),
+  };
+
+  const aggregators = [
     {
       name: 'Skyscanner',
       href: `https://www.skyscanner.com/transport/flights/${from.toLowerCase()}/${to.toLowerCase()}/` +
@@ -1553,12 +1694,18 @@ function FlightOptionAggregator({ option, startDate, endDate }: {
       href: `https://www.kayak.com/flights/${from}-${to}` +
             `${isoStart ? `/${isoStart}` : ''}${isoEnd ? `/${isoEnd}` : ''}`,
     },
+    // Always include Google as a backup if the primary is the carrier
+    // (so users still have a price-comparison option in the list).
+    ...(carrierLink ? [{
+      name: 'Google',
+      href: buildGoogleFlightsHref(from, to, isoStart, isoEnd),
+    }] : []),
   ];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
       <a
-        href={links[0].href}
+        href={primary.href}
         target="_blank"
         rel="noopener noreferrer sponsored"
         style={{
@@ -1571,10 +1718,17 @@ function FlightOptionAggregator({ option, startDate, endDate }: {
           boxShadow: '0 4px 14px rgba(167,139,250,0.28)',
         }}
       >
-        Book on {links[0].name} →
+        Book on {primary.name} →
       </a>
-      <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end' }}>
-        {links.slice(1).map(l => (
+      <div style={{
+        fontSize: 9, color: 'var(--brand-ink-mute)', textAlign: 'right',
+        fontFamily: MONO, letterSpacing: '0.08em', textTransform: 'uppercase',
+        marginTop: -2,
+      }}>
+        {carrierLink ? 'Direct on airline' : 'Compare aggregator'}
+      </div>
+      <div style={{ display: 'flex', gap: 4, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+        {aggregators.map(l => (
           <a
             key={l.name}
             href={l.href}
