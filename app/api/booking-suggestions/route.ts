@@ -85,7 +85,18 @@ Return ONLY a JSON object with this exact shape:
       "currency": "${homeSymbol}",
       "fromItinerary": boolean (true if the hotel sits in the same neighborhood as one of the user's existing itinerary places — see ITINERARY PLACES rule above; otherwise false)
     }
-    // EXACTLY 4 hotels: 1 EDITORS' PICK luxury, 2 LOCAL mid-range, 1 BUDGET
+    // EXACTLY 8 hotels with a real spread of options:
+    //   - 2 EDITORS' PICK (top-tier luxury)
+    //   - 4 LOCAL (mid-range, varied districts/tags — boutique, ryokan,
+    //     riad, design hotel, etc.)
+    //   - 2 BUDGET (well-rated 3-star, hostel, BNB)
+    // CRITICAL: Bias every district choice toward neighborhoods that
+    // are walking distance to the user's existing itinerary places
+    // (see EXISTING ITINERARY PLACES above). At least 5 of the 8
+    // hotels MUST be in districts that contain or border one of those
+    // places. Spread the prices realistically within the user's
+    // declared budget level — don't cluster everything at the same
+    // price point.
   ],
   "flightOptions": [
     {
@@ -158,11 +169,16 @@ Return ONLY a JSON object with this exact shape:
       "currency": "${homeSymbol}",
       "fromItinerary": boolean (true if the activity name matches one of the user's existing itinerary places — case-insensitive — otherwise false)
     }
-    // EXACTLY 4 activities, varied tags, fitting the budget level. Try
-    // to include 1-2 activities that already appear in the itinerary
-    // (set fromItinerary: true), and 2-3 fresh suggestions
-    // (fromItinerary: false) so the user has both reinforcement and
-    // discovery.
+    // EXACTLY 8 activities, varied tags (mix all five categories), all
+    // fitting the budget level. Composition rule:
+    //   - 3-4 from the EXISTING ITINERARY PLACES list above (set
+    //     fromItinerary: true) so users can directly book what's
+    //     already in their plan.
+    //   - 4-5 fresh discoveries (fromItinerary: false) that complement
+    //     what's in the itinerary — different category, different
+    //     time of day, different neighborhood.
+    // Spread prices across the budget range — include at least one
+    // free/very-cheap option and one premium experience.
   ]
 }
 
@@ -188,7 +204,7 @@ export async function POST(req: Request) {
   try {
     const resp = await client.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 5120,
+      max_tokens: 7168,
       system: SYSTEM,
       messages: [{ role: "user", content: buildPrompt(body) }],
     });
