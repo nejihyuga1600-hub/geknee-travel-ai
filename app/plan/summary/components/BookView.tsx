@@ -4,7 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { BookTabProps } from '../lib/types';
 import { fetchPlaceImage, imgCache } from '../lib/places';
-import { loadUserHome, saveUserHome, type UserHome } from '@/lib/userHome';
+import {
+  loadUserHome, saveUserHome, hasAskedForHome,
+  captureUserHomeFromGeolocation, type UserHome,
+} from '@/lib/userHome';
 import { AIRPORT_COORDS } from '@/lib/airport-coords';
 
 // Locale → ISO 4217 currency map. Mirrors the SummaryView logic; kept
@@ -225,7 +228,21 @@ export default function BookView(props: BookTabProps) {
   // override what geolocation picked (or set one if they skipped the
   // permission banner).
   const [homeAirport, setHomeAirport] = useState<UserHome | null>(null);
-  useEffect(() => { setHomeAirport(loadUserHome()); }, []);
+  useEffect(() => {
+    const h = loadUserHome();
+    if (h) { setHomeAirport(h); return; }
+    // Auto-prompt the browser for geolocation when arriving on the
+    // Flights tab without a captured home airport — saves the user
+    // from manually clicking Change. The hasAskedForHome flag ensures
+    // we never re-prompt after a previous denial.
+    if (hasAskedForHome()) return;
+    let cancelled = false;
+    captureUserHomeFromGeolocation().then(rec => {
+      if (cancelled) return;
+      if (rec) setHomeAirport(rec);
+    });
+    return () => { cancelled = true; };
+  }, []);
   function changeHomeAirport(rec: { iata: string; city: string; country: string; countryCode: string; lat: number; lng: number }) {
     const home: UserHome = { ...rec, capturedAt: Date.now() };
     saveUserHome(home);
