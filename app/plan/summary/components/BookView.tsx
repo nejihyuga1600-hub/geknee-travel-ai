@@ -334,44 +334,60 @@ const galleryCache = new Map<string, string[]>();
 
 function HotelCard({ hotel, city }: { hotel: Hotel; city: string }) {
   const tierColor = TIER_COLOR[hotel.tier];
-  // Lazy-load a real photo of the hotel via the existing fetchPlaceImage
-  // chain (Google Places → Wikidata → Wikipedia → Commons), keyed on
-  // hotel name + city. Same imgCache as the day-card thumbs so a hotel
-  // referenced in the itinerary is already warm.
   const cacheKey = `${hotel.name}||${city}`;
-  const cachedImg = imgCache.has(cacheKey) ? (imgCache.get(cacheKey) || null) : undefined;
-  const [imgSrc, setImgSrc] = useState<string | null | undefined>(cachedImg);
-  // Multi-image gallery for the lightbox — populated on first open via
-  // /api/place-images (Google Places returns up to 5 photos per place).
-  // Falls back to [thumbnailSrc] when Google has nothing extra.
+  // Eagerly fetch the full image set on mount (up to 5 photos via
+  // /api/place-images) so the card can render a Google-Maps-style
+  // slideshow with prev/next arrows + dot indicators. Caches in-memory
+  // so re-mounts during the session are instant.
   const cachedGallery = galleryCache.get(cacheKey);
   const [gallery, setGallery] = useState<string[] | null>(cachedGallery ?? null);
-  const [open, setOpen] = useState(false);
   const [galleryIdx, setGalleryIdx] = useState(0);
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (imgCache.has(cacheKey)) { setImgSrc(imgCache.get(cacheKey) || null); return; }
+    if (gallery !== null) return;
     let cancelled = false;
-    fetchPlaceImage(hotel.name, city).then(url => {
-      if (cancelled) return;
-      imgCache.set(cacheKey, url ?? '');
-      setImgSrc(url);
-    });
+    (async () => {
+      // Layer 1: /api/place-images (Google Places, up to 5 photos)
+      try {
+        const params = new URLSearchParams({ name: hotel.name, location: city });
+        const r = await fetch(`/api/place-images?${params}`);
+        if (r.ok) {
+          const d = await r.json() as { images?: string[] };
+          if (!cancelled && d.images && d.images.length > 0) {
+            galleryCache.set(cacheKey, d.images);
+            setGallery(d.images);
+            if (!imgCache.has(cacheKey)) imgCache.set(cacheKey, d.images[0]);
+            return;
+          }
+        }
+      } catch { /* network */ }
+      // Layer 2: fetchPlaceImage chain (Wikidata → Wikipedia → Commons)
+      // returns a single image; promote to a one-element gallery.
+      try {
+        const single = await fetchPlaceImage(hotel.name, city);
+        if (cancelled) return;
+        if (single) {
+          galleryCache.set(cacheKey, [single]);
+          imgCache.set(cacheKey, single);
+          setGallery([single]);
+        } else {
+          galleryCache.set(cacheKey, []);
+          setGallery([]);
+        }
+      } catch { /* swallow */ }
+    })();
     return () => { cancelled = true; };
-  }, [cacheKey, hotel.name, city]);
+  }, [cacheKey, hotel.name, city, gallery]);
 
-  // Esc-closes lightbox; lock body scroll while open so the page
-  // behind doesn't drift.
+  // Lightbox keyboard + body-scroll handling. Arrow keys also advance
+  // the slideshow when the lightbox is open.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setOpen(false);
-      if (e.key === 'ArrowLeft' && gallery && gallery.length > 1) {
-        setGalleryIdx(i => (i - 1 + gallery.length) % gallery.length);
-      }
-      if (e.key === 'ArrowRight' && gallery && gallery.length > 1) {
-        setGalleryIdx(i => (i + 1) % gallery.length);
-      }
+      if (e.key === 'ArrowLeft'  && gallery && gallery.length > 1) setGalleryIdx(i => (i - 1 + gallery.length) % gallery.length);
+      if (e.key === 'ArrowRight' && gallery && gallery.length > 1) setGalleryIdx(i => (i + 1) % gallery.length);
     };
     const prev = document.body.style.overflow;
     document.addEventListener('keydown', onKey);
@@ -382,26 +398,18 @@ function HotelCard({ hotel, city }: { hotel: Hotel; city: string }) {
     };
   }, [open, gallery]);
 
-  async function openLightbox() {
-    if (!imgSrc) return;
-    setGalleryIdx(0);
+  const currentImg = gallery && gallery.length > 0 ? gallery[galleryIdx % gallery.length] : null;
+  const hasMultiple = !!gallery && gallery.length > 1;
+
+  function nudge(delta: number, e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!gallery || gallery.length < 2) return;
+    setGalleryIdx(i => (i + delta + gallery.length) % gallery.length);
+  }
+  function openLightbox() {
+    if (!currentImg) return;
     setOpen(true);
-    if (gallery) return;
-    // Fetch the full image set the first time the user opens the box.
-    try {
-      const params = new URLSearchParams({ name: hotel.name, location: city });
-      const r = await fetch(`/api/place-images?${params}`);
-      if (r.ok) {
-        const d = await r.json() as { images?: string[] };
-        const images = d.images && d.images.length > 0 ? d.images : [imgSrc];
-        galleryCache.set(cacheKey, images);
-        setGallery(images);
-        return;
-      }
-    } catch { /* network */ }
-    // Fallback: show just the thumbnail in the lightbox.
-    galleryCache.set(cacheKey, [imgSrc]);
-    setGallery([imgSrc]);
   }
 
   return (
@@ -411,35 +419,49 @@ function HotelCard({ hotel, city }: { hotel: Hotel; city: string }) {
       border: `1px solid ${hotel.booked ? 'var(--brand-border-hi)' : 'var(--brand-border)'}`,
       display: 'flex', flexDirection: 'column',
     }}>
-      <button
-        type="button"
-        onClick={openLightbox}
-        disabled={!imgSrc}
-        aria-label={imgSrc ? `View photos of ${hotel.name}` : hotel.name}
-        style={{
-          position: 'relative',
-          aspectRatio: '16/10',
-          background: imgSrc
-            ? '#0a0a1f'
-            : 'linear-gradient(135deg, rgba(167,139,250,0.10), rgba(125,211,252,0.06))',
-          display: 'grid', placeItems: 'center',
-          color: 'rgba(167,139,250,0.4)', fontSize: 28,
-          fontFamily: DISPLAY, overflow: 'hidden',
-          padding: 0, border: 'none',
-          cursor: imgSrc ? 'zoom-in' : 'default',
-        }}
-      >
-        {imgSrc ? (
-          <img
-            src={imgSrc} alt={hotel.name} loading="lazy"
-            style={{
-              position: 'absolute', inset: 0,
-              width: '100%', height: '100%', objectFit: 'cover', display: 'block',
-            }}
-          />
-        ) : (
-          String.fromCodePoint(0x25EC)
-        )}
+      {/* Image area — Google-Maps-style slideshow. The frame itself is
+          a button (click → lightbox). Prev/next arrows and dot
+          indicators sit on top with stopPropagation so they only
+          advance the slide without opening the lightbox. */}
+      <div style={{
+        position: 'relative',
+        aspectRatio: '16/10',
+        background: currentImg
+          ? '#0a0a1f'
+          : 'linear-gradient(135deg, rgba(167,139,250,0.10), rgba(125,211,252,0.06))',
+        overflow: 'hidden',
+      }}>
+        <button
+          type="button"
+          onClick={openLightbox}
+          disabled={!currentImg}
+          aria-label={currentImg ? `View photos of ${hotel.name}` : hotel.name}
+          style={{
+            position: 'absolute', inset: 0,
+            display: 'grid', placeItems: 'center',
+            color: 'rgba(167,139,250,0.4)', fontSize: 28,
+            fontFamily: DISPLAY,
+            padding: 0, border: 'none',
+            background: 'transparent',
+            cursor: currentImg ? 'zoom-in' : 'default',
+          }}
+        >
+          {currentImg ? (
+            <img
+              key={currentImg}
+              src={currentImg} alt={hotel.name} loading="lazy"
+              style={{
+                position: 'absolute', inset: 0,
+                width: '100%', height: '100%', objectFit: 'cover', display: 'block',
+                transition: 'opacity 200ms ease',
+              }}
+            />
+          ) : (
+            String.fromCodePoint(0x25EC)
+          )}
+        </button>
+
+        {/* Tier pill */}
         <div style={{
           position: 'absolute', top: 12, left: 12,
           fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em',
@@ -447,17 +469,10 @@ function HotelCard({ hotel, city }: { hotel: Hotel; city: string }) {
           background: 'rgba(10,10,31,0.78)', color: tierColor,
           border: `1px solid ${tierColor}`, fontWeight: 700,
           backdropFilter: 'blur(6px)',
+          pointerEvents: 'none',
         }}>{hotel.tier}</div>
-        {imgSrc && (
-          <div style={{
-            position: 'absolute', bottom: 10, right: 10,
-            fontFamily: MONO, fontSize: 9, letterSpacing: '0.16em',
-            padding: '4px 9px', borderRadius: 4,
-            background: 'rgba(10,10,31,0.7)', color: 'rgba(255,255,255,0.85)',
-            border: '1px solid rgba(255,255,255,0.12)', fontWeight: 700,
-            backdropFilter: 'blur(6px)',
-          }}>+ Photos</div>
-        )}
+
+        {/* Booked badge */}
         {hotel.booked && (
           <div style={{
             position: 'absolute', top: 12, right: 12,
@@ -466,9 +481,60 @@ function HotelCard({ hotel, city }: { hotel: Hotel; city: string }) {
             background: 'rgba(125,211,252,0.18)',
             color: 'var(--brand-accent-2)',
             border: '1px solid var(--brand-accent-2)', fontWeight: 700,
+            pointerEvents: 'none',
           }}>{String.fromCodePoint(0x2713)} BOOKED</div>
         )}
-      </button>
+
+        {/* Slideshow controls — rendered only when there's >1 image. */}
+        {hasMultiple && (
+          <>
+            <button
+              type="button"
+              onClick={e => nudge(-1, e)}
+              aria-label="Previous photo"
+              style={{
+                position: 'absolute', top: '50%', left: 8,
+                transform: 'translateY(-50%)',
+                width: 32, height: 32, borderRadius: '50%',
+                background: 'rgba(10,10,31,0.7)', border: '1px solid rgba(255,255,255,0.12)',
+                color: '#fff', fontSize: 18, lineHeight: 1, cursor: 'pointer',
+                backdropFilter: 'blur(6px)',
+              }}
+            >‹</button>
+            <button
+              type="button"
+              onClick={e => nudge(1, e)}
+              aria-label="Next photo"
+              style={{
+                position: 'absolute', top: '50%', right: 8,
+                transform: 'translateY(-50%)',
+                width: 32, height: 32, borderRadius: '50%',
+                background: 'rgba(10,10,31,0.7)', border: '1px solid rgba(255,255,255,0.12)',
+                color: '#fff', fontSize: 18, lineHeight: 1, cursor: 'pointer',
+                backdropFilter: 'blur(6px)',
+              }}
+            >›</button>
+            {/* Dot indicators */}
+            <div style={{
+              position: 'absolute', bottom: 10, left: 0, right: 0,
+              display: 'flex', justifyContent: 'center', gap: 5,
+              pointerEvents: 'none',
+            }}>
+              {gallery!.map((_, i) => (
+                <span
+                  key={i}
+                  style={{
+                    width: i === galleryIdx ? 16 : 6,
+                    height: 6, borderRadius: 3,
+                    background: i === galleryIdx ? '#fff' : 'rgba(255,255,255,0.45)',
+                    transition: 'width 180ms ease, background 180ms ease',
+                  }}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
 
       {/* Lightbox carousel — rendered through createPortal so the sticky
           tab nav and any transformed ancestors don't clip it. */}
