@@ -9,6 +9,7 @@ import {
   captureUserHomeFromGeolocation, type UserHome,
 } from '@/lib/userHome';
 import { AIRPORT_COORDS } from '@/lib/airport-coords';
+import { track } from '@/lib/analytics';
 
 // Locale → ISO 4217 currency map. Mirrors the SummaryView logic; kept
 // inline rather than shared because BookView is its own dynamic import
@@ -264,14 +265,16 @@ function buildGoogleFlightsHref(
 const MONO = 'var(--font-mono-display), ui-monospace, monospace';
 const DISPLAY = 'var(--font-display), Georgia, serif';
 
-type Tab = 'stays' | 'flights' | 'activities' | 'transport' | 'insurance';
+type Tab = 'stays' | 'flights' | 'activities' | 'transport';
 const TABS: { id: Tab; label: string; glyph: string }[] = [
   { id: 'stays',      label: 'Stays',      glyph: String.fromCodePoint(0x25EC) },
   { id: 'flights',    label: 'Flights',    glyph: String.fromCodePoint(0x2708) },
   { id: 'activities', label: 'Activities', glyph: String.fromCodePoint(0x25C9) },
   { id: 'transport',  label: 'Transport',  glyph: String.fromCodePoint(0x25D0) },
-  { id: 'insurance',  label: 'Insurance',  glyph: String.fromCodePoint(0x25C8) },
 ];
+// Insurance — was a 5th tab. Demoted to a small footer card on the
+// Booking surface (rendered below the active tab content) since the
+// section is just affiliate-linkout and didn't earn its own tab.
 
 type Currency = '¥' | '$' | '€' | '£' | '₹';
 
@@ -554,13 +557,19 @@ export default function BookView(props: BookTabProps) {
       )}
       {!loading && !loadError && tab === 'activities' && <ActivitiesSection activities={activities} tripId={props.tripId} onItineraryAdjusted={props.onItineraryAdjusted} />}
       {tab === 'transport'  && <PlaceholderSection title="Local transport" detail="Suica/Pasmo IC card setup, day passes, and intercity train suggestions land here once you confirm dates." />}
-      {tab === 'insurance'  && (
-        <InsuranceSection
-          location={props.location}
-          startDate={props.startDate}
-          endDate={props.endDate}
-          travelingFrom={props.travelingFrom}
-        />
+
+      {/* Insurance footer — always visible at the bottom of every
+          Booking sub-tab. Replaces the dedicated 5th tab the user
+          asked us to demote. */}
+      {!loading && !loadError && (
+        <div style={{ marginTop: 32, paddingTop: 24, borderTop: '1px solid var(--brand-border)' }}>
+          <InsuranceSection
+            location={props.location}
+            startDate={props.startDate}
+            endDate={props.endDate}
+            travelingFrom={props.travelingFrom}
+          />
+        </div>
       )}
     </div>
   );
@@ -651,6 +660,7 @@ function HotelCard({ hotel, city, startDate, endDate, tripId, onItineraryAdjuste
   async function addToItinerary() {
     if (!tripId || adjusting) return;
     setAdjusting(true); setAdjustError(null);
+    track('add_to_itinerary', { kind: 'hotel', name: hotel.name, tripId });
     try {
       const r = await fetch('/api/itinerary/adjust', {
         method: 'POST',
@@ -1026,6 +1036,7 @@ function HotelCard({ hotel, city, startDate, endDate, tripId, onItineraryAdjuste
               href={bookingHref}
               target="_blank"
               rel="noopener noreferrer sponsored"
+              onClick={() => track('book_intent', { kind: 'hotel', provider: 'booking.com', name: hotel.name, district: hotel.district, price: hotel.price })}
               style={{
                 padding: '8px 14px', borderRadius: 10,
                 background: hotel.booked ? 'transparent' : 'var(--brand-accent)',
@@ -1708,6 +1719,7 @@ function FlightOptionAggregator({ option, startDate, endDate }: {
         href={primary.href}
         target="_blank"
         rel="noopener noreferrer sponsored"
+        onClick={() => track('book_intent', { kind: 'flight', provider: primary.name, carrier: option.carrier, from, to, price: option.totalPrice })}
         style={{
           padding: '10px 16px', borderRadius: 999,
           background: 'var(--brand-accent)', color: 'var(--brand-bg)',
@@ -1798,6 +1810,7 @@ function ActivityCard({ activity: a, tripId, onItineraryAdjusted }: {
   async function addToItinerary() {
     if (!tripId || adjusting) return;
     setAdjusting(true); setAdjustError(null);
+    track('add_to_itinerary', { kind: 'activity', name: a.name, tripId });
     try {
       const r = await fetch('/api/itinerary/adjust', {
         method: 'POST',
@@ -2025,6 +2038,7 @@ function InsuranceSection({
             href={p.href}
             target="_blank"
             rel="noopener noreferrer sponsored"
+            onClick={() => track('book_intent', { kind: 'insurance', provider: p.name, location })}
             style={{
               display: 'flex', flexDirection: 'column', gap: 10,
               padding: '20px 22px', borderRadius: 14,

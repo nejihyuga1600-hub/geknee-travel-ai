@@ -8,7 +8,11 @@ export type AnalyticsEvent =
   | 'first_unlock'
   | 'plan_saved'
   | 'upgrade_click'
-  | 'share_click';
+  | 'share_click'
+  // Booking-tab funnel — captures intent (the click), not the actual
+  // completed booking (those'd come via a partner webhook).
+  | 'book_intent'
+  | 'add_to_itinerary';
 
 let initialized = false;
 
