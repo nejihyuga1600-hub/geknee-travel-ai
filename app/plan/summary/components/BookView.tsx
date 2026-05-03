@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import type { BookTabProps } from '../lib/types';
 import { fetchPlaceImage, imgCache } from '../lib/places';
-import { loadUserHome } from '@/lib/userHome';
+import { loadUserHome, saveUserHome, type UserHome } from '@/lib/userHome';
+import { AIRPORT_COORDS } from '@/lib/airport-coords';
 
 // Locale → ISO 4217 currency map. Mirrors the SummaryView logic; kept
 // inline rather than shared because BookView is its own dynamic import
@@ -189,6 +190,17 @@ export default function BookView(props: BookTabProps) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // Active home airport — persisted in localStorage. Editable by the
+  // user via the "Change" pill in the Flights section so they can
+  // override what geolocation picked (or set one if they skipped the
+  // permission banner).
+  const [homeAirport, setHomeAirport] = useState<UserHome | null>(null);
+  useEffect(() => { setHomeAirport(loadUserHome()); }, []);
+  function changeHomeAirport(rec: { iata: string; city: string; country: string; countryCode: string; lat: number; lng: number }) {
+    const home: UserHome = { ...rec, capturedAt: Date.now() };
+    saveUserHome(home);
+    setHomeAirport(home);
+  }
 
   // Fetch trip-specific suggestions on mount (and any time the destination
   // or dates change). Cached server-side so navigating away and back is
@@ -214,10 +226,9 @@ export default function BookView(props: BookTabProps) {
         // when user grants location on the globe page → resolves to
         // nearest IATA via lib/airport-coords). Server-side this beats
         // travelingFrom and userHomeCountry when present.
-        userHomeAirport: (() => {
-          const h = loadUserHome();
-          return h ? { iata: h.iata, city: h.city, country: h.country } : undefined;
-        })(),
+        userHomeAirport: homeAirport
+          ? { iata: homeAirport.iata, city: homeAirport.city, country: homeAirport.country }
+          : undefined,
         // Locale-derived country fallback when geolocation wasn't given.
         userHomeCountry: detectUserOrigin(),
         currency: detectUserCurrency(),
@@ -238,7 +249,7 @@ export default function BookView(props: BookTabProps) {
       .catch(() => { if (!cancelled) setLoadError('Network error'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [props.location, props.startDate, props.endDate, props.nights, props.budget, props.style, props.travelingFrom]);
+  }, [props.location, props.startDate, props.endDate, props.nights, props.budget, props.style, props.travelingFrom, homeAirport?.iata]);
 
   const counts = useMemo(() => ({
     stays:      hotels.filter(h => h.booked).length,
@@ -352,7 +363,7 @@ export default function BookView(props: BookTabProps) {
       {!loading && !loadError && tab === 'stays'      && <StaysSection hotels={hotels} location={props.location} startDate={props.startDate} endDate={props.endDate} nights={props.nights} />}
       {!loading && !loadError && tab === 'flights' && (
         flightOptions.length > 0
-          ? <FlightOptionsSection options={flightOptions} startDate={props.startDate} endDate={props.endDate} />
+          ? <FlightOptionsSection options={flightOptions} startDate={props.startDate} endDate={props.endDate} homeAirport={homeAirport} onChangeHome={changeHomeAirport} />
           : (flight && <FlightsSection flight={flight} startDate={props.startDate} endDate={props.endDate} />)
       )}
       {!loading && !loadError && tab === 'activities' && <ActivitiesSection activities={activities} />}
@@ -1027,8 +1038,10 @@ const DEAL_BADGE_COLOR: Record<DealBadge, string> = {
   'BEST VALUE': '#a78bfa',  // lavender
 };
 
-function FlightOptionsSection({ options, startDate, endDate }: {
+function FlightOptionsSection({ options, startDate, endDate, homeAirport, onChangeHome }: {
   options: FlightOption[]; startDate?: string; endDate?: string;
+  homeAirport: UserHome | null;
+  onChangeHome: (rec: { iata: string; city: string; country: string; countryCode: string; lat: number; lng: number }) => void;
 }) {
   return (
     <section>
@@ -1046,18 +1059,145 @@ function FlightOptionsSection({ options, startDate, endDate }: {
       </h2>
       <p style={{
         fontSize: 13, color: 'var(--brand-ink-dim)', lineHeight: 1.55,
-        maxWidth: 640, margin: '0 0 22px',
+        maxWidth: 640, margin: '0 0 18px',
       }}>
         Three options ranked on the trade-offs that matter — price,
         speed, and emissions. Click any card to compare live fares
         across Google Flights, Skyscanner, Kayak, or Expedia.
       </p>
+      <OriginPicker homeAirport={homeAirport} onChange={onChangeHome} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {options.map((o, i) => (
           <FlightOptionCard key={i} option={o} startDate={startDate} endDate={endDate} />
         ))}
       </div>
     </section>
+  );
+}
+
+function OriginPicker({ homeAirport, onChange }: {
+  homeAirport: UserHome | null;
+  onChange: (rec: { iata: string; city: string; country: string; countryCode: string; lat: number; lng: number }) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return AIRPORT_COORDS.slice(0, 8); // first 8 as default
+    return AIRPORT_COORDS.filter(a =>
+      a.iata.toLowerCase().includes(q) ||
+      a.city.toLowerCase().includes(q) ||
+      a.country.toLowerCase().includes(q),
+    ).slice(0, 12);
+  }, [query]);
+
+  return (
+    <div style={{
+      marginBottom: 22, padding: '12px 14px',
+      borderRadius: 12, background: 'rgba(255,255,255,0.03)',
+      border: '1px solid var(--brand-border)',
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <span style={{
+          fontFamily: MONO, fontSize: 10, letterSpacing: '0.16em',
+          color: 'var(--brand-ink-mute)', fontWeight: 700, textTransform: 'uppercase',
+        }}>
+          Departing from
+        </span>
+        {homeAirport ? (
+          <span style={{
+            fontFamily: MONO, fontSize: 12, color: 'var(--brand-ink)', fontWeight: 700,
+          }}>
+            {homeAirport.iata} · {homeAirport.city}, {homeAirport.country}
+          </span>
+        ) : (
+          <span style={{
+            fontFamily: MONO, fontSize: 11, color: 'var(--brand-ink-dim)', fontStyle: 'italic',
+          }}>
+            Not set — using your locale&apos;s default hub
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={() => setOpen(o => !o)}
+          style={{
+            marginLeft: 'auto',
+            padding: '5px 12px', borderRadius: 999,
+            background: 'transparent', border: '1px solid rgba(167,139,250,0.4)',
+            color: 'var(--brand-accent)', fontSize: 10, fontWeight: 700,
+            fontFamily: MONO, letterSpacing: '0.08em', textTransform: 'uppercase',
+            cursor: 'pointer',
+          }}
+        >
+          {open ? 'Cancel' : 'Change'}
+        </button>
+      </div>
+      {open && (
+        <div style={{ marginTop: 12 }}>
+          <input
+            autoFocus
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Search by IATA / city / country (e.g. SFO, Tokyo, Germany)"
+            style={{
+              width: '100%', boxSizing: 'border-box',
+              padding: '9px 12px', borderRadius: 8,
+              background: 'rgba(255,255,255,0.04)',
+              border: '1px solid rgba(167,139,250,0.3)',
+              color: 'var(--brand-ink)', fontSize: 12,
+              fontFamily: 'inherit', outline: 'none',
+            }}
+          />
+          {filtered.length === 0 && (
+            <div style={{
+              padding: 12, fontSize: 11, color: 'var(--brand-ink-dim)',
+              fontFamily: MONO, fontStyle: 'italic',
+            }}>
+              No airport matches. Try a different IATA code or city name.
+            </div>
+          )}
+          {filtered.length > 0 && (
+            <div style={{
+              marginTop: 8, display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 6,
+              maxHeight: 240, overflow: 'auto',
+            }}>
+              {filtered.map(a => (
+                <button
+                  key={a.iata}
+                  type="button"
+                  onClick={() => { onChange(a); setOpen(false); setQuery(''); }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 8,
+                    padding: '8px 12px', borderRadius: 8, textAlign: 'left',
+                    background: 'transparent',
+                    border: '1px solid rgba(255,255,255,0.08)',
+                    color: 'var(--brand-ink)', fontSize: 12,
+                    fontFamily: 'inherit', cursor: 'pointer',
+                    transition: 'border-color 120ms, background 120ms',
+                  }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.borderColor = 'rgba(167,139,250,0.4)';
+                    e.currentTarget.style.background = 'rgba(167,139,250,0.08)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)';
+                    e.currentTarget.style.background = 'transparent';
+                  }}
+                >
+                  <span style={{ fontFamily: MONO, fontWeight: 700, color: 'var(--brand-accent)' }}>
+                    {a.iata}
+                  </span>
+                  <span style={{ color: 'var(--brand-ink-dim)' }}>
+                    {a.city} · {a.country}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 

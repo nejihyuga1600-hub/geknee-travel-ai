@@ -19,8 +19,8 @@ export default function TripTabsLayout({ children }: { children: ReactNode }) {
     // commitments. Vault holds passports / tickets / bookings for the
     // trip, scoped to this tripId.
     { href: `/plan/${tripId}/planning`,  label: 'Planning' },
-    { href: `/plan/${tripId}/booking`,   label: 'Booking' },
     { href: `/plan/${tripId}/itinerary`, label: 'Itinerary' },
+    { href: `/plan/${tripId}/booking`,   label: 'Booking' },
     { href: `/plan/${tripId}/vault`,     label: 'Vault' },
   ];
 
