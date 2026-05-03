@@ -28,23 +28,33 @@ function detectUserCurrency(): string {
   return LOCALE_TO_CURRENCY[lang] ?? LOCALE_TO_CURRENCY[lang.split('-')[0]] ?? 'USD';
 }
 
-// Build a Google Flights deep-link that actually populates origin /
-// destination / dates. Two layers:
-//   1) Direct `?q=` on /travel/flights — works when Google's parser
-//      can match the IATA codes + ISO dates. We use the phrasing
-//      "flights to X from Y on YYYY-MM-DD through YYYY-MM-DD" because
-//      Google's parser keys on "to <dest>" first.
-//   2) Fallback `gtt=` "search the web" param appended so if /travel/
-//      flights' parser fails, the page still shows the right SERP
-//      with a flight widget pre-filled.
-// Carrier name intentionally omitted — when present, Google often
-// drops the date filters and just searches the airline's home page.
+// Build a Google Flights deep-link that populates origin / destination
+// AND dates. Google's q= parser is finicky:
+//   - ISO dates ("2026-04-28") often get dropped or misread
+//   - "on / through" connectors are unreliable
+//   - The phrasing that works: "departing <Month Day> returning <Month
+//     Day>" with full month names. This matches Google's own query-
+//     understanding training set.
+//   - Word order matters: "to <dest> from <origin>" parses better
+//     than the reverse.
+//   - Carrier name omitted — when present, Google drops date filters
+//     entirely and searches the airline's home page.
+function formatLongDate(iso: string): string {
+  if (!iso) return '';
+  const d = new Date(iso + 'T12:00:00Z');
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('en-US', {
+    month: 'long', day: 'numeric', year: 'numeric',
+  });
+}
 function buildGoogleFlightsHref(
   from: string, to: string, isoStart: string, isoEnd: string,
 ): string {
   const parts = [`flights to ${to} from ${from}`];
-  if (isoStart) parts.push(`on ${isoStart}`);
-  if (isoEnd)   parts.push(`through ${isoEnd}`);
+  const departLong = formatLongDate(isoStart);
+  const returnLong = formatLongDate(isoEnd);
+  if (departLong) parts.push(`departing ${departLong}`);
+  if (returnLong) parts.push(`returning ${returnLong}`);
   parts.push('1 adult');
   return `https://www.google.com/travel/flights?hl=en&q=${encodeURIComponent(parts.join(' '))}`;
 }
