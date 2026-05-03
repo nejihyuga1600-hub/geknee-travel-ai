@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { BookTabProps } from '../lib/types';
 
 // Design-handoff booking surface: tabbed layout (Stays / Flights / Activities
@@ -22,16 +22,18 @@ const TABS: { id: Tab; label: string; glyph: string }[] = [
   { id: 'insurance',  label: 'Insurance',  glyph: String.fromCodePoint(0x25C8) },
 ];
 
+type Currency = '¥' | '$' | '€' | '£' | '₹';
+
 interface Hotel {
-  tier: 'EDITORS\' PICK' | 'LOCAL' | 'BUDGET';
+  tier: "EDITORS' PICK" | 'LOCAL' | 'BUDGET';
   district: string;
-  tag: 'HOTEL' | 'RYOKAN' | 'HOSTEL' | 'INN' | 'BNB';
+  tag: 'HOTEL' | 'RYOKAN' | 'HOSTEL' | 'INN' | 'BNB' | 'RIAD' | 'RESORT';
   name: string;
   rating: number;
   features: string[];
   price: number;
-  currency: '¥' | '$' | '€' | '£';
-  booked: boolean;
+  currency: Currency;
+  booked?: boolean;
 }
 
 interface Flight {
@@ -39,8 +41,8 @@ interface Flight {
   segments: { from: string; to: string; departTime: string; arriveTime: string; duration: string }[];
   carrier: string;
   total: number;
-  currency: '¥' | '$' | '€' | '£';
-  status: 'CONFIRMED' | 'PENDING';
+  currency: Currency;
+  status?: 'CONFIRMED' | 'PENDING';
 }
 
 interface Activity {
@@ -48,53 +50,76 @@ interface Activity {
   name: string;
   meta: string;
   price: number;
-  currency: '¥' | '$' | '€' | '£';
-  booked: boolean;
+  currency: Currency;
+  booked?: boolean;
 }
 
-// Representative seed data shaped after the design mocks. The legacy
-// BookTab.tsx does its own live recommendation fetches; this v0 displays
-// concrete examples so the layout reads as designed.
-const MOCK_HOTELS: Hotel[] = [
-  { tier: 'EDITORS\' PICK', district: 'Higashiyama', tag: 'HOTEL', name: 'Park Hyatt Kyoto', rating: 5, features: ['Courtyard view', 'Onsen access', 'Walk to Yasaka 4 min'], price: 58000, currency: '¥', booked: true },
-  { tier: 'LOCAL',         district: 'Nakagyō',     tag: 'RYOKAN', name: 'Tawaraya Ryokan', rating: 5, features: ['300-year machiya', 'Kaiseki dinner', 'Tatami rooms'], price: 42000, currency: '¥', booked: false },
-  { tier: 'BUDGET',        district: 'Downtown',    tag: 'HOSTEL', name: 'Mosaic Hostel',   rating: 4, features: ['Capsule pods', 'Bar downstairs', 'Walk to Nishiki'], price: 7500,  currency: '¥', booked: false },
-];
-
-const MOCK_FLIGHT: Flight = {
-  date: 'APR 13–17',
-  segments: [
-    { from: 'SFO', to: 'ITM', departTime: '11:30 PM', arriveTime: '5:50 AM',  duration: '11h 20m' },
-    { from: 'ITM', to: 'SFO', departTime: '8:40 PM',  arriveTime: '12:25 PM', duration: '9h 45m' },
-  ],
-  carrier: 'JAL',
-  total: 124000,
-  currency: '¥',
-  status: 'CONFIRMED',
-};
-
-const MOCK_ACTIVITIES: Activity[] = [
-  { tag: 'TEA',     name: 'Tea ceremony · Camellia', meta: 'APR 15 · 1:00 PM · ~90 min', price: 6500, currency: '¥', booked: true },
-  { tag: 'FOOD',    name: 'Kyoto Ramen Lab',         meta: 'APR 16 · 7:00 PM · reservation only', price: 3100, currency: '¥', booked: false },
-  { tag: 'CULTURE', name: 'Nishiki Market guided walk', meta: 'APR 16 · 11:00 AM · 2h with chef', price: 8400, currency: '¥', booked: false },
-];
+// Booking suggestions are now generated per-trip by /api/booking-suggestions
+// (Anthropic). The previous hardcoded MOCK_* data was Kyoto-specific and
+// rendered the same Park Hyatt Kyoto cards regardless of destination —
+// the user reported the bug for a Taj Mahal trip.
 
 export default function BookView(props: BookTabProps) {
   const [tab, setTab] = useState<Tab>('stays');
+  const [hotels, setHotels] = useState<Hotel[]>([]);
+  const [flight, setFlight] = useState<Flight | null>(null);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  // Fetch trip-specific suggestions on mount (and any time the destination
+  // or dates change). Cached server-side so navigating away and back is
+  // instant. The previous version hardcoded Kyoto data so the cards never
+  // matched the trip.
+  useEffect(() => {
+    if (!props.location) { setLoading(false); return; }
+    let cancelled = false;
+    setLoading(true);
+    setLoadError(null);
+    fetch('/api/booking-suggestions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        location: props.location,
+        startDate: props.startDate,
+        endDate: props.endDate,
+        nights: props.nights,
+        budget: props.budget,
+        style: props.style,
+        travelingFrom: props.travelingFrom,
+      }),
+    })
+      .then(r => r.json())
+      .then(d => {
+        if (cancelled) return;
+        if (d?.hotels && d?.flight && d?.activities) {
+          setHotels(d.hotels);
+          setFlight(d.flight);
+          setActivities(d.activities);
+        } else {
+          setLoadError(d?.error ?? 'No suggestions returned');
+        }
+      })
+      .catch(() => { if (!cancelled) setLoadError('Network error'); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [props.location, props.startDate, props.endDate, props.nights, props.budget, props.style, props.travelingFrom]);
+
   const counts = useMemo(() => ({
-    stays:      MOCK_HOTELS.filter(h => h.booked).length,
-    flights:    MOCK_FLIGHT.status === 'CONFIRMED' ? 1 : 0,
-    activities: MOCK_ACTIVITIES.filter(a => a.booked).length,
+    stays:      hotels.filter(h => h.booked).length,
+    flights:    flight?.status === 'CONFIRMED' ? 1 : 0,
+    activities: activities.filter(a => a.booked).length,
     transport:  0,
     insurance:  0,
-  }), []);
+  }), [hotels, flight, activities]);
   const totalSpent = useMemo(() => {
-    const hotelTotal = MOCK_HOTELS.find(h => h.booked)?.price ?? 0;
-    const flightTotal = MOCK_FLIGHT.status === 'CONFIRMED' ? MOCK_FLIGHT.total : 0;
-    const actTotal = MOCK_ACTIVITIES.filter(a => a.booked).reduce((s, a) => s + a.price, 0);
+    const hotelTotal = hotels.find(h => h.booked)?.price ?? 0;
+    const flightTotal = flight?.status === 'CONFIRMED' ? flight.total : 0;
+    const actTotal = activities.filter(a => a.booked).reduce((s, a) => s + a.price, 0);
     return hotelTotal + flightTotal + actTotal;
-  }, []);
+  }, [hotels, flight, activities]);
   const totalBookings = counts.stays + counts.flights + counts.activities + counts.transport + counts.insurance;
+  const headerCurrency: Currency = flight?.currency ?? hotels[0]?.currency ?? '$';
 
   return (
     <div style={{
@@ -124,7 +149,7 @@ export default function BookView(props: BookTabProps) {
           fontFamily: MONO, fontSize: 11, letterSpacing: '0.18em',
           color: 'var(--brand-ink-dim)', fontWeight: 700,
         }}>
-          {MOCK_FLIGHT.currency}{totalSpent.toLocaleString()} · {totalBookings} OF 5 BOOKED
+          {headerCurrency}{totalSpent.toLocaleString()} · {totalBookings} OF 5 BOOKED
         </div>
       </div>
 
@@ -163,9 +188,35 @@ export default function BookView(props: BookTabProps) {
         })}
       </div>
 
-      {tab === 'stays'      && <StaysSection hotels={MOCK_HOTELS} location={props.location} startDate={props.startDate} endDate={props.endDate} nights={props.nights} />}
-      {tab === 'flights'    && <FlightsSection flight={MOCK_FLIGHT} />}
-      {tab === 'activities' && <ActivitiesSection activities={MOCK_ACTIVITIES} />}
+      {loading && (
+        <div style={{
+          padding: '40px 24px', borderRadius: 16,
+          background: 'rgba(255,255,255,0.03)',
+          border: '1px solid var(--brand-border)',
+          fontFamily: MONO, fontSize: 11, letterSpacing: '0.12em',
+          textTransform: 'uppercase', color: 'var(--brand-ink-dim)',
+          textAlign: 'center',
+        }}>
+          <span style={{
+            display: 'inline-block', width: 6, height: 6, borderRadius: '50%',
+            background: 'var(--brand-accent)', marginRight: 8,
+            animation: 'pulse 1.4s ease-in-out infinite', verticalAlign: 'middle',
+          }} />
+          Generating booking options for {props.location}…
+        </div>
+      )}
+      {!loading && loadError && (
+        <div style={{
+          padding: '24px', borderRadius: 16,
+          background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.25)',
+          color: '#fca5a5', fontSize: 13,
+        }}>
+          Couldn&apos;t load booking suggestions ({loadError}). Try again in a moment.
+        </div>
+      )}
+      {!loading && !loadError && tab === 'stays'      && <StaysSection hotels={hotels} location={props.location} startDate={props.startDate} endDate={props.endDate} nights={props.nights} />}
+      {!loading && !loadError && tab === 'flights'    && flight && <FlightsSection flight={flight} />}
+      {!loading && !loadError && tab === 'activities' && <ActivitiesSection activities={activities} />}
       {tab === 'transport'  && <PlaceholderSection title="Local transport" detail="Suica/Pasmo IC card setup, day passes, and intercity train suggestions land here once you confirm dates." />}
       {tab === 'insurance'  && <PlaceholderSection title="Travel insurance" detail="World Nomads, SafetyWing, and Allianz quotes appear here based on your trip length and origin country." />}
     </div>
