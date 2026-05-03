@@ -251,7 +251,14 @@ export default function BookView(props: BookTabProps) {
       {!loading && !loadError && tab === 'flights'    && flight && <FlightsSection flight={flight} />}
       {!loading && !loadError && tab === 'activities' && <ActivitiesSection activities={activities} />}
       {tab === 'transport'  && <PlaceholderSection title="Local transport" detail="Suica/Pasmo IC card setup, day passes, and intercity train suggestions land here once you confirm dates." />}
-      {tab === 'insurance'  && <PlaceholderSection title="Travel insurance" detail="World Nomads, SafetyWing, and Allianz quotes appear here based on your trip length and origin country." />}
+      {tab === 'insurance'  && (
+        <InsuranceSection
+          location={props.location}
+          startDate={props.startDate}
+          endDate={props.endDate}
+          travelingFrom={props.travelingFrom}
+        />
+      )}
     </div>
   );
 }
@@ -785,6 +792,160 @@ function ActivitiesSection({ activities }: { activities: Activity[] }) {
               </button>
             </div>
           </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+// ─── Insurance ─────────────────────────────────────────────────────────────
+// Trip-specific quote links to the four major travel-insurance providers.
+// Each URL is built around `location` + `startDate` + `endDate` + the
+// origin country (when known). Where a provider's URL accepts deep-link
+// params we pass them; otherwise we link to the quote-start page so the
+// user only has to confirm once they land on the partner site.
+
+function formatMMDDYYYY(iso?: string): string {
+  if (!iso) return '';
+  const d = new Date(iso + 'T12:00:00Z');
+  if (isNaN(d.getTime())) return '';
+  const m = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  return `${m}/${day}/${d.getUTCFullYear()}`;
+}
+
+interface InsuranceProvider {
+  name: string;
+  tag: string;
+  blurb: string;
+  href: string;
+  accent: string;
+}
+
+function buildInsuranceProviders(
+  location: string,
+  startDate: string,
+  endDate: string,
+  travelingFrom: string,
+): InsuranceProvider[] {
+  const dest = encodeURIComponent(location || '');
+  const fromCountry = encodeURIComponent(travelingFrom || '');
+  const departMD = formatMMDDYYYY(startDate);
+  const returnMD = formatMMDDYYYY(endDate);
+  return [
+    {
+      name: 'World Nomads',
+      tag: 'ADVENTURE',
+      blurb: 'Adventure-friendly cover that travels with you. Strong on activities like trekking, diving, and high-altitude.',
+      // Their quote tool is interactive; the destination param seeds the
+      // first dropdown when they recognize it. Falls through cleanly
+      // when they don't.
+      href: `https://www.worldnomads.com/travel-insurance?destination=${dest}&utm_source=geknee`,
+      accent: '#34d399',
+    },
+    {
+      name: 'SafetyWing Nomad',
+      tag: 'LONG-TERM',
+      blurb: 'Subscription medical + travel insurance. Best for digital nomads or trips longer than a few weeks.',
+      href: `https://safetywing.com/nomad-insurance?utm_source=geknee&country=${dest}`,
+      accent: '#7dd3fc',
+    },
+    {
+      name: 'Allianz Travel',
+      tag: 'CLASSIC',
+      blurb: 'Trip cancellation, medical, baggage. Strong claims handling — the default for full-service plans.',
+      // Allianz's quote URL accepts depart/return + destination on the
+      // get-quote landing; if any param is unknown they show the form.
+      href: `https://www.allianztravelinsurance.com/get-quote.htm?destination=${dest}${departMD ? `&depart=${departMD}` : ''}${returnMD ? `&return=${returnMD}` : ''}`,
+      accent: '#a78bfa',
+    },
+    {
+      name: 'InsureMyTrip',
+      tag: 'COMPARE',
+      blurb: 'Aggregator. Quotes 30+ plans side-by-side so you can compare excess and coverage limits in one view.',
+      href: `https://www.insuremytrip.com/quote/?destination=${dest}${departMD ? `&depart=${departMD}` : ''}${returnMD ? `&return=${returnMD}` : ''}${fromCountry ? `&residence=${fromCountry}` : ''}`,
+      accent: '#fbbf24',
+    },
+  ];
+}
+
+function InsuranceSection({
+  location, startDate, endDate, travelingFrom = '',
+}: {
+  location: string; startDate: string; endDate: string; travelingFrom?: string;
+}) {
+  const providers = buildInsuranceProviders(location, startDate, endDate, travelingFrom);
+  return (
+    <section>
+      <div style={{
+        fontFamily: MONO, fontSize: 10, letterSpacing: '0.22em',
+        color: 'var(--brand-ink-mute)', fontWeight: 700, marginBottom: 14,
+      }}>
+        {String.fromCodePoint(0x00A7)} INSURANCE · {(location || 'TRIP').toUpperCase()} · {startDate || '—'} → {endDate || '—'}
+      </div>
+      <h2 style={{
+        fontFamily: DISPLAY, fontSize: 'clamp(24px, 3vw, 32px)', fontWeight: 400,
+        letterSpacing: '-0.02em', lineHeight: 1.1, margin: '0 0 8px',
+      }}>
+        Got you covered.
+      </h2>
+      <p style={{
+        fontSize: 13, color: 'var(--brand-ink-dim)', lineHeight: 1.55,
+        maxWidth: 640, margin: '0 0 22px',
+      }}>
+        Quotes pre-filled with your destination and dates. Each link opens
+        the provider&apos;s site in a new tab — review the policy details
+        before you buy.
+      </p>
+      <div style={{
+        display: 'grid', gap: 14,
+        gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+      }}>
+        {providers.map(p => (
+          <a
+            key={p.name}
+            href={p.href}
+            target="_blank"
+            rel="noopener noreferrer sponsored"
+            style={{
+              display: 'flex', flexDirection: 'column', gap: 10,
+              padding: '20px 22px', borderRadius: 14,
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid var(--brand-border)',
+              color: 'var(--brand-ink)', textDecoration: 'none',
+              transition: 'border-color 150ms, transform 150ms',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = p.accent; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--brand-border)'; }}
+          >
+            <div style={{
+              fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em',
+              color: p.accent, fontWeight: 700,
+            }}>
+              {p.tag}
+            </div>
+            <div style={{
+              fontFamily: DISPLAY, fontSize: 20, fontWeight: 400,
+              letterSpacing: '-0.01em', lineHeight: 1.2,
+            }}>
+              {p.name}
+            </div>
+            <p style={{
+              margin: 0, fontSize: 12, color: 'var(--brand-ink-dim)',
+              lineHeight: 1.55,
+            }}>
+              {p.blurb}
+            </p>
+            <div style={{
+              marginTop: 6, paddingTop: 12,
+              borderTop: '1px solid var(--brand-border)',
+              fontFamily: MONO, fontSize: 10, letterSpacing: '0.14em',
+              color: p.accent, fontWeight: 700, textTransform: 'uppercase',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+              Get quote {String.fromCodePoint(0x2192)}
+            </div>
+          </a>
         ))}
       </div>
     </section>
