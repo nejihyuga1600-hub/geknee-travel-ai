@@ -27,6 +27,7 @@ interface SuggestionsRequest {
   userHomeAirport?: { iata: string; city: string; country: string };
   userHomeCountry?: string; // fallback origin from client locale
   currency?: string; // ISO code, used as a hint for the secondary price
+  itineraryPlaces?: string[]; // place names already in the user's itinerary
 }
 
 const SYSTEM = `You are a travel-booking assistant generating realistic, well-known booking options for a destination. Respond with ONLY a single JSON object — no markdown fences, no commentary, no leading/trailing prose. Use real venues that a knowledgeable concierge would name. Match the budget level: a luxury traveler should not see hostels; a budget traveler should not see Park Hyatt.`;
@@ -62,6 +63,13 @@ ${(() => {
 })()}
 User's home currency: ${homeCcy} (${homeSymbol}). All prices below MUST be in ${homeCcy}; convert from local currency to ${homeCcy} using current approximate rates. Use the symbol "${homeSymbol}" for every \`currency\` field.
 
+${(p.itineraryPlaces && p.itineraryPlaces.length > 0)
+  ? `EXISTING ITINERARY PLACES (the user has already chosen these as activities or stops):
+${p.itineraryPlaces.map(s => `- ${s}`).join('\n')}
+
+When a hotel is in the same neighborhood as one of these places, OR an activity exactly matches one of these places (case-insensitive name match), set its \`fromItinerary\` field to true. For everything else, set \`fromItinerary\` to false. Bias your hotel district choices toward neighborhoods that put guests close to multiple itinerary places.\n`
+  : ''}
+
 Return ONLY a JSON object with this exact shape:
 
 {
@@ -74,7 +82,8 @@ Return ONLY a JSON object with this exact shape:
       "rating": 4 or 5,
       "features": ["short feature 1", "short feature 2", "short feature 3"],
       "price": number (per night, IN ${homeCcy}),
-      "currency": "${homeSymbol}"
+      "currency": "${homeSymbol}",
+      "fromItinerary": boolean (true if the hotel sits in the same neighborhood as one of the user's existing itinerary places — see ITINERARY PLACES rule above; otherwise false)
     }
     // EXACTLY 4 hotels: 1 EDITORS' PICK luxury, 2 LOCAL mid-range, 1 BUDGET
   ],
@@ -140,9 +149,14 @@ Return ONLY a JSON object with this exact shape:
       "name": "real bookable experience or venue",
       "meta": "date · time · duration",
       "price": number (IN ${homeCcy}),
-      "currency": "${homeSymbol}"
+      "currency": "${homeSymbol}",
+      "fromItinerary": boolean (true if the activity name matches one of the user's existing itinerary places — case-insensitive — otherwise false)
     }
-    // EXACTLY 4 activities, varied tags, fitting the budget level
+    // EXACTLY 4 activities, varied tags, fitting the budget level. Try
+    // to include 1-2 activities that already appear in the itinerary
+    // (set fromItinerary: true), and 2-3 fresh suggestions
+    // (fromItinerary: false) so the user has both reinforcement and
+    // discovery.
   ]
 }
 

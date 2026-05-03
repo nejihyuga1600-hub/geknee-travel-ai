@@ -57,6 +57,34 @@ function detectUserOrigin(): string {
   return LOCALE_TO_ORIGIN[lang] ?? LOCALE_TO_ORIGIN[lang.split('-')[0]] ?? 'United States';
 }
 
+// Pull bold place names out of the streamed itinerary text so we can
+// tell the booking AI which suggestions overlap with what the user
+// already plans to visit. Filters obvious non-place tokens (Day 1,
+// Morning, Tips, etc.) and dedupes case-insensitively.
+const _ITIN_GENERIC = new Set([
+  'morning', 'afternoon', 'evening', 'night', 'breakfast', 'lunch', 'dinner',
+  'day', 'overview', 'tips', 'highlights', 'note', 'budget', 'cost',
+  'total', 'estimated', 'optional', 'practical', 'transport', 'activities',
+  'monument quest',
+]);
+function extractItineraryPlaces(text?: string): string[] {
+  if (!text) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  const re = /\*\*([A-Z][^*]{2,60})\*\*/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    const raw = m[1].trim();
+    const key = raw.toLowerCase();
+    if (_ITIN_GENERIC.has(key.split(/[\s(]/)[0])) continue;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(raw);
+    if (out.length >= 30) break;
+  }
+  return out;
+}
+
 // Build a Google Flights deep-link that populates origin / destination
 // AND dates. Google's q= parser is finicky:
 //   - ISO dates ("2026-04-28") often get dropped or misread
@@ -119,6 +147,7 @@ interface Hotel {
   price: number;
   currency: Currency;
   booked?: boolean;
+  fromItinerary?: boolean;
 }
 
 interface Flight {
@@ -175,6 +204,7 @@ interface Activity {
   price: number;
   currency: Currency;
   booked?: boolean;
+  fromItinerary?: boolean;
 }
 
 // Booking suggestions are now generated per-trip by /api/booking-suggestions
@@ -232,6 +262,10 @@ export default function BookView(props: BookTabProps) {
         // Locale-derived country fallback when geolocation wasn't given.
         userHomeCountry: detectUserOrigin(),
         currency: detectUserCurrency(),
+        // Pull the bold place names out of the streamed itinerary so
+        // the AI can mark hotel/activity suggestions as fromItinerary
+        // when they overlap with what the user already plans to visit.
+        itineraryPlaces: extractItineraryPlaces(props.fullItinerary).slice(0, 24),
       }),
     })
       .then(r => r.json())
@@ -605,8 +639,20 @@ function HotelCard({ hotel, city, startDate, endDate }: {
           pointerEvents: 'none',
         }}>{hotel.tier}</div>
 
-        {/* Booked badge */}
-        {hotel.booked && (
+        {/* Booked / From-itinerary badge — top-right. fromItinerary
+            takes precedence (it's the "this matches your day plan"
+            signal); booked only relevant once that flow exists. */}
+        {hotel.fromItinerary ? (
+          <div style={{
+            position: 'absolute', top: 12, right: 12,
+            fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em',
+            padding: '4px 10px', borderRadius: 4,
+            background: 'rgba(251,191,36,0.18)',
+            color: 'var(--brand-gold, #fbbf24)',
+            border: '1px solid var(--brand-gold, #fbbf24)', fontWeight: 700,
+            pointerEvents: 'none',
+          }}>★ FROM ITINERARY</div>
+        ) : hotel.booked ? (
           <div style={{
             position: 'absolute', top: 12, right: 12,
             fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em',
@@ -616,7 +662,7 @@ function HotelCard({ hotel, city, startDate, endDate }: {
             border: '1px solid var(--brand-accent-2)', fontWeight: 700,
             pointerEvents: 'none',
           }}>{String.fromCodePoint(0x2713)} BOOKED</div>
-        )}
+        ) : null}
 
         {/* Slideshow controls — rendered only when there's >1 image. */}
         {hasMultiple && (
@@ -1502,12 +1548,17 @@ function ActivitiesSection({ activities }: { activities: Activity[] }) {
               }}>
                 {a.tag}
               </div>
-              {a.booked && (
+              {a.fromItinerary ? (
+                <div style={{
+                  fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em',
+                  color: 'var(--brand-gold, #fbbf24)', fontWeight: 700,
+                }}>★ FROM ITINERARY</div>
+              ) : a.booked ? (
                 <div style={{
                   fontFamily: MONO, fontSize: 9, letterSpacing: '0.14em',
                   color: 'var(--brand-success)', fontWeight: 700,
                 }}>{String.fromCodePoint(0x2713)} BOOKED</div>
-              )}
+              ) : null}
             </div>
             <div style={{
               fontFamily: DISPLAY, fontSize: 18, fontWeight: 400,
