@@ -248,7 +248,7 @@ export default function BookView(props: BookTabProps) {
         </div>
       )}
       {!loading && !loadError && tab === 'stays'      && <StaysSection hotels={hotels} location={props.location} startDate={props.startDate} endDate={props.endDate} nights={props.nights} />}
-      {!loading && !loadError && tab === 'flights'    && flight && <FlightsSection flight={flight} />}
+      {!loading && !loadError && tab === 'flights'    && flight && <FlightsSection flight={flight} startDate={props.startDate} endDate={props.endDate} />}
       {!loading && !loadError && tab === 'activities' && <ActivitiesSection activities={activities} />}
       {tab === 'transport'  && <PlaceholderSection title="Local transport" detail="Suica/Pasmo IC card setup, day passes, and intercity train suggestions land here once you confirm dates." />}
       {tab === 'insurance'  && (
@@ -301,7 +301,7 @@ function StaysSection({ hotels, location, startDate, endDate, nights }: {
         gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
         gap: 16,
       }}>
-        {hotels.map((h, i) => <HotelCard key={i} hotel={h} city={location} />)}
+        {hotels.map((h, i) => <HotelCard key={i} hotel={h} city={location} startDate={startDate} endDate={endDate} />)}
       </div>
     </section>
   );
@@ -332,7 +332,23 @@ const TIER_COLOR: Record<Hotel['tier'], string> = {
 // session doesn't re-hit /api/place-images. Keyed on "<name>||<city>".
 const galleryCache = new Map<string, string[]>();
 
-function HotelCard({ hotel, city }: { hotel: Hotel; city: string }) {
+function HotelCard({ hotel, city, startDate, endDate }: {
+  hotel: Hotel; city: string; startDate?: string; endDate?: string;
+}) {
+  // Booking.com search URL — works for any hotel name. Booking's search
+  // engine fuzzy-matches `ss=` to known properties, so a real hotel
+  // lands on its detail page; an unknown name lands on a results list
+  // for the city. Either way the user can complete the booking.
+  const bookingHref = (() => {
+    const params = new URLSearchParams({
+      ss: `${hotel.name}, ${city}`,
+      group_adults: '2',
+      no_rooms: '1',
+    });
+    if (startDate) params.set('checkin', startDate);
+    if (endDate)   params.set('checkout', endDate);
+    return `https://www.booking.com/searchresults.html?${params}`;
+  })();
   const tierColor = TIER_COLOR[hotel.tier];
   const cacheKey = `${hotel.name}||${city}`;
   // Eagerly fetch the full image set on mount (up to 5 photos via
@@ -652,16 +668,22 @@ function HotelCard({ hotel, city }: { hotel: Hotel; city: string }) {
               PER NIGHT
             </div>
           </div>
-          <button style={{
-            padding: '8px 14px', borderRadius: 10,
-            background: hotel.booked ? 'transparent' : 'var(--brand-accent)',
-            color: hotel.booked ? 'var(--brand-accent)' : 'var(--brand-bg)',
-            border: hotel.booked ? '1px solid var(--brand-border-hi)' : 'none',
-            fontFamily: 'inherit', fontSize: 12, fontWeight: 700,
-            cursor: 'pointer', whiteSpace: 'nowrap',
-          }}>
+          <a
+            href={bookingHref}
+            target="_blank"
+            rel="noopener noreferrer sponsored"
+            style={{
+              padding: '8px 14px', borderRadius: 10,
+              background: hotel.booked ? 'transparent' : 'var(--brand-accent)',
+              color: hotel.booked ? 'var(--brand-accent)' : 'var(--brand-bg)',
+              border: hotel.booked ? '1px solid var(--brand-border-hi)' : 'none',
+              fontFamily: 'inherit', fontSize: 12, fontWeight: 700,
+              cursor: 'pointer', whiteSpace: 'nowrap',
+              textDecoration: 'none', display: 'inline-block',
+            }}
+          >
             {hotel.booked ? 'Manage' : `Book ${String.fromCodePoint(0x2192)}`}
-          </button>
+          </a>
         </div>
       </div>
     </div>
@@ -682,7 +704,9 @@ function Stars({ value }: { value: number }) {
 
 // ─── Flights ───────────────────────────────────────────────────────────────
 
-function FlightsSection({ flight }: { flight: Flight }) {
+function FlightsSection({ flight, startDate, endDate }: {
+  flight: Flight; startDate?: string; endDate?: string;
+}) {
   return (
     <section>
       <div style={{
@@ -778,7 +802,108 @@ function FlightsSection({ flight }: { flight: Flight }) {
           </div>
         </div>
       </div>
+
+      {/* Aggregator search row — like Wanderlog/TripAdvisor patterns,
+          one-click handoff to the major flight engines with the trip's
+          dates + IATA codes pre-filled. The price the AI suggested is
+          an estimate; users actually book on the partner site. */}
+      <FlightAggregatorButtons flight={flight} startDate={startDate} endDate={endDate} />
     </section>
+  );
+}
+
+function FlightAggregatorButtons({ flight, startDate, endDate }: {
+  flight: Flight; startDate?: string; endDate?: string;
+}) {
+  const out = flight.segments[0];
+  const ret = flight.segments[1];
+  const from = out?.from ?? '';
+  const to   = out?.to   ?? '';
+  if (!from || !to) return null;
+
+  // Normalize dates to the formats each provider expects.
+  const isoStart = startDate || '';
+  const isoEnd   = endDate   || '';
+  const skyDate = (iso: string) =>
+    iso ? iso.slice(2, 4) + iso.slice(5, 7) + iso.slice(8, 10) : '';
+  const ymdStart = isoStart;
+  const ymdEnd   = isoEnd;
+  const skyStart = skyDate(isoStart);
+  const skyEnd   = skyDate(isoEnd);
+
+  // Search URLs — all accept query params we know to encode.
+  const googleHref =
+    `https://www.google.com/travel/flights?q=` +
+    encodeURIComponent(`Flights from ${from} to ${to}${isoStart ? ` on ${isoStart}` : ''}${isoEnd ? ` returning ${isoEnd}` : ''}`);
+  const skyscannerHref =
+    `https://www.skyscanner.com/transport/flights/${from.toLowerCase()}/${to.toLowerCase()}/` +
+    `${skyStart || ''}${skyEnd ? `/${skyEnd}` : ''}/?adults=1&rtn=${ret ? 1 : 0}`;
+  const kayakHref =
+    `https://www.kayak.com/flights/${from}-${to}` +
+    `${ymdStart ? `/${ymdStart}` : ''}${ymdEnd ? `/${ymdEnd}` : ''}`;
+  const expediaHref =
+    `https://www.expedia.com/Flights-Search?` +
+    new URLSearchParams({
+      trip: ret ? 'roundtrip' : 'oneway',
+      'leg1': `from:${from},to:${to}${isoStart ? `,departure:${isoStart}TANYT` : ''}`,
+      ...(ret && isoEnd ? { 'leg2': `from:${to},to:${from},departure:${isoEnd}TANYT` } : {}),
+      passengers: 'adults:1',
+      mode: 'search',
+    }).toString();
+
+  const buttons = [
+    { name: 'Google Flights',  href: googleHref,    accent: '#93c5fd', icon: '✈️' },
+    { name: 'Skyscanner',      href: skyscannerHref, accent: '#7dd3fc', icon: '🔍' },
+    { name: 'Kayak',           href: kayakHref,     accent: '#fbbf24', icon: '🛬' },
+    { name: 'Expedia',         href: expediaHref,   accent: '#fcd34d', icon: '🌐' },
+  ];
+
+  return (
+    <div style={{ marginTop: 18 }}>
+      <div style={{
+        fontFamily: MONO, fontSize: 10, letterSpacing: '0.18em',
+        color: 'var(--brand-ink-mute)', fontWeight: 700, marginBottom: 10,
+        textTransform: 'uppercase',
+      }}>
+        Search live prices · {from} → {to}
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+        {buttons.map(b => (
+          <a
+            key={b.name}
+            href={b.href}
+            target="_blank"
+            rel="noopener noreferrer sponsored"
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              padding: '10px 16px', borderRadius: 999,
+              background: 'rgba(255,255,255,0.03)',
+              border: '1px solid rgba(255,255,255,0.12)',
+              color: b.accent, textDecoration: 'none',
+              fontFamily: 'inherit', fontSize: 12, fontWeight: 700,
+              transition: 'border-color 150ms, background 150ms',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = b.accent;
+              e.currentTarget.style.background = 'rgba(255,255,255,0.06)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)';
+              e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+            }}
+          >
+            <span style={{ fontSize: 14 }}>{b.icon}</span>
+            {b.name}
+            <span style={{ opacity: 0.55, fontSize: 11 }}>↗</span>
+          </a>
+        ))}
+      </div>
+      <div style={{
+        marginTop: 10, fontSize: 11, color: 'var(--brand-ink-dim)', lineHeight: 1.5,
+      }}>
+        The {flight.carrier && `${flight.carrier} ${flight.currency}${flight.total.toLocaleString()}`} estimate above is from public schedules — actual fare and availability depend on dates, class, and aggregator. Click any provider to compare live.
+      </div>
+    </div>
   );
 }
 
