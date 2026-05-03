@@ -63,7 +63,7 @@ Return ONLY a JSON object with this exact shape:
     // EXACTLY 4 hotels: 1 EDITORS' PICK luxury, 2 LOCAL mid-range, 1 BUDGET
   ],
   "flight": {
-    "date": "e.g. APR 13–17",
+    "date": "two date labels separated by an en-dash, like 'APR 28–MAY 1' or 'OCT 15–22'. Each label must include the month abbreviation. Used as: split by '–' to label outbound and return.",
     "carrier": "real major airline serving this route",
     "segments": [
       {
@@ -71,9 +71,13 @@ Return ONLY a JSON object with this exact shape:
         "to": "3-letter IATA code",
         "departTime": "e.g. 11:30 PM",
         "arriveTime": "e.g. 5:50 AM",
-        "duration": "e.g. 11h 20m"
+        "duration": "e.g. 11h 20m",
+        "via": "connecting city if not non-stop, omit field for direct flights"
       }
-      // EXACTLY 2 segments: outbound + return
+      // EXACTLY 2 segments: outbound + return.
+      // If you don't know the routing for sure, OMIT the "via" field —
+      // do NOT guess a connecting city. The UI defaults to "Direct"
+      // when via is missing.
     ],
     "total": number (round-trip total, IN ${homeCcy}),
     "currency": "${homeSymbol}",

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { BookTabProps } from '../lib/types';
 import { fetchPlaceImage, imgCache } from '../lib/places';
 
@@ -62,7 +63,14 @@ interface Hotel {
 
 interface Flight {
   date: string;
-  segments: { from: string; to: string; departTime: string; arriveTime: string; duration: string }[];
+  segments: {
+    from: string;
+    to: string;
+    departTime: string;
+    arriveTime: string;
+    duration: string;
+    via?: string; // optional connecting city; falls back to "Direct"
+  }[];
   carrier: string;
   total: number;
   currency: Currency;
@@ -313,6 +321,10 @@ const TIER_COLOR: Record<Hotel['tier'], string> = {
   'BUDGET':         'var(--brand-ink-dim)',
 };
 
+// Module-scoped gallery cache so re-mounting a HotelCard during the
+// session doesn't re-hit /api/place-images. Keyed on "<name>||<city>".
+const galleryCache = new Map<string, string[]>();
+
 function HotelCard({ hotel, city }: { hotel: Hotel; city: string }) {
   const tierColor = TIER_COLOR[hotel.tier];
   // Lazy-load a real photo of the hotel via the existing fetchPlaceImage
@@ -322,6 +334,14 @@ function HotelCard({ hotel, city }: { hotel: Hotel; city: string }) {
   const cacheKey = `${hotel.name}||${city}`;
   const cachedImg = imgCache.has(cacheKey) ? (imgCache.get(cacheKey) || null) : undefined;
   const [imgSrc, setImgSrc] = useState<string | null | undefined>(cachedImg);
+  // Multi-image gallery for the lightbox — populated on first open via
+  // /api/place-images (Google Places returns up to 5 photos per place).
+  // Falls back to [thumbnailSrc] when Google has nothing extra.
+  const cachedGallery = galleryCache.get(cacheKey);
+  const [gallery, setGallery] = useState<string[] | null>(cachedGallery ?? null);
+  const [open, setOpen] = useState(false);
+  const [galleryIdx, setGalleryIdx] = useState(0);
+
   useEffect(() => {
     if (imgCache.has(cacheKey)) { setImgSrc(imgCache.get(cacheKey) || null); return; }
     let cancelled = false;
@@ -333,6 +353,50 @@ function HotelCard({ hotel, city }: { hotel: Hotel; city: string }) {
     return () => { cancelled = true; };
   }, [cacheKey, hotel.name, city]);
 
+  // Esc-closes lightbox; lock body scroll while open so the page
+  // behind doesn't drift.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+      if (e.key === 'ArrowLeft' && gallery && gallery.length > 1) {
+        setGalleryIdx(i => (i - 1 + gallery.length) % gallery.length);
+      }
+      if (e.key === 'ArrowRight' && gallery && gallery.length > 1) {
+        setGalleryIdx(i => (i + 1) % gallery.length);
+      }
+    };
+    const prev = document.body.style.overflow;
+    document.addEventListener('keydown', onKey);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prev;
+    };
+  }, [open, gallery]);
+
+  async function openLightbox() {
+    if (!imgSrc) return;
+    setGalleryIdx(0);
+    setOpen(true);
+    if (gallery) return;
+    // Fetch the full image set the first time the user opens the box.
+    try {
+      const params = new URLSearchParams({ name: hotel.name, location: city });
+      const r = await fetch(`/api/place-images?${params}`);
+      if (r.ok) {
+        const d = await r.json() as { images?: string[] };
+        const images = d.images && d.images.length > 0 ? d.images : [imgSrc];
+        galleryCache.set(cacheKey, images);
+        setGallery(images);
+        return;
+      }
+    } catch { /* network */ }
+    // Fallback: show just the thumbnail in the lightbox.
+    galleryCache.set(cacheKey, [imgSrc]);
+    setGallery([imgSrc]);
+  }
+
   return (
     <div style={{
       borderRadius: 14, overflow: 'hidden',
@@ -340,16 +404,24 @@ function HotelCard({ hotel, city }: { hotel: Hotel; city: string }) {
       border: `1px solid ${hotel.booked ? 'var(--brand-border-hi)' : 'var(--brand-border)'}`,
       display: 'flex', flexDirection: 'column',
     }}>
-      <div style={{
-        position: 'relative',
-        aspectRatio: '16/10',
-        background: imgSrc
-          ? '#0a0a1f'
-          : 'linear-gradient(135deg, rgba(167,139,250,0.10), rgba(125,211,252,0.06))',
-        display: 'grid', placeItems: 'center',
-        color: 'rgba(167,139,250,0.4)', fontSize: 28,
-        fontFamily: DISPLAY, overflow: 'hidden',
-      }}>
+      <button
+        type="button"
+        onClick={openLightbox}
+        disabled={!imgSrc}
+        aria-label={imgSrc ? `View photos of ${hotel.name}` : hotel.name}
+        style={{
+          position: 'relative',
+          aspectRatio: '16/10',
+          background: imgSrc
+            ? '#0a0a1f'
+            : 'linear-gradient(135deg, rgba(167,139,250,0.10), rgba(125,211,252,0.06))',
+          display: 'grid', placeItems: 'center',
+          color: 'rgba(167,139,250,0.4)', fontSize: 28,
+          fontFamily: DISPLAY, overflow: 'hidden',
+          padding: 0, border: 'none',
+          cursor: imgSrc ? 'zoom-in' : 'default',
+        }}
+      >
         {imgSrc ? (
           <img
             src={imgSrc} alt={hotel.name} loading="lazy"
@@ -369,6 +441,16 @@ function HotelCard({ hotel, city }: { hotel: Hotel; city: string }) {
           border: `1px solid ${tierColor}`, fontWeight: 700,
           backdropFilter: 'blur(6px)',
         }}>{hotel.tier}</div>
+        {imgSrc && (
+          <div style={{
+            position: 'absolute', bottom: 10, right: 10,
+            fontFamily: MONO, fontSize: 9, letterSpacing: '0.16em',
+            padding: '4px 9px', borderRadius: 4,
+            background: 'rgba(10,10,31,0.7)', color: 'rgba(255,255,255,0.85)',
+            border: '1px solid rgba(255,255,255,0.12)', fontWeight: 700,
+            backdropFilter: 'blur(6px)',
+          }}>+ Photos</div>
+        )}
         {hotel.booked && (
           <div style={{
             position: 'absolute', top: 12, right: 12,
@@ -379,7 +461,78 @@ function HotelCard({ hotel, city }: { hotel: Hotel; city: string }) {
             border: '1px solid var(--brand-accent-2)', fontWeight: 700,
           }}>{String.fromCodePoint(0x2713)} BOOKED</div>
         )}
-      </div>
+      </button>
+
+      {/* Lightbox carousel — rendered through createPortal so the sticky
+          tab nav and any transformed ancestors don't clip it. */}
+      {open && gallery && typeof document !== 'undefined' && createPortal(
+        <div
+          onClick={() => setOpen(false)}
+          role="dialog"
+          aria-label={`Photos of ${hotel.name}`}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0,0,0,0.94)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: '5vh 5vw', cursor: 'zoom-out',
+          }}
+        >
+          <img
+            src={gallery[galleryIdx]} alt={hotel.name}
+            onClick={e => e.stopPropagation()}
+            style={{
+              maxWidth: '100%', maxHeight: '100%', objectFit: 'contain',
+              borderRadius: 8, boxShadow: '0 20px 60px rgba(0,0,0,0.6)',
+              cursor: 'default',
+            }}
+          />
+          {gallery.length > 1 && (
+            <>
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); setGalleryIdx(i => (i - 1 + gallery.length) % gallery.length); }}
+                aria-label="Previous photo"
+                style={{
+                  position: 'absolute', left: 24, top: '50%', transform: 'translateY(-50%)',
+                  width: 40, height: 40, borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.12)', border: 'none',
+                  color: '#fff', fontSize: 22, cursor: 'pointer', lineHeight: 1,
+                }}
+              >‹</button>
+              <button
+                type="button"
+                onClick={e => { e.stopPropagation(); setGalleryIdx(i => (i + 1) % gallery.length); }}
+                aria-label="Next photo"
+                style={{
+                  position: 'absolute', right: 24, top: '50%', transform: 'translateY(-50%)',
+                  width: 40, height: 40, borderRadius: '50%',
+                  background: 'rgba(255,255,255,0.12)', border: 'none',
+                  color: '#fff', fontSize: 22, cursor: 'pointer', lineHeight: 1,
+                }}
+              >›</button>
+              <div style={{
+                position: 'absolute', bottom: 24, left: 0, right: 0,
+                textAlign: 'center', color: 'rgba(255,255,255,0.7)', fontSize: 12,
+                fontFamily: MONO, letterSpacing: '0.12em',
+              }}>
+                {galleryIdx + 1} / {gallery.length} · {hotel.name.toUpperCase()}
+              </div>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            aria-label="Close"
+            style={{
+              position: 'absolute', top: 'max(20px, env(safe-area-inset-top))', right: 20,
+              width: 36, height: 36, borderRadius: '50%',
+              background: 'rgba(255,255,255,0.12)', border: 'none',
+              color: '#fff', fontSize: 20, cursor: 'pointer', lineHeight: 1,
+            }}
+          >×</button>
+        </div>,
+        document.body,
+      )}
 
       <div style={{ padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div style={{
@@ -492,7 +645,7 @@ function FlightsSection({ flight }: { flight: Flight }) {
                   fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em',
                   color: 'var(--brand-ink-mute)', fontWeight: 700,
                 }}>
-                  {flight.date.split('–')[i] ? `APR ${flight.date.split('–')[i]}` : flight.date} · {i === 0 ? 'OUTBOUND' : 'RETURN'}
+                  {flight.date.split('–')[i]?.trim() ?? flight.date} · {i === 0 ? 'OUTBOUND' : 'RETURN'}
                 </div>
                 <div style={{
                   fontFamily: DISPLAY, fontSize: 32, fontWeight: 400,
@@ -508,10 +661,10 @@ function FlightsSection({ flight }: { flight: Flight }) {
                 </div>
               </div>
 
-              {/* Center: arrow + duration */}
+              {/* Center: arrow + via city or "Direct" + duration */}
               <div style={{ textAlign: 'center', color: 'var(--brand-ink-mute)' }}>
                 <div style={{ fontSize: 14 }}>
-                  {String.fromCodePoint(0x2192)} {i === 0 ? 'Tokyo' : 'Direct'} · {s.duration}
+                  {String.fromCodePoint(0x2192)} {s.via && s.via.trim() ? s.via : 'Direct'} · {s.duration}
                 </div>
                 <div style={{ height: 1, background: 'var(--brand-border)', marginTop: 6 }} />
               </div>
