@@ -12,7 +12,17 @@ export type AnalyticsEvent =
   // Booking-tab funnel — captures intent (the click), not the actual
   // completed booking (those'd come via a partner webhook).
   | 'book_intent'
-  | 'add_to_itinerary';
+  | 'add_to_itinerary'
+  // PWA install funnel — every step so we can A/B the trigger threshold.
+  // eligible: browser fired beforeinstallprompt (Android/Desktop only).
+  // prompted: we showed our own UI (iOS sheet or Android CTA).
+  // accepted/dismissed: user choice on our UI or the native chooser.
+  // installed: appinstalled event fired (true conversion).
+  | 'pwa_install_eligible'
+  | 'pwa_install_prompted'
+  | 'pwa_install_accepted'
+  | 'pwa_install_dismissed'
+  | 'pwa_installed';
 
 let initialized = false;
 
