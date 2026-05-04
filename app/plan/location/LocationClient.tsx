@@ -2150,7 +2150,11 @@ function GlobeScene() {
           if (!res.ok) continue;
           const blob = await res.blob();
           const maxTex = gl.capabilities.maxTextureSize;
-          const texW = Math.min(maxTex, 8192), texH = texW / 2;
+          // GPU memory: 8192×4096 RGBA8 = 128MB per texture, which crashes
+          // iOS standalone PWAs (~250MB tab budget). Cap at 4096 on mobile —
+          // imperceptible on phone screens (sphere shows ~0.05% of texels at
+          // once) and drops GPU upload to 32MB. Desktop keeps 8K.
+          const texW = Math.min(maxTex, isMobile ? 4096 : 8192), texH = texW / 2;
           const bmp  = await createImageBitmap(blob, { resizeWidth: texW, resizeHeight: texH, resizeQuality: "high" });
           if (!cancelled) setTerrainBitmap(bmp);
           break; // found one — stop
