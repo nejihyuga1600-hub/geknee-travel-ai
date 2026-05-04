@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
+import InstallEntry from "./InstallEntry";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -530,6 +531,9 @@ export default function SettingsPanel({ open, onClose }: Props) {
               )}
             </div>
           </Section>
+
+          {/* Install — hidden when already running standalone */}
+          <InstallEntry />
 
           {/* App version */}
           <div style={{ textAlign: "center", fontSize: 10, color: "rgba(255,255,255,0.2)", marginTop: 8 }}>

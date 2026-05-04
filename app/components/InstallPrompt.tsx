@@ -106,6 +106,18 @@ export default function InstallPrompt() {
     track('pwa_install_prompted', { platform: 'android' });
   }, [bip, show]);
 
+  // Manual trigger from anywhere in the app (e.g. Settings → "Install app").
+  // Bypasses the dwell timer and the dismiss cooldown — user explicitly asked.
+  useEffect(() => {
+    const onForce = () => {
+      if (isStandalone()) return;
+      setShow(true);
+      track('pwa_install_prompted', { platform: ios || isIOS() ? 'ios' : 'android', source: 'manual' });
+    };
+    window.addEventListener('geknee:show-install', onForce);
+    return () => window.removeEventListener('geknee:show-install', onForce);
+  }, [ios]);
+
   const acceptAndroid = useCallback(async () => {
     if (!bip) return;
     try {
