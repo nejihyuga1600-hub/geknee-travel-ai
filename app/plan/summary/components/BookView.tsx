@@ -552,7 +552,7 @@ export default function BookView(props: BookTabProps) {
       {!loading && !loadError && tab === 'stays'      && <StaysSection hotels={hotels} location={props.location} startDate={props.startDate} endDate={props.endDate} nights={props.nights} tripId={props.tripId} onItineraryAdjusted={props.onItineraryAdjusted} />}
       {!loading && !loadError && tab === 'flights' && (
         flightOptions.length > 0
-          ? <FlightOptionsSection options={flightOptions} startDate={props.startDate} endDate={props.endDate} homeAirport={homeAirport} onChangeHome={changeHomeAirport} />
+          ? <FlightOptionsSection options={flightOptions} startDate={props.startDate} endDate={props.endDate} homeAirport={homeAirport} onChangeHome={changeHomeAirport} tripId={props.tripId} />
           : (flight && <FlightsSection flight={flight} startDate={props.startDate} endDate={props.endDate} />)
       )}
       {!loading && !loadError && tab === 'activities' && <ActivitiesSection activities={activities} tripId={props.tripId} onItineraryAdjusted={props.onItineraryAdjusted} />}
@@ -698,6 +698,13 @@ function HotelCard({ hotel, city, startDate, endDate, tripId, onItineraryAdjuste
     });
     if (startDate) params.set('checkin', startDate);
     if (endDate)   params.set('checkout', endDate);
+    // Booking.com's sub-id equivalent is `label`; Travelpayouts also
+    // honors `sub_id` on Travelpayouts-rewritten outbound clicks. We
+    // pass both — partners ignore the one they don't use.
+    if (tripId) {
+      params.set('label', `trip-${tripId}`);
+      params.set('sub_id', `trip-${tripId}`);
+    }
     return `https://www.booking.com/searchresults.html?${params}`;
   })();
   const tierColor = TIER_COLOR[hotel.tier];
@@ -1316,10 +1323,11 @@ const DEAL_BADGE_COLOR: Record<DealBadge, string> = {
   'BEST VALUE': '#a78bfa',  // lavender
 };
 
-function FlightOptionsSection({ options, startDate, endDate, homeAirport, onChangeHome }: {
+function FlightOptionsSection({ options, startDate, endDate, homeAirport, onChangeHome, tripId }: {
   options: FlightOption[]; startDate?: string; endDate?: string;
   homeAirport: UserHome | null;
   onChangeHome: (rec: { iata: string; city: string; country: string; countryCode: string; lat: number; lng: number }) => void;
+  tripId?: string;
 }) {
   return (
     <section>
@@ -1346,7 +1354,7 @@ function FlightOptionsSection({ options, startDate, endDate, homeAirport, onChan
       <OriginPicker homeAirport={homeAirport} onChange={onChangeHome} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         {options.map((o, i) => (
-          <FlightOptionCard key={i} option={o} startDate={startDate} endDate={endDate} />
+          <FlightOptionCard key={i} option={o} startDate={startDate} endDate={endDate} tripId={tripId} />
         ))}
       </div>
     </section>
@@ -1479,8 +1487,8 @@ function OriginPicker({ homeAirport, onChange }: {
   );
 }
 
-function FlightOptionCard({ option, startDate, endDate }: {
-  option: FlightOption; startDate?: string; endDate?: string;
+function FlightOptionCard({ option, startDate, endDate, tripId }: {
+  option: FlightOption; startDate?: string; endDate?: string; tripId?: string;
 }) {
   const badgeColor = option.dealBadge ? DEAL_BADGE_COLOR[option.dealBadge] : null;
   const co2 = typeof option.co2Kg === 'number' ? Math.round(option.co2Kg) : null;
@@ -1560,7 +1568,7 @@ function FlightOptionCard({ option, startDate, endDate }: {
             ROUND TRIP · TOTAL
           </div>
         </div>
-        <FlightOptionAggregator option={option} startDate={startDate} endDate={endDate} />
+        <FlightOptionAggregator option={option} startDate={startDate} endDate={endDate} tripId={tripId} />
       </div>
     </div>
   );
@@ -1673,8 +1681,8 @@ function layoverSummary(o: FlightOption): string {
   return `${total} stop${total === 1 ? '' : 's'} · ${[...cities].join(' / ')}`;
 }
 
-function FlightOptionAggregator({ option, startDate, endDate }: {
-  option: FlightOption; startDate?: string; endDate?: string;
+function FlightOptionAggregator({ option, startDate, endDate, tripId }: {
+  option: FlightOption; startDate?: string; endDate?: string; tripId?: string;
 }) {
   const from = option.outbound.from;
   const to   = option.outbound.to;
@@ -1683,16 +1691,23 @@ function FlightOptionAggregator({ option, startDate, endDate }: {
   const isoStart = startDate || '';
   const isoEnd   = endDate   || '';
   const skyDate  = (iso: string) => iso ? iso.slice(2,4) + iso.slice(5,7) + iso.slice(8,10) : '';
+  // Append sub_id (and clickref / aff_sub for partner variations) so
+  // when Travelpayouts' rewriter intercepts the click, the conversion
+  // postback comes back tagged with our tripId.
+  const withSub = (url: string): string => {
+    if (!tripId) return url;
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}sub_id=trip-${tripId}&clickref=trip-${tripId}`;
+  };
 
   // Primary booking link — direct to the carrier's own booking page
   // when we know it. Falls back to Google Flights search if the
   // carrier isn't in CARRIER_BOOK_RULES. The user can always pick
   // an aggregator from the secondary row.
   const carrierLink = carrierBookingLink(option.carrier, from, to, isoStart, isoEnd);
-  const primary = carrierLink ?? {
-    name: 'Google Flights',
-    href: buildGoogleFlightsHref(from, to, isoStart, isoEnd),
-  };
+  const primary = carrierLink
+    ? { name: carrierLink.name, href: withSub(carrierLink.href) }
+    : { name: 'Google Flights', href: withSub(buildGoogleFlightsHref(from, to, isoStart, isoEnd)) };
 
   const aggregators = [
     {
