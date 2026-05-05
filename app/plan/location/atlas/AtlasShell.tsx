@@ -25,22 +25,19 @@ import {
 // scope. Dynamic import keeps Atlas's first paint cheap.
 const PlannerGlobe = dynamic(() => import("../LocationClient"), { ssr: false, loading: () => null });
 
-// iPhone WebGL bypass — the Three.js globe (textures, 366 monuments, R3F
-// runtime) consistently OOM-crashes iPhone Safari, both standalone PWA AND
-// regular Safari, even after texture/star reductions. iPhone has hard memory
-// limits per tab (~250MB standalone, ~500MB regular Safari, less under
-// pressure) that the scene exceeds. iPad has more headroom and keeps the
-// globe; Android Chrome keeps it; desktop keeps it. Static gradient backdrop
-// renders in its place — every other planner feature still works.
-// Returns false during SSR and on first client render to keep hydration
-// stable; useEffect updates it after mount.
-function shouldBypassGlobe(): boolean {
+// Globe bypass strategy: try the full WebGL globe everywhere by default.
+// Only swap to the static gradient backdrop if WebGL actually fails or the
+// device has flagged a prior failure this session. This preserves the moat
+// (the live 3D map) while protecting against iPhone memory crashes.
+//
+// Trigger 1 — runtime failure: LocationClient's webglcontextlost handler
+//   dispatches `geknee:webgl-fallback`, which we listen for to flip state.
+// Trigger 2 — prior failure: persisted in sessionStorage so refreshes on the
+//   same device don't keep crashing. Cleared on next browser session.
+const FALLBACK_FLAG = "geknee_globe_fallback";
+function priorFallbackThisSession(): boolean {
   if (typeof window === "undefined") return false;
-  const nav = window.navigator as Navigator & { standalone?: boolean; maxTouchPoints?: number };
-  const ua = nav.userAgent || "";
-  // iPhone / iPod only — explicitly exclude iPad which reports differently
-  // on iPadOS (MacIntel + touch points). iPad can run the globe.
-  return /iPhone|iPod/.test(ua);
+  try { return sessionStorage.getItem(FALLBACK_FLAG) === "1"; } catch { return false; }
 }
 
 function StaticGlobeBackdrop() {
@@ -154,11 +151,19 @@ function nextMonthStart(monthIdx: number): string {
 
 export default function AtlasShell() {
   const [sheet, setSheet] = useState<SheetState>("peek");
-  // iPhone WebGL bypass lives in state (not a render-time call) to avoid
-  // SSR/CSR hydration mismatch. Defaults to false on SSR + first client
-  // render; flips true after mount if we're on iPhone.
+  // Globe fallback state — false by default so the WebGL globe mounts.
+  // Flips true if (a) sessionStorage flag from a prior crash this session,
+  // or (b) LocationClient dispatches geknee:webgl-fallback at runtime.
   const [bypassGlobe, setBypassGlobe] = useState(false);
-  useEffect(() => { setBypassGlobe(shouldBypassGlobe()); }, []);
+  useEffect(() => {
+    if (priorFallbackThisSession()) setBypassGlobe(true);
+    const onFallback = () => {
+      try { sessionStorage.setItem(FALLBACK_FLAG, "1"); } catch {}
+      setBypassGlobe(true);
+    };
+    window.addEventListener("geknee:webgl-fallback", onFallback);
+    return () => window.removeEventListener("geknee:webgl-fallback", onFallback);
+  }, []);
   const [step, setStep] = useState(0);
   const [dest, setDest] = useState("");
   const [trip, setTrip] = useState<Trip>(EMPTY_TRIP);

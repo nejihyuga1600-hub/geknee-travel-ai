@@ -2548,13 +2548,19 @@ export default function LocationPage({ chromeless = false }: { chromeless?: bool
         }}
         onCreated={({ gl }) => {
           gl.domElement.style.touchAction = "none";
-          // WebGL context loss → remount Canvas. preventDefault keeps the
-          // browser from killing the context permanently; the key bump forces
-          // R3F to rebuild the scene with a fresh GL context.
+          // WebGL context loss handling. The previous remount-on-loss strategy
+          // caused a crash cascade on iPhone Safari: iOS reclaimed the context
+          // because it was tight on memory, we immediately bumped the Canvas
+          // key, R3F tried to allocate a fresh context before iOS released the
+          // old one, second allocation OOM'd → "problem repeatedly occurred."
+          // New strategy: tell the host (AtlasShell) to swap to the static
+          // backdrop for the rest of this session. The user keeps a usable app
+          // instead of a crashing tab. preventDefault still asks the browser
+          // not to permanently kill the page.
           gl.domElement.addEventListener("webglcontextlost", (e) => {
             e.preventDefault();
             setGlobeReady(false);
-            setGlKey((k) => k + 1);
+            window.dispatchEvent(new Event("geknee:webgl-fallback"));
           }, false);
         }}
       >
