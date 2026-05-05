@@ -235,7 +235,8 @@ export default function AtlasShell() {
         <PlannerGlobe chromeless />
       </div>
 
-      {/* Top bar */}
+      {/* Top bar — paddingTop respects iOS standalone PWA safe-area so chips
+          don't crash into the status bar / Dynamic Island. */}
       <nav
         style={{
           position: "absolute",
@@ -246,7 +247,10 @@ export default function AtlasShell() {
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: isMobile ? "10px 10px" : "14px 16px",
+          paddingTop: `max(${isMobile ? 10 : 14}px, env(safe-area-inset-top))`,
+          paddingRight: isMobile ? 10 : 16,
+          paddingBottom: isMobile ? 10 : 14,
+          paddingLeft: isMobile ? 10 : 16,
         }}
       >
         <button
@@ -343,8 +347,9 @@ export default function AtlasShell() {
       <ZoomIndicator />
 
       {/* Initialize / Home — top-center, prominent. Same affordance the
-          legacy planner had: tap to reset the globe orientation. */}
-      <div style={{ position: "absolute", top: 12, left: "50%", transform: "translateX(-50%)", zIndex: 11 }}>
+          legacy planner had: tap to reset the globe orientation. Top respects
+          iOS standalone safe-area so it sits below the Dynamic Island. */}
+      <div style={{ position: "absolute", top: "max(12px, env(safe-area-inset-top))", left: "50%", transform: "translateX(-50%)", zIndex: 11 }}>
         <button
           onClick={() => resetGlobeTilt()}
           title="Reset globe orientation"
