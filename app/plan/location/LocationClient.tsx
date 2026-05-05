@@ -2308,8 +2308,10 @@ function GlobeScene() {
 
   return (
     <>
-      {/* Stars fill the full canvas / scene */}
-      <Stars radius={140} depth={60} count={6000} factor={5} saturation={0} fade speed={0.4} />
+      {/* Stars fill the full canvas / scene. Mobile gets 1/4 the count —
+          6000 stars × sprite material is ~10MB extra GPU memory that's
+          imperceptible at phone resolution and contributes to iOS PWA OOM. */}
+      <Stars radius={140} depth={60} count={isMobile ? 1500 : 6000} factor={5} saturation={0} fade speed={0.4} />
 
       {/* Bright ambient keeps all landmark colours vivid (Mario Galaxy feel) */}
       <ambientLight intensity={1.4} />

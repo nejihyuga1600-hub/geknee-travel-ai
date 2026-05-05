@@ -143,10 +143,12 @@ export default function AtlasShell() {
   useEffect(() => {
     const queryLoc = searchParams?.get('location');
     if (!queryLoc) return;
+    // Pre-fill the destination silently — but DO NOT auto-open the sheet or
+    // jump to step 1. iOS standalone PWAs resume to the last URL on launch,
+    // so a stale ?location=X would otherwise pop the keyboard every time the
+    // app is opened. Let the user choose to expand the sheet.
     setDest(queryLoc);
     setTrip(t => ({ ...t, destination: queryLoc }));
-    setStep(1);
-    setSheet('open');
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const { data: session } = useSession();
