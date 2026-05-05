@@ -25,17 +25,22 @@ import {
 // scope. Dynamic import keeps Atlas's first paint cheap.
 const PlannerGlobe = dynamic(() => import("../LocationClient"), { ssr: false, loading: () => null });
 
-// iOS standalone PWA detection — used to bypass the WebGL globe entirely on
-// installed-app contexts where the ~250MB tab budget OOM-kills Three.js.
-// Returns false during SSR and on first client render so hydration matches;
-// useEffect re-evaluates client-side. Static gradient stand-in below.
-function isIOSStandalone(): boolean {
+// iPhone WebGL bypass — the Three.js globe (textures, 366 monuments, R3F
+// runtime) consistently OOM-crashes iPhone Safari, both standalone PWA AND
+// regular Safari, even after texture/star reductions. iPhone has hard memory
+// limits per tab (~250MB standalone, ~500MB regular Safari, less under
+// pressure) that the scene exceeds. iPad has more headroom and keeps the
+// globe; Android Chrome keeps it; desktop keeps it. Static gradient backdrop
+// renders in its place — every other planner feature still works.
+// Returns false during SSR and on first client render to keep hydration
+// stable; useEffect updates it after mount.
+function shouldBypassGlobe(): boolean {
   if (typeof window === "undefined") return false;
-  const nav = window.navigator as Navigator & { standalone?: boolean };
+  const nav = window.navigator as Navigator & { standalone?: boolean; maxTouchPoints?: number };
   const ua = nav.userAgent || "";
-  const isIOS = /iPad|iPhone|iPod/.test(ua) || (nav.platform === "MacIntel" && (nav as Navigator & { maxTouchPoints?: number }).maxTouchPoints! > 1);
-  const standalone = nav.standalone === true || window.matchMedia?.("(display-mode: standalone)").matches;
-  return isIOS && standalone;
+  // iPhone / iPod only — explicitly exclude iPad which reports differently
+  // on iPadOS (MacIntel + touch points). iPad can run the globe.
+  return /iPhone|iPod/.test(ua);
 }
 
 function StaticGlobeBackdrop() {
@@ -149,11 +154,11 @@ function nextMonthStart(monthIdx: number): string {
 
 export default function AtlasShell() {
   const [sheet, setSheet] = useState<SheetState>("peek");
-  // iOS standalone PWA detection lives in state (not a render-time call) to
-  // avoid SSR/CSR hydration mismatch. Defaults to false on SSR + first client
-  // render; flips true after mount if we're really in an installed iOS app.
-  const [iosStandalone, setIosStandalone] = useState(false);
-  useEffect(() => { setIosStandalone(isIOSStandalone()); }, []);
+  // iPhone WebGL bypass lives in state (not a render-time call) to avoid
+  // SSR/CSR hydration mismatch. Defaults to false on SSR + first client
+  // render; flips true after mount if we're on iPhone.
+  const [bypassGlobe, setBypassGlobe] = useState(false);
+  useEffect(() => { setBypassGlobe(shouldBypassGlobe()); }, []);
   const [step, setStep] = useState(0);
   const [dest, setDest] = useState("");
   const [trip, setTrip] = useState<Trip>(EMPTY_TRIP);
@@ -281,7 +286,7 @@ export default function AtlasShell() {
         transition: "transform 600ms cubic-bezier(0.23, 1, 0.32, 1)",
         willChange: "transform",
       }}>
-        {iosStandalone ? <StaticGlobeBackdrop /> : <PlannerGlobe chromeless />}
+        {bypassGlobe ? <StaticGlobeBackdrop /> : <PlannerGlobe chromeless />}
       </div>
 
       {/* Top bar — paddingTop respects iOS standalone PWA safe-area so chips

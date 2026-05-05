@@ -2118,6 +2118,7 @@ function GlobeScene() {
   useEffect(() => {
     let cancelled = false;
     let loadedBump: THREE.Texture | null = null;
+    let loadedBitmap: ImageBitmap | null = null;
 
     // ── GeoJSON border data ──────────────────────────────────────────────────
     (async () => {
@@ -2156,7 +2157,9 @@ function GlobeScene() {
           // once) and drops GPU upload to 32MB. Desktop keeps 8K.
           const texW = Math.min(maxTex, isMobile ? 4096 : 8192), texH = texW / 2;
           const bmp  = await createImageBitmap(blob, { resizeWidth: texW, resizeHeight: texH, resizeQuality: "high" });
-          if (!cancelled) setTerrainBitmap(bmp);
+          if (cancelled) { bmp.close?.(); break; }
+          loadedBitmap = bmp;
+          setTerrainBitmap(bmp);
           break; // found one — stop
         } catch { continue; }
       }
@@ -2191,6 +2194,10 @@ function GlobeScene() {
     return () => {
       cancelled = true;
       loadedBump?.dispose();
+      // ImageBitmaps hold ~32MB at 4096×2048 RGBA outside the JS heap and
+      // are NOT released by GC — close() explicitly. Plugs a leak that
+      // accumulated ~20-100MB per refresh on mobile per dev-findings audit.
+      loadedBitmap?.close?.();
     };
   }, [gl]);
 
