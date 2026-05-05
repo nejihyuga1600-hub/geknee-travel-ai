@@ -265,6 +265,24 @@ function buildGoogleFlightsHref(
 const MONO = 'var(--font-mono-display), ui-monospace, monospace';
 const DISPLAY = 'var(--font-display), Georgia, serif';
 
+// Partner-confirmed booking row from /api/bookings — sourced from
+// Travelpayouts conversion postbacks via the cron poller. itemName
+// is the partner brand (e.g. "Booking.com", "Hotellook"), not the
+// hotel/flight name, so we can't reliably per-card-flip; we surface
+// these as a trip-level banner instead.
+interface PartnerBooking {
+  id: string;
+  partner: string;
+  partnerProgram: string | null;
+  itemKind: string | null;
+  itemName: string | null;
+  amount: number | null;
+  payout: number | null;
+  currency: string | null;
+  status: string;
+  conversionAt: string | null;
+}
+
 type Tab = 'stays' | 'flights' | 'activities' | 'transport';
 const TABS: { id: Tab; label: string; glyph: string }[] = [
   { id: 'stays',      label: 'Stays',      glyph: String.fromCodePoint(0x25EC) },
@@ -366,6 +384,24 @@ export default function BookView(props: BookTabProps) {
   // override what geolocation picked (or set one if they skipped the
   // permission banner).
   const [homeAirport, setHomeAirport] = useState<UserHome | null>(null);
+  // Partner-confirmed bookings for this trip — populated by the
+  // Travelpayouts cron via /api/bookings. Distinct from the AI-mock
+  // `hotel.booked` / `activity.booked` flags above; this is the
+  // source-of-truth attribution layer. Only signed-in users with a
+  // tripId see this layer (the GET endpoint requires auth).
+  const [partnerBookings, setPartnerBookings] = useState<PartnerBooking[]>([]);
+  useEffect(() => {
+    if (!props.tripId) return;
+    let cancelled = false;
+    fetch(`/api/bookings?tripId=${encodeURIComponent(props.tripId)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (cancelled || !d?.bookings) return;
+        setPartnerBookings(d.bookings as PartnerBooking[]);
+      })
+      .catch(() => { /* silent — banner just won't render */ });
+    return () => { cancelled = true; };
+  }, [props.tripId]);
   useEffect(() => {
     const h = loadUserHome();
     if (h) { setHomeAirport(h); return; }
@@ -487,6 +523,12 @@ export default function BookView(props: BookTabProps) {
           {headerCurrency}{totalSpent.toLocaleString()} · {totalBookings} OF 5 BOOKED
         </div>
       </div>
+
+      {/* Partner-confirmed bookings banner. Surfaces conversions the
+          Travelpayouts cron has attributed to this trip via sub_id. */}
+      {partnerBookings.length > 0 && (
+        <PartnerBookingsBanner bookings={partnerBookings} />
+      )}
 
       {/* Tab bar */}
       <div style={{
@@ -1712,19 +1754,23 @@ function FlightOptionAggregator({ option, startDate, endDate, tripId }: {
   const aggregators = [
     {
       name: 'Skyscanner',
-      href: `https://www.skyscanner.com/transport/flights/${from.toLowerCase()}/${to.toLowerCase()}/` +
-            `${skyDate(isoStart) || ''}${skyDate(isoEnd) ? `/${skyDate(isoEnd)}` : ''}/?adults=1&rtn=1`,
+      href: withSub(
+        `https://www.skyscanner.com/transport/flights/${from.toLowerCase()}/${to.toLowerCase()}/` +
+        `${skyDate(isoStart) || ''}${skyDate(isoEnd) ? `/${skyDate(isoEnd)}` : ''}/?adults=1&rtn=1`
+      ),
     },
     {
       name: 'Kayak',
-      href: `https://www.kayak.com/flights/${from}-${to}` +
-            `${isoStart ? `/${isoStart}` : ''}${isoEnd ? `/${isoEnd}` : ''}`,
+      href: withSub(
+        `https://www.kayak.com/flights/${from}-${to}` +
+        `${isoStart ? `/${isoStart}` : ''}${isoEnd ? `/${isoEnd}` : ''}`
+      ),
     },
     // Always include Google as a backup if the primary is the carrier
     // (so users still have a price-comparison option in the list).
     ...(carrierLink ? [{
       name: 'Google',
-      href: buildGoogleFlightsHref(from, to, isoStart, isoEnd),
+      href: withSub(buildGoogleFlightsHref(from, to, isoStart, isoEnd)),
     }] : []),
   ];
 
@@ -2100,6 +2146,60 @@ function InsuranceSection({
 }
 
 // ─── Placeholder ───────────────────────────────────────────────────────────
+
+function PartnerBookingsBanner({ bookings }: { bookings: PartnerBooking[] }) {
+  // Group by status — confirmed gets prominence, pending shown muted.
+  const confirmed = bookings.filter(b => b.status === 'confirmed');
+  const pending   = bookings.filter(b => b.status === 'pending');
+  const visible   = [...confirmed, ...pending];
+  if (visible.length === 0) return null;
+
+  // Sum payout (in mixed currencies — we display each line's own
+  // currency rather than collapsing). For the headline count we just
+  // show how many confirmations are attributed to this trip.
+  const headline = confirmed.length > 0
+    ? `${confirmed.length} booking${confirmed.length === 1 ? '' : 's'} confirmed`
+    : `${pending.length} booking${pending.length === 1 ? '' : 's'} pending confirmation`;
+
+  return (
+    <div style={{
+      marginBottom: 16,
+      padding: '12px 16px', borderRadius: 12,
+      background: 'rgba(167,139,250,0.08)',
+      border: '1px solid rgba(167,139,250,0.32)',
+    }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: 10,
+        fontFamily: MONO, fontSize: 11, letterSpacing: '0.14em',
+        color: 'var(--brand-accent)', fontWeight: 700,
+        textTransform: 'uppercase', marginBottom: 8,
+      }}>
+        <span aria-hidden="true">{String.fromCodePoint(0x2713)}</span>
+        <span>{headline}</span>
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {visible.map(b => {
+          const label = [b.partnerProgram ?? b.itemName ?? b.partner, b.itemKind].filter(Boolean).join(' · ');
+          const money = b.payout != null && b.currency
+            ? `${b.currency} ${b.payout.toLocaleString()}`
+            : null;
+          return (
+            <div key={b.id} style={{
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              fontSize: 12, color: 'var(--brand-ink-dim)',
+              opacity: b.status === 'pending' ? 0.6 : 1,
+            }}>
+              <span>{label}</span>
+              <span style={{ fontFamily: MONO, fontSize: 10, letterSpacing: '0.08em' }}>
+                {b.status === 'pending' ? 'PENDING' : money ?? 'CONFIRMED'}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function PlaceholderSection({ title, detail }: { title: string; detail: string }) {
   return (
