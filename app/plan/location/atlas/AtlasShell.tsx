@@ -24,6 +24,45 @@ import {
 // procedural Earth texture). ssr:false because it touches window at module
 // scope. Dynamic import keeps Atlas's first paint cheap.
 const PlannerGlobe = dynamic(() => import("../LocationClient"), { ssr: false, loading: () => null });
+
+// iOS standalone PWA detection — used to bypass the WebGL globe entirely on
+// installed-app contexts where the ~250MB tab budget OOM-kills Three.js.
+// Returns false during SSR and on first client render so hydration matches;
+// useEffect re-evaluates client-side. Static gradient stand-in below.
+function isIOSStandalone(): boolean {
+  if (typeof window === "undefined") return false;
+  const nav = window.navigator as Navigator & { standalone?: boolean };
+  const ua = nav.userAgent || "";
+  const isIOS = /iPad|iPhone|iPod/.test(ua) || (nav.platform === "MacIntel" && (nav as Navigator & { maxTouchPoints?: number }).maxTouchPoints! > 1);
+  const standalone = nav.standalone === true || window.matchMedia?.("(display-mode: standalone)").matches;
+  return isIOS && standalone;
+}
+
+function StaticGlobeBackdrop() {
+  return (
+    <div
+      aria-hidden
+      style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1,
+        pointerEvents: "none",
+        background:
+          "radial-gradient(circle at 50% 45%, #1e3a8a 0%, #0c1e4a 40%, #050818 75%, #02030a 100%)",
+      }}
+    >
+      <div style={{
+        position: "absolute",
+        left: "50%", top: "45%", transform: "translate(-50%, -50%)",
+        width: "min(90vw, 70vh)", height: "min(90vw, 70vh)",
+        borderRadius: "50%",
+        background:
+          "radial-gradient(circle at 35% 35%, #5b8def 0%, #2546a7 35%, #0d2466 65%, #051034 95%)",
+        boxShadow: "0 0 120px rgba(80, 130, 255, 0.35), inset -40px -40px 90px rgba(0,0,0,0.6)",
+      }} />
+    </div>
+  );
+}
 // Live product modals — pulled in only when the user opens them.
 const MonumentShop   = dynamic(() => import("@/app/components/MonumentShop"),   { ssr: false });
 const UpgradeModal   = dynamic(() => import("@/app/components/UpgradeModal"),   { ssr: false });
@@ -110,6 +149,11 @@ function nextMonthStart(monthIdx: number): string {
 
 export default function AtlasShell() {
   const [sheet, setSheet] = useState<SheetState>("peek");
+  // iOS standalone PWA detection lives in state (not a render-time call) to
+  // avoid SSR/CSR hydration mismatch. Defaults to false on SSR + first client
+  // render; flips true after mount if we're really in an installed iOS app.
+  const [iosStandalone, setIosStandalone] = useState(false);
+  useEffect(() => { setIosStandalone(isIOSStandalone()); }, []);
   const [step, setStep] = useState(0);
   const [dest, setDest] = useState("");
   const [trip, setTrip] = useState<Trip>(EMPTY_TRIP);
@@ -221,9 +265,12 @@ export default function AtlasShell() {
     >
       {/* Background globe — real LocationClient planet, no chrome. The
           wrapper translates up + scales down as the sheet grows so the globe
-          gets out of the way of the planning surface. The chromeless
-          LocationClient wrapper inside is position:absolute so the Canvas
-          (position:fixed) follows the transformed ancestor. */}
+          gets out of the way of the planning surface.
+          iOS standalone PWAs OOM-kill the tab when the Three.js globe loads
+          (250MB tab budget, WebGL textures + scene exceed it). On those
+          contexts we skip mounting the WebGL canvas entirely and show a
+          styled gradient backdrop — every other planner feature still works.
+          Globe stays available in regular Safari and on Android. */}
       <div style={{
         position: "absolute", inset: 0,
         transform:
@@ -234,7 +281,7 @@ export default function AtlasShell() {
         transition: "transform 600ms cubic-bezier(0.23, 1, 0.32, 1)",
         willChange: "transform",
       }}>
-        <PlannerGlobe chromeless />
+        {iosStandalone ? <StaticGlobeBackdrop /> : <PlannerGlobe chromeless />}
       </div>
 
       {/* Top bar — paddingTop respects iOS standalone PWA safe-area so chips
