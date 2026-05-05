@@ -221,14 +221,96 @@ export default function Home() {
           }}>
             ENTRIES &middot; SPRING &apos;26 &middot; SAMPLE LOG
           </div>
-          <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', justifyContent: 'center' }}>
-            <InkStamp shape="circle" city="HANOI"  code="HAN" date="04·18·26" glyph="✈" size={86} color="#dc2626" double />
-            <InkStamp shape="rect"   city="KYOTO"  code="ITM" date="04·15·26" glyph="◐" size={86} color="#1e40af" />
-            <InkStamp shape="oval"   city="LISBON" code="LIS" date="03·22·26" glyph="◬" size={86} color="#16a34a" />
-            <InkStamp shape="circle" city="MEXICO" code="MEX" date="02·11·26" glyph="✦" size={86} color="#d97706" double />
-            <InkStamp shape="rect"   city="REYKJAVIK" code="KEF" date="01·30·26" glyph="◷" size={86} color="#0284c7" />
-            <InkStamp shape="oval"   city="MARRAKECH" code="RAK" date="01·09·26" glyph="◉" size={86} color="#b91c1c" />
-          </div>
+          {/* Hand-pasted passport spread — 6 monument photos under real ink
+              stamps. Replaced the stand-alone InkStamp row so the section
+              shows actual destinations (Hanoi, Kyoto, Lisbon, Teotihuacán,
+              Reykjavik, Marrakech) instead of empty stamps. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/generated-images/passport-spread-hero.png"
+            alt="Passport spread with monument photographs: One Pillar Pagoda Hanoi, Kiyomizu-dera Kyoto, Belém Tower Lisbon, Pyramid of the Sun Teotihuacán, Hallgrímskirkja Reykjavik, Koutoubia Mosque Marrakech — overlaid with vintage entry stamps."
+            style={{
+              display: 'block', width: '100%', height: 'auto',
+              borderRadius: 4,
+            }}
+          />
+        </div>
+      </section>
+
+      {/* ── Specimen pages · how a monument looks in the app ──────────────── */}
+      <section style={{
+        maxWidth: 1280, margin: '0 auto', padding: '20px 32px 60px',
+        position: 'relative', zIndex: 4,
+      }}>
+        <div style={{
+          fontFamily: MONO, fontSize: 11, letterSpacing: '0.22em',
+          color: '#3a3a30', textTransform: 'uppercase', fontWeight: 700,
+          marginBottom: 14,
+        }}>
+          {String.fromCodePoint(0x00A7)} Field log · sample dossiers
+        </div>
+        <h2 style={{
+          fontFamily: DISPLAY, fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 400,
+          letterSpacing: '-0.025em', lineHeight: 1.05, margin: '0 0 12px',
+          maxWidth: 760,
+        }}>
+          Three monuments. Nine quests. Nine different skins.
+        </h2>
+        <p style={{
+          fontSize: 14, color: '#3a3a30', lineHeight: 1.55, margin: '0 0 32px',
+          maxWidth: 640,
+        }}>
+          Tap any pin on the globe and you get a dossier like the ones below — a
+          fact, three field-quests with rarity tiers, and a skin you only unlock
+          if you actually go.
+        </p>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: 28,
+        }}>
+          <MonumentDossier
+            entry="№003"
+            image="/generated-images/demo-eiffel.png"
+            name="Eiffel Tower"
+            location="Paris · France"
+            rarity="rare"
+            fact="Its iron expands in summer heat — the tower grows up to 15 cm taller on a hot day."
+            rotation={-0.6}
+            quests={[
+              { label: 'Picnic on the Champ de Mars lawn below the tower', skin: { name: 'Gold', color: '#f59e0b' }, verify: 'photo' },
+              { label: 'Visit after dark when the tower sparkles for 5 minutes every hour', skin: { name: 'Diamond', color: '#67e8f9' }, verify: 'photo' },
+              { label: 'Reach the summit observation deck at 276 m', skin: { name: 'Celestial', color: '#818cf8' } },
+            ]}
+          />
+          <MonumentDossier
+            entry="№011"
+            image="/generated-images/demo-taj.png"
+            name="Taj Mahal"
+            location="Agra · India"
+            rarity="legendary"
+            fact="Shah Jahan hired 20,000 workers for 22 years to build this perfect marble mausoleum."
+            rotation={0.5}
+            quests={[
+              { label: 'Photograph the Taj at sunrise from the reflecting pool', skin: { name: 'Rose Gold', color: '#f472b6' }, verify: 'photo' },
+              { label: 'Remove your shoes and walk barefoot on the marble plinth', skin: { name: 'Diamond', color: '#67e8f9' } },
+              { label: 'Attend a full moon night viewing tour', skin: { name: 'Celestial', color: '#818cf8' } },
+            ]}
+          />
+          <MonumentDossier
+            entry="№027"
+            image="/generated-images/demo-greatwall.png"
+            name="Great Wall of China"
+            location="Beijing · China"
+            rarity="legendary"
+            fact="At 13,170 miles long it could circle the Earth more than half a time."
+            rotation={-0.3}
+            quests={[
+              { label: 'Reach a watchtower and sign your name in the visitor book', skin: { name: 'Stone', color: '#9ca3af' } },
+              { label: 'Capture the wall disappearing into misty mountains', skin: { name: 'Obsidian', color: '#1e1b4b' }, verify: 'photo' },
+              { label: 'Hike an unrestored section at Jiankou', skin: { name: 'Aurora', color: '#34d399' } },
+            ]}
+          />
         </div>
       </section>
 
@@ -427,6 +509,133 @@ function SpecimenCard() {
       }}>
         Wooden stage. Sakura window. Photo locked. Stone tier auto-drops the moment
         the geofence pings. Bronze and up &mdash; you complete a quest.
+      </div>
+    </div>
+  );
+}
+
+// Field-log dossier card — preview of what a tapped monument looks like
+// inside the app. Photo, fact, and the 3 quests that unlock skin tiers.
+type DossierQuest = {
+  label: string;
+  skin: { name: string; color: string };
+  verify?: 'photo';
+};
+function MonumentDossier({
+  entry, image, name, location, rarity, fact, quests, rotation,
+}: {
+  entry: string;
+  image: string;
+  name: string;
+  location: string;
+  rarity: 'rare' | 'legendary' | 'mythic';
+  fact: string;
+  quests: DossierQuest[];
+  rotation: number;
+}) {
+  const RARITY_COLOR: Record<typeof rarity, string> = {
+    rare:      '#7dd3fc',
+    legendary: '#fbbf24',
+    mythic:    '#a78bfa',
+  };
+  return (
+    <div style={{
+      background: PAPER, border: `2px solid ${INK}`,
+      boxShadow: `4px 4px 0 ${ACCENT}`,
+      transform: `rotate(${rotation}deg)`,
+      overflow: 'hidden', position: 'relative',
+    }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={image}
+        alt={`${name} in ${location}`}
+        style={{
+          display: 'block', width: '100%', aspectRatio: '1 / 1',
+          objectFit: 'cover',
+          borderBottom: `2px solid ${INK}`,
+        }}
+      />
+      <div style={{ padding: '14px 16px 18px' }}>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
+        }}>
+          <div style={{
+            fontFamily: MONO, fontSize: 9, letterSpacing: '0.22em',
+            color: '#3a3a30', textTransform: 'uppercase', fontWeight: 700,
+          }}>
+            ENTRY {entry}
+          </div>
+          <div style={{
+            background: RARITY_COLOR[rarity], color: INK,
+            padding: '3px 9px', borderRadius: 999,
+            fontFamily: MONO, fontSize: 8, letterSpacing: '0.18em',
+            textTransform: 'uppercase', fontWeight: 800,
+            border: `1px solid ${INK}`,
+          }}>
+            {rarity}
+          </div>
+        </div>
+        <div style={{
+          fontFamily: DISPLAY, fontSize: 24, fontWeight: 400,
+          letterSpacing: '-0.02em', lineHeight: 1.1, marginTop: 8,
+          color: INK,
+        }}>
+          {name}
+        </div>
+        <div style={{
+          fontFamily: MONO, fontSize: 10, letterSpacing: '0.2em',
+          color: '#3a3a30', textTransform: 'uppercase', marginTop: 4,
+          fontWeight: 700,
+        }}>
+          {location}
+        </div>
+        <p style={{
+          fontSize: 12, color: '#3a3a30', lineHeight: 1.5, marginTop: 12,
+          fontStyle: 'italic',
+        }}>
+          {fact}
+        </p>
+        <div style={{
+          fontFamily: MONO, fontSize: 9, letterSpacing: '0.22em',
+          color: ACCENT, textTransform: 'uppercase', fontWeight: 700,
+          marginTop: 16, marginBottom: 10,
+          paddingTop: 12, borderTop: `1px dashed rgba(10,10,31,0.25)`,
+        }}>
+          Field quests · 3 skins
+        </div>
+        <ul style={{
+          listStyle: 'none', padding: 0, margin: 0,
+          display: 'flex', flexDirection: 'column', gap: 10,
+        }}>
+          {quests.map((q, i) => (
+            <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+              <span
+                aria-hidden="true"
+                style={{
+                  width: 16, height: 16, flexShrink: 0,
+                  borderRadius: '50%', background: q.skin.color,
+                  border: `1.5px solid ${INK}`, marginTop: 2,
+                  boxShadow: `1px 1px 0 ${INK}`,
+                }}
+              />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, lineHeight: 1.4, color: INK }}>
+                  {q.label}
+                </div>
+                <div style={{
+                  fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em',
+                  color: '#3a3a30', textTransform: 'uppercase',
+                  marginTop: 3, fontWeight: 700,
+                }}>
+                  {q.skin.name}
+                  {q.verify === 'photo' && (
+                    <span style={{ color: ACCENT3, marginLeft: 8 }}>· photo</span>
+                  )}
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
       </div>
     </div>
   );
