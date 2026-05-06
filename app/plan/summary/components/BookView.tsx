@@ -34,6 +34,16 @@ function detectUserCurrency(): string {
   return LOCALE_TO_CURRENCY[lang] ?? LOCALE_TO_CURRENCY[lang.split('-')[0]] ?? 'USD';
 }
 
+// ISO 4217 → display symbol. Used to render partner-booking amounts
+// (which arrive as ISO codes) in the same compact form as AI suggestions
+// (which already use unicode symbols).
+const ISO_TO_SYMBOL: Record<string, string> = {
+  USD: '$', GBP: '£', EUR: '€', JPY: '¥', CNY: '¥', CHF: 'CHF',
+  AUD: 'A$', CAD: 'C$', NZD: 'NZ$', INR: '₹', KRW: '₩', THB: '฿',
+  SGD: 'S$', HKD: 'HK$', TWD: 'NT$', MYR: 'RM', IDR: 'Rp', VND: '₫',
+  PHP: '₱', BRL: 'R$', MXN: 'MX$', RUB: '₽', TRY: '₺',
+};
+
 // Locale → country name. Used as a fallback origin when the user
 // didn't fill in `travelingFrom` during trip planning. Without this,
 // the AI defaults to domestic flights at the destination (e.g. DEL→AGR
@@ -474,21 +484,40 @@ export default function BookView(props: BookTabProps) {
     return () => { cancelled = true; };
   }, [props.location, props.startDate, props.endDate, props.nights, props.budget, props.style, props.travelingFrom, homeAirport?.iata]);
 
-  const counts = useMemo(() => ({
-    stays:      hotels.filter(h => h.booked).length,
-    flights:    flight?.status === 'CONFIRMED' ? 1 : 0,
-    activities: activities.filter(a => a.booked).length,
-    transport:  0,
-    insurance:  0,
-  }), [hotels, flight, activities]);
+  // Header counter: how many of the 5 booking categories the user has
+  // an actual partner-confirmed booking in. Uses the Travelpayouts
+  // postback data (real conversions) — not the AI's pre-set mock
+  // `booked` flags, which never become real. Dedupes on itemKind so
+  // booking two hotels still counts as 1 of 5 (a *category* booked),
+  // not 2.
+  const confirmedByCategory = useMemo(() => {
+    const seen = new Set<Tab>();
+    for (const b of partnerBookings) {
+      if (b.status !== 'confirmed') continue;
+      const k = (b.itemKind ?? '').toLowerCase();
+      if (k.includes('hotel') || k.includes('stay'))                    seen.add('stays');
+      else if (k.includes('flight') || k.includes('air'))               seen.add('flights');
+      else if (k.includes('activity') || k.includes('tour') || k.includes('experience')) seen.add('activities');
+      else if (k.includes('transport') || k.includes('car') || k.includes('rail') || k.includes('train')) seen.add('transport');
+      else if (k.includes('insurance'))                                  seen.add('insurance');
+    }
+    return seen;
+  }, [partnerBookings]);
+  const totalBookings = confirmedByCategory.size;
   const totalSpent = useMemo(() => {
-    const hotelTotal = hotels.find(h => h.booked)?.price ?? 0;
-    const flightTotal = flight?.status === 'CONFIRMED' ? flight.total : 0;
-    const actTotal = activities.filter(a => a.booked).reduce((s, a) => s + a.price, 0);
-    return hotelTotal + flightTotal + actTotal;
-  }, [hotels, flight, activities]);
-  const totalBookings = counts.stays + counts.flights + counts.activities + counts.transport + counts.insurance;
-  const headerCurrency: Currency = flight?.currency ?? hotels[0]?.currency ?? '$';
+    return partnerBookings
+      .filter(b => b.status === 'confirmed' && b.amount != null)
+      .reduce((s, b) => s + (b.amount ?? 0), 0);
+  }, [partnerBookings]);
+  // Currency symbol for the header pill: prefer the AI's hotel/flight
+  // currency (already a unicode symbol), fall back to mapping the
+  // partner booking's ISO code, then '$' as the last resort.
+  const headerCurrency: string = useMemo(() => {
+    const aiCcy = flight?.currency ?? hotels[0]?.currency;
+    if (aiCcy) return aiCcy;
+    const partnerIso = partnerBookings.find(b => b.status === 'confirmed' && b.currency)?.currency;
+    return (partnerIso && ISO_TO_SYMBOL[partnerIso]) ?? partnerIso ?? '$';
+  }, [partnerBookings, flight, hotels]);
 
   return (
     <div style={{
@@ -535,7 +564,7 @@ export default function BookView(props: BookTabProps) {
       }}>
         {TABS.map(t => {
           const active = t.id === tab;
-          const c = counts[t.id];
+          const c = confirmedByCategory.has(t.id) ? 1 : 0;
           return (
             <button key={t.id} onClick={() => setTab(t.id)} style={{
               display: 'inline-flex', alignItems: 'center', gap: 8,
@@ -611,6 +640,12 @@ export default function BookView(props: BookTabProps) {
 
 // ─── Stays ─────────────────────────────────────────────────────────────────
 
+type SortKey = 'price' | 'rating';
+type SortDir = 'asc' | 'desc';
+// Defaults: cheapest first for price, best first for rating. Clicking
+// the active chip flips direction.
+const DEFAULT_DIR: Record<SortKey, SortDir> = { price: 'asc', rating: 'desc' };
+
 function StaysSection({ hotels, location, startDate, endDate, nights, tripId, onItineraryAdjusted }: {
   hotels: Hotel[]; location: string; startDate: string; endDate: string; nights: string;
   tripId?: string;
@@ -619,6 +654,22 @@ function StaysSection({ hotels, location, startDate, endDate, nights, tripId, on
   const datesLabel = startDate && endDate
     ? `APR ${new Date(startDate).getDate()}–${new Date(endDate).getDate()}`
     : 'YOUR DATES';
+  const [sortKey, setSortKey] = useState<SortKey | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>('asc');
+  function toggleSort(k: SortKey) {
+    if (sortKey === k) {
+      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortKey(k);
+      setSortDir(DEFAULT_DIR[k]);
+    }
+  }
+  const sortedHotels = useMemo(() => {
+    if (!sortKey) return hotels;
+    const sign = sortDir === 'asc' ? 1 : -1;
+    const get = sortKey === 'price' ? (h: Hotel) => h.price : (h: Hotel) => h.rating;
+    return [...hotels].sort((a, b) => sign * (get(a) - get(b)));
+  }, [hotels, sortKey, sortDir]);
   return (
     <section>
       <div style={{
@@ -632,8 +683,8 @@ function StaysSection({ hotels, location, startDate, endDate, nights, tripId, on
           {String.fromCodePoint(0x00A7)} {(location || 'STAYS').toUpperCase()} · {nights || '–'} NIGHT{nights === '1' ? '' : 'S'} · {datesLabel}
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
-          <SortChip label="Price" />
-          <SortChip label="Rating" />
+          <SortChip label="Price"  active={sortKey === 'price'}  dir={sortDir} onClick={() => toggleSort('price')} />
+          <SortChip label="Rating" active={sortKey === 'rating'} dir={sortDir} onClick={() => toggleSort('rating')} />
         </div>
       </div>
 
@@ -649,23 +700,32 @@ function StaysSection({ hotels, location, startDate, endDate, nights, tripId, on
         gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
         gap: 16,
       }}>
-        {hotels.map((h, i) => <HotelCard key={i} hotel={h} city={location} startDate={startDate} endDate={endDate} tripId={tripId} onItineraryAdjusted={onItineraryAdjusted} />)}
+        {sortedHotels.map((h, i) => <HotelCard key={i} hotel={h} city={location} startDate={startDate} endDate={endDate} tripId={tripId} onItineraryAdjusted={onItineraryAdjusted} />)}
       </div>
     </section>
   );
 }
 
-function SortChip({ label }: { label: string }) {
+function SortChip({ label, active, dir, onClick }: {
+  label: string;
+  active: boolean;
+  dir: SortDir;
+  onClick: () => void;
+}) {
+  // ▲ asc, ▼ desc when active; ↕ when inactive.
+  const arrow = active
+    ? (dir === 'asc' ? String.fromCodePoint(0x25B2) : String.fromCodePoint(0x25BC))
+    : String.fromCodePoint(0x21C5);
   return (
-    <button style={{
+    <button onClick={onClick} aria-pressed={active} style={{
       padding: '5px 12px', borderRadius: 999,
-      background: 'rgba(255,255,255,0.04)',
-      border: '1px solid var(--brand-border)',
-      color: 'var(--brand-ink-dim)',
+      background: active ? 'rgba(167,139,250,0.16)' : 'rgba(255,255,255,0.04)',
+      border: `1px solid ${active ? 'var(--brand-border-hi)' : 'var(--brand-border)'}`,
+      color: active ? 'var(--brand-accent)' : 'var(--brand-ink-dim)',
       fontFamily: 'inherit', fontSize: 11, fontWeight: 600,
       cursor: 'pointer',
     }}>
-      {String.fromCodePoint(0x21C5)} {label}
+      {arrow} {label}
     </button>
   );
 }
