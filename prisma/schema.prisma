@@ -34,6 +34,13 @@ model User {
   itineraryGenerations Int      @default(0)
   generationsResetAt   DateTime @default(now())
 
+  // ── Email vault ────────────────────────────────────────────────────────────
+  // Per-user random token used as the local part of a forwarding address
+  // like vault-<token>@inbox.geknee.com. Lazily generated on first
+  // settings view. Confidentiality matters: anyone holding the token can
+  // forge inbound mail to this user, so we only print it to the owner.
+  inboundEmailToken String? @unique
+
   accounts Account[]
   sessions Session[]
   trips    TripDraft[]
@@ -155,6 +162,20 @@ model TripFile {
 
   user User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   trip TripDraft @relation(fields: [tripId], references: [id], onDelete: Cascade)
+}
+
+// ── Email vault ───────────────────────────────────────────────────────────────
+// Idempotency record for the inbound-email pipeline. Postmark retries
+// failed webhooks; we dedupe on RFC 822 Message-ID so re-deliveries
+// don't double-file. Stored even when extraction fails so we never
+// re-process a known-bad email.
+model InboundMessage {
+  id          String   @id @default(cuid())
+  messageId   String   @unique // RFC 822 Message-ID header
+  userId      String?  // null when token didn't resolve to a user
+  status      String   // "received" | "extracted" | "filed" | "skipped" | "error"
+  reason      String?  // free-text on skipped / error
+  receivedAt  DateTime @default(now())
 }
 
 // ── Notifications ─────────────────────────────────────────────────────────────
