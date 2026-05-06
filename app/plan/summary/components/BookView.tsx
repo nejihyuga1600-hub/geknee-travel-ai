@@ -283,16 +283,14 @@ interface PartnerBooking {
   conversionAt: string | null;
 }
 
-type Tab = 'stays' | 'flights' | 'activities' | 'transport';
+type Tab = 'stays' | 'flights' | 'activities' | 'transport' | 'insurance';
 const TABS: { id: Tab; label: string; glyph: string }[] = [
   { id: 'stays',      label: 'Stays',      glyph: String.fromCodePoint(0x25EC) },
   { id: 'flights',    label: 'Flights',    glyph: String.fromCodePoint(0x2708) },
   { id: 'activities', label: 'Activities', glyph: String.fromCodePoint(0x25C9) },
   { id: 'transport',  label: 'Transport',  glyph: String.fromCodePoint(0x25D0) },
+  { id: 'insurance',  label: 'Insurance',  glyph: String.fromCodePoint(0x2695) },
 ];
-// Insurance — was a 5th tab. Demoted to a small footer card on the
-// Booking surface (rendered below the active tab content) since the
-// section is just affiliate-linkout and didn't earn its own tab.
 
 type Currency = '¥' | '$' | '€' | '£' | '₹';
 
@@ -599,19 +597,13 @@ export default function BookView(props: BookTabProps) {
       )}
       {!loading && !loadError && tab === 'activities' && <ActivitiesSection activities={activities} tripId={props.tripId} onItineraryAdjusted={props.onItineraryAdjusted} />}
       {tab === 'transport'  && <PlaceholderSection title="Local transport" detail="Suica/Pasmo IC card setup, day passes, and intercity train suggestions land here once you confirm dates." />}
-
-      {/* Insurance footer — always visible at the bottom of every
-          Booking sub-tab. Replaces the dedicated 5th tab the user
-          asked us to demote. */}
-      {!loading && !loadError && (
-        <div style={{ marginTop: 32, paddingTop: 24, borderTop: '1px solid var(--brand-border)' }}>
-          <InsuranceSection
-            location={props.location}
-            startDate={props.startDate}
-            endDate={props.endDate}
-            travelingFrom={props.travelingFrom}
-          />
-        </div>
+      {!loading && !loadError && tab === 'insurance' && (
+        <InsuranceSection
+          location={props.location}
+          startDate={props.startDate}
+          endDate={props.endDate}
+          travelingFrom={props.travelingFrom}
+        />
       )}
     </div>
   );
