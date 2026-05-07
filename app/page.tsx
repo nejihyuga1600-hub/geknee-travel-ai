@@ -270,47 +270,156 @@ export default function Home() {
           gap: 28,
         }}>
           <MonumentDossier
-            entry="№003"
-            image="/generated-images/demo-eiffel.png"
-            name="Eiffel Tower"
-            location="Paris · France"
-            rarity="rare"
-            fact="Its iron expands in summer heat — the tower grows up to 15 cm taller on a hot day."
+            entry="№007"
+            image="/generated-images/colosseum_celestial.jpg"
+            name="Colosseum"
+            location="Rome · Italy"
+            rarity="legendary"
+            fact="Built in 80 AD, it could host 50,000 spectators and was once flooded for staged naval battles."
             rotation={-0.6}
             quests={[
-              { label: 'Picnic on the Champ de Mars lawn below the tower', skin: { name: 'Gold', color: '#f59e0b' }, verify: 'photo' },
-              { label: 'Visit after dark when the tower sparkles for 5 minutes every hour', skin: { name: 'Diamond', color: '#67e8f9' }, verify: 'photo' },
-              { label: 'Reach the summit observation deck at 276 m', skin: { name: 'Celestial', color: '#818cf8' } },
+              { label: 'Walk the original gladiator entrance under the arena', skin: { name: 'Bronze', color: '#b08d57' }, verify: 'photo' },
+              { label: 'Catch the morning light hitting the Flavian arches', skin: { name: 'Gold', color: '#f59e0b' }, verify: 'photo' },
+              { label: 'Take the underground hypogeum night tour', skin: { name: 'Celestial', color: '#818cf8' } },
             ]}
           />
           <MonumentDossier
             entry="№011"
-            image="/generated-images/demo-taj.png"
+            image="/generated-images/taj_mahal_celestial.jpg"
             name="Taj Mahal"
             location="Agra · India"
             rarity="legendary"
             fact="Shah Jahan hired 20,000 workers for 22 years to build this perfect marble mausoleum."
             rotation={0.5}
             quests={[
-              { label: 'Photograph the Taj at sunrise from the reflecting pool', skin: { name: 'Rose Gold', color: '#f472b6' }, verify: 'photo' },
+              { label: 'Photograph the Taj at sunrise from the reflecting pool', skin: { name: 'Gold', color: '#f59e0b' }, verify: 'photo' },
               { label: 'Remove your shoes and walk barefoot on the marble plinth', skin: { name: 'Diamond', color: '#67e8f9' } },
               { label: 'Attend a full moon night viewing tour', skin: { name: 'Celestial', color: '#818cf8' } },
             ]}
           />
           <MonumentDossier
             entry="№027"
-            image="/generated-images/demo-greatwall.png"
+            image="/generated-images/great_wall_aurora.jpg"
             name="Great Wall of China"
             location="Beijing · China"
             rarity="legendary"
             fact="At 13,170 miles long it could circle the Earth more than half a time."
             rotation={-0.3}
             quests={[
-              { label: 'Reach a watchtower and sign your name in the visitor book', skin: { name: 'Stone', color: '#9ca3af' } },
-              { label: 'Capture the wall disappearing into misty mountains', skin: { name: 'Obsidian', color: '#1e1b4b' }, verify: 'photo' },
+              { label: 'Reach a watchtower and sign your name in the visitor book', skin: { name: 'Silver', color: '#9ca3af' } },
+              { label: 'Capture the wall disappearing into misty mountains', skin: { name: 'Diamond', color: '#67e8f9' }, verify: 'photo' },
               { label: 'Hike an unrestored section at Jiankou', skin: { name: 'Aurora', color: '#34d399' } },
             ]}
           />
+        </div>
+      </section>
+
+      {/* ── Trophy reel · monument skins by rarity tier ───────────────────── */}
+      {/* Six iconic monuments, one per rarity tier. Polaroid-style cards
+          show the actual unlock art so visitors can see the payoff before
+          committing. Mirrors the editorial-zine aesthetic: paper, ink stamps,
+          slight hand-pasted rotation. */}
+      <section style={{
+        maxWidth: 1280, margin: '0 auto', padding: '20px 32px 80px',
+        position: 'relative', zIndex: 4,
+      }}>
+        <div style={{
+          fontFamily: MONO, fontSize: 11, letterSpacing: '0.22em',
+          color: '#3a3a30', textTransform: 'uppercase', fontWeight: 700,
+          marginBottom: 14,
+        }}>
+          {String.fromCodePoint(0x00A7)} Trophy reel &middot; six tiers, six monuments
+        </div>
+        <h2 style={{
+          fontFamily: DISPLAY, fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 400,
+          letterSpacing: '-0.025em', lineHeight: 1.05, margin: '0 0 12px',
+          maxWidth: 820,
+        }}>
+          What you actually take home.{' '}
+          <em style={{ color: ACCENT }}>Bronze to Celestial.</em>
+        </h2>
+        <p style={{
+          fontSize: 14, color: '#3a3a30', lineHeight: 1.55, margin: '0 0 36px',
+          maxWidth: 640,
+        }}>
+          Every check-in drops a monument card. Bronze comes easy; Celestial is
+          earned by being there at exactly the right time. Real photos, real
+          places &mdash; here are six of the most-collected.
+        </p>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gap: 22,
+        }}>
+          {[
+            { src: '/generated-images/colosseum_bronze.jpg',          name: 'Colosseum',        loc: 'Rome',     tier: 'Bronze',    color: '#b08d57', rot: -1.4 },
+            { src: '/generated-images/great_wall_silver.jpg',         name: 'Great Wall',       loc: 'Beijing',  tier: 'Silver',    color: '#9ca3af', rot:  0.8 },
+            { src: '/generated-images/taj_mahal_gold.jpg',            name: 'Taj Mahal',        loc: 'Agra',     tier: 'Gold',      color: '#f59e0b', rot: -0.5 },
+            { src: '/generated-images/big_ben_diamond.jpg',           name: 'Big Ben',          loc: 'London',   tier: 'Diamond',   color: '#67e8f9', rot:  1.2 },
+            { src: '/generated-images/statue_of_liberty_aurora.jpg',  name: 'Statue of Liberty', loc: 'New York', tier: 'Aurora',    color: '#34d399', rot: -0.9 },
+            { src: '/generated-images/christ_redeemer_celestial.jpg', name: 'Christ the Redeemer', loc: 'Rio',    tier: 'Celestial', color: '#818cf8', rot:  0.6 },
+          ].map((s) => (
+            <figure key={s.src} style={{
+              margin: 0,
+              background: PAPER,
+              border: `2px solid ${INK}`,
+              boxShadow: `4px 4px 0 ${s.color}`,
+              transform: `rotate(${s.rot}deg)`,
+              padding: 8,
+              position: 'relative',
+              transition: 'transform 200ms ease',
+            }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={s.src}
+                alt={`${s.name} in ${s.loc} — ${s.tier} tier collectible skin`}
+                style={{
+                  display: 'block', width: '100%', aspectRatio: '3 / 4',
+                  objectFit: 'cover', background: '#1a1a2e',
+                }}
+              />
+              {/* Tier color strip + name */}
+              <figcaption style={{
+                marginTop: 8,
+                padding: '8px 10px',
+                background: INK, color: PAPER,
+                display: 'flex', alignItems: 'baseline', justifyContent: 'space-between',
+                gap: 8,
+              }}>
+                <span style={{
+                  fontFamily: DISPLAY, fontSize: 17, fontWeight: 400,
+                  letterSpacing: '-0.01em', lineHeight: 1.1,
+                }}>{s.name}</span>
+                <span style={{
+                  fontFamily: MONO, fontSize: 9, letterSpacing: '0.2em',
+                  fontWeight: 700, textTransform: 'uppercase',
+                  color: s.color, whiteSpace: 'nowrap',
+                }}>{s.tier}</span>
+              </figcaption>
+              <div style={{
+                padding: '4px 10px 6px',
+                fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em',
+                color: '#6b6b55', textTransform: 'uppercase', fontWeight: 700,
+                borderTop: `1px dashed ${INK}`, background: PAPER,
+              }}>
+                {s.loc}
+              </div>
+              {/* "EARNED" ink stamp in tier color */}
+              <div aria-hidden style={{
+                position: 'absolute', top: 14, right: 12,
+                padding: '4px 8px',
+                border: `2px solid ${s.color}`,
+                color: s.color,
+                fontFamily: MONO, fontSize: 9, fontWeight: 800,
+                letterSpacing: '0.2em', textTransform: 'uppercase',
+                transform: 'rotate(-12deg)',
+                background: 'rgba(245,241,232,0.85)',
+                pointerEvents: 'none',
+              }}>
+                Earned
+              </div>
+            </figure>
+          ))}
         </div>
       </section>
 
