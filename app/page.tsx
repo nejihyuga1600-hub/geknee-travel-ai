@@ -358,9 +358,10 @@ export default function Home() {
                     // have rich dark backgrounds and would over-darken under
                     // multiply, so they render normally.
                     mixBlendMode: s.bg === 'white' ? 'multiply' : 'normal',
-                    filter: s.bg === 'white'
-                      ? 'contrast(1.05) saturate(1.05)'
-                      : 'contrast(1.08)',
+                    // No filter — render the monument exactly as the source
+                    // produced it. multiply blend handles the white-bg bleed;
+                    // brightness/contrast tweaks were creating churn.
+                    filter: 'none',
                   }}
                 />
               </div>
