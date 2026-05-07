@@ -44,6 +44,10 @@ model User {
   // recent message internalDate after a successful scan so the next
   // scan fetches only what's new.
   lastGmailSyncAt   DateTime?
+  // Same purpose for Microsoft Graph (Outlook/Hotmail/Live/O365). Tracked
+  // independently from Gmail so a user with both linked syncs each on its
+  // own cadence.
+  lastOutlookSyncAt DateTime?
 
   accounts Account[]
   sessions Session[]

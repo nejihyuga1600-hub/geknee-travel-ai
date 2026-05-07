@@ -1,6 +1,7 @@
 import NextAuth from 'next-auth';
 import Google from 'next-auth/providers/google';
 import Apple from 'next-auth/providers/apple';
+import MicrosoftEntraID from 'next-auth/providers/microsoft-entra-id';
 import Credentials from 'next-auth/providers/credentials';
 import { PrismaAdapter } from '@auth/prisma-adapter';
 import { compare } from 'bcryptjs';
@@ -84,6 +85,26 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       ? [Apple({
           clientId:     process.env.APPLE_CLIENT_ID,
           clientSecret: process.env.APPLE_CLIENT_SECRET,
+        })]
+      : []),
+
+    // Microsoft Entra ID (formerly Azure AD) — covers Outlook.com,
+    // Hotmail, Live, and Office 365 accounts. `tenant: 'common'` lets
+    // both personal and work/school accounts sign in. Mail.Read is
+    // requested so the email-vault feature can poll the user's inbox
+    // for booking confirmations. offline_access is required for a
+    // refresh_token to come back. Provider only registers when the
+    // env vars are set, so a missing config doesn't break sign-in.
+    ...(process.env.MICROSOFT_CLIENT_ID && process.env.MICROSOFT_CLIENT_SECRET
+      ? [MicrosoftEntraID({
+          clientId:     process.env.MICROSOFT_CLIENT_ID,
+          clientSecret: process.env.MICROSOFT_CLIENT_SECRET,
+          issuer:       `https://login.microsoftonline.com/${process.env.MICROSOFT_TENANT_ID ?? 'common'}/v2.0`,
+          authorization: {
+            params: {
+              scope: 'openid profile email offline_access Mail.Read',
+            },
+          },
         })]
       : []),
 
