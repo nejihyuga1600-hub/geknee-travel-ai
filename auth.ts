@@ -64,6 +64,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientId:     process.env.GOOGLE_CLIENT_ID  ?? '',
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
       checks: ['none'],
+      // Request gmail.readonly so the email-vault feature can poll the
+      // user's inbox for booking confirmations. access_type=offline +
+      // prompt=consent are both required to receive a refresh_token —
+      // without them Google only issues a 1h access_token and the user
+      // has to re-auth manually each session. The consent screen will
+      // always show at sign-in as a result; acceptable trade for the
+      // vault feature working for everyone who signs in via Google.
+      authorization: {
+        params: {
+          scope: 'openid email profile https://www.googleapis.com/auth/gmail.readonly',
+          access_type: 'offline',
+          prompt: 'consent',
+        },
+      },
     }),
 
     ...(process.env.APPLE_CLIENT_ID && process.env.APPLE_CLIENT_SECRET

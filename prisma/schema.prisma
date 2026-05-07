@@ -40,6 +40,10 @@ model User {
   // settings view. Confidentiality matters: anyone holding the token can
   // forge inbound mail to this user, so we only print it to the owner.
   inboundEmailToken String? @unique
+  // High-water mark for the Gmail polling worker. Set to the most
+  // recent message internalDate after a successful scan so the next
+  // scan fetches only what's new.
+  lastGmailSyncAt   DateTime?
 
   accounts Account[]
   sessions Session[]
