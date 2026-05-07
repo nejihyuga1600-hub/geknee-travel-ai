@@ -282,39 +282,39 @@ export default function Home() {
               name: 'Colosseum', loc: 'Rome', tier: 'Bronze', color: '#b08d57', rot: -1.4,
               quest: 'Walk the gladiator entrance under the arena',
               verify: 'photo' as const,
-              zoom: 1.40, pos: 'center 38%',
+              zoom: 1.40, pos: 'center 38%', bg: 'white' as const,
             },
             {
               src: '/generated-images/great_wall_silver.jpg',
               name: 'Great Wall', loc: 'Beijing', tier: 'Silver', color: '#9ca3af', rot: 0.8,
               quest: 'Reach a watchtower and sign the visitor book',
-              zoom: 1.45, pos: 'center 35%',
+              zoom: 1.45, pos: 'center 35%', bg: 'white' as const,
             },
             {
               src: '/generated-images/taj_mahal_gold.jpg',
               name: 'Taj Mahal', loc: 'Agra', tier: 'Gold', color: '#f59e0b', rot: -0.5,
               quest: 'Photograph the Taj at sunrise from the reflecting pool',
               verify: 'photo' as const,
-              zoom: 1.40, pos: 'center 40%',
+              zoom: 1.40, pos: 'center 40%', bg: 'white' as const,
             },
             {
               src: '/generated-images/big_ben_diamond.jpg',
               name: 'Big Ben', loc: 'London', tier: 'Diamond', color: '#67e8f9', rot: 1.2,
               quest: 'Hear the chimes from the foot of the tower at midnight',
-              zoom: 1.25, pos: 'center 42%',
+              zoom: 1.25, pos: 'center 42%', bg: 'white' as const,
             },
             {
               src: '/generated-images/statue_of_liberty_aurora.jpg',
               name: 'Statue of Liberty', loc: 'New York', tier: 'Aurora', color: '#34d399', rot: -0.9,
               quest: 'Catch the torch lit at golden hour on the first ferry',
               verify: 'photo' as const,
-              zoom: 1.85, pos: 'center 22%',
+              zoom: 1.85, pos: 'center 22%', bg: 'cosmic' as const,
             },
             {
               src: '/generated-images/christ_redeemer_celestial.jpg',
               name: 'Christ the Redeemer', loc: 'Rio', tier: 'Celestial', color: '#818cf8', rot: 0.6,
               quest: 'Reach the summit at dawn through the cloud line',
-              zoom: 1.35, pos: 'center 38%',
+              zoom: 1.35, pos: 'center 38%', bg: 'cosmic' as const,
             },
           ].map((s) => (
             <figure key={s.src} style={{
@@ -350,11 +350,17 @@ export default function Home() {
                     objectPosition: s.pos,
                     transform: `scale(${s.zoom})`,
                     transformOrigin: 'center 35%',
-                    // No brightness boost — metallic skins (bronze/silver/gold/diamond)
-                    // have hot specular highlights that get blown out when lifted.
-                    // Slight darken + contrast keeps silhouettes legible without
-                    // washing the reflections.
-                    filter: 'brightness(0.92) contrast(1.08)',
+                    // White-bg renders (Bronze/Silver/Gold/Diamond) sit on a hard
+                    // pure-white plate that bleeds into the cream paper. multiply
+                    // blend knocks the white pixels down to the PAPER underneath
+                    // (white × #f5f1e8 = #f5f1e8) while leaving the metallic
+                    // figure intact. Cosmic-bg renders (Aurora/Celestial) already
+                    // have rich dark backgrounds and would over-darken under
+                    // multiply, so they render normally.
+                    mixBlendMode: s.bg === 'white' ? 'multiply' : 'normal',
+                    filter: s.bg === 'white'
+                      ? 'contrast(1.05) saturate(1.05)'
+                      : 'contrast(1.08)',
                   }}
                 />
               </div>
