@@ -274,38 +274,47 @@ export default function Home() {
           gap: 22,
         }}>
           {[
+            // zoom + pos tuned per render so every monument body fills a similar
+            // visual area on the card. Liberty needs the most zoom — small
+            // statue, tall pedestal in the source render.
             {
               src: '/generated-images/colosseum_bronze.jpg',
               name: 'Colosseum', loc: 'Rome', tier: 'Bronze', color: '#b08d57', rot: -1.4,
               quest: 'Walk the gladiator entrance under the arena',
               verify: 'photo' as const,
+              zoom: 1.40, pos: 'center 38%',
             },
             {
               src: '/generated-images/great_wall_silver.jpg',
               name: 'Great Wall', loc: 'Beijing', tier: 'Silver', color: '#9ca3af', rot: 0.8,
               quest: 'Reach a watchtower and sign the visitor book',
+              zoom: 1.45, pos: 'center 35%',
             },
             {
               src: '/generated-images/taj_mahal_gold.jpg',
               name: 'Taj Mahal', loc: 'Agra', tier: 'Gold', color: '#f59e0b', rot: -0.5,
               quest: 'Photograph the Taj at sunrise from the reflecting pool',
               verify: 'photo' as const,
+              zoom: 1.40, pos: 'center 40%',
             },
             {
               src: '/generated-images/big_ben_diamond.jpg',
               name: 'Big Ben', loc: 'London', tier: 'Diamond', color: '#67e8f9', rot: 1.2,
               quest: 'Hear the chimes from the foot of the tower at midnight',
+              zoom: 1.25, pos: 'center 42%',
             },
             {
               src: '/generated-images/statue_of_liberty_aurora.jpg',
               name: 'Statue of Liberty', loc: 'New York', tier: 'Aurora', color: '#34d399', rot: -0.9,
               quest: 'Catch the torch lit at golden hour on the first ferry',
               verify: 'photo' as const,
+              zoom: 1.85, pos: 'center 22%',
             },
             {
               src: '/generated-images/christ_redeemer_celestial.jpg',
               name: 'Christ the Redeemer', loc: 'Rio', tier: 'Celestial', color: '#818cf8', rot: 0.6,
               quest: 'Reach the summit at dawn through the cloud line',
+              zoom: 1.35, pos: 'center 38%',
             },
           ].map((s) => (
             <figure key={s.src} style={{
@@ -319,15 +328,32 @@ export default function Home() {
               display: 'flex', flexDirection: 'column',
               transition: 'transform 200ms ease',
             }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={s.src}
-                alt={`${s.name} in ${s.loc} — ${s.tier} tier collectible skin`}
-                style={{
-                  display: 'block', width: '100%', aspectRatio: '3 / 4',
-                  objectFit: 'cover', background: '#1a1a2e',
-                }}
-              />
+              {/* Clipping frame: each monument is zoomed to fill the same
+                  visual area regardless of the real-world height baked into
+                  the render. Liberty is a tiny figure on a giant pedestal,
+                  Big Ben is already tall + narrow — per-monument zoom levels
+                  flatten that out. Brightness lift makes dark renders (Aurora
+                  Liberty, Celestial Christ) actually readable on cream paper. */}
+              <div style={{
+                width: '100%', aspectRatio: '3 / 4',
+                overflow: 'hidden', background: PAPER,
+                position: 'relative',
+              }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={s.src}
+                  alt={`${s.name} in ${s.loc} — ${s.tier} tier collectible skin`}
+                  style={{
+                    position: 'absolute', inset: 0,
+                    width: '100%', height: '100%',
+                    objectFit: 'cover',
+                    objectPosition: s.pos,
+                    transform: `scale(${s.zoom})`,
+                    transformOrigin: 'center 35%',
+                    filter: 'brightness(1.18) contrast(1.05)',
+                  }}
+                />
+              </div>
               {/* Tier color strip + monument name + tier */}
               <figcaption style={{
                 marginTop: 8,
