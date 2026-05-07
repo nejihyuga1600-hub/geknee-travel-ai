@@ -237,88 +237,11 @@ export default function Home() {
         </div>
       </section>
 
-      {/* ── Specimen pages · how a monument looks in the app ──────────────── */}
-      <section style={{
-        maxWidth: 1280, margin: '0 auto', padding: '20px 32px 60px',
-        position: 'relative', zIndex: 4,
-      }}>
-        <div style={{
-          fontFamily: MONO, fontSize: 11, letterSpacing: '0.22em',
-          color: '#3a3a30', textTransform: 'uppercase', fontWeight: 700,
-          marginBottom: 14,
-        }}>
-          {String.fromCodePoint(0x00A7)} Field log · sample dossiers
-        </div>
-        <h2 style={{
-          fontFamily: DISPLAY, fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 400,
-          letterSpacing: '-0.025em', lineHeight: 1.05, margin: '0 0 12px',
-          maxWidth: 760,
-        }}>
-          Three monuments. Nine quests. Nine different skins.
-        </h2>
-        <p style={{
-          fontSize: 14, color: '#3a3a30', lineHeight: 1.55, margin: '0 0 32px',
-          maxWidth: 640,
-        }}>
-          Tap any pin on the globe and you get a dossier like the ones below — a
-          fact, three field-quests with rarity tiers, and a skin you only unlock
-          if you actually go.
-        </p>
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-          gap: 28,
-        }}>
-          <MonumentDossier
-            entry="№007"
-            image="/generated-images/colosseum_celestial.jpg"
-            name="Colosseum"
-            location="Rome · Italy"
-            rarity="legendary"
-            fact="Built in 80 AD, it could host 50,000 spectators and was once flooded for staged naval battles."
-            rotation={-0.6}
-            quests={[
-              { label: 'Walk the original gladiator entrance under the arena', skin: { name: 'Bronze', color: '#b08d57' }, verify: 'photo' },
-              { label: 'Catch the morning light hitting the Flavian arches', skin: { name: 'Gold', color: '#f59e0b' }, verify: 'photo' },
-              { label: 'Take the underground hypogeum night tour', skin: { name: 'Celestial', color: '#818cf8' } },
-            ]}
-          />
-          <MonumentDossier
-            entry="№011"
-            image="/generated-images/taj_mahal_celestial.jpg"
-            name="Taj Mahal"
-            location="Agra · India"
-            rarity="legendary"
-            fact="Shah Jahan hired 20,000 workers for 22 years to build this perfect marble mausoleum."
-            rotation={0.5}
-            quests={[
-              { label: 'Photograph the Taj at sunrise from the reflecting pool', skin: { name: 'Gold', color: '#f59e0b' }, verify: 'photo' },
-              { label: 'Remove your shoes and walk barefoot on the marble plinth', skin: { name: 'Diamond', color: '#67e8f9' } },
-              { label: 'Attend a full moon night viewing tour', skin: { name: 'Celestial', color: '#818cf8' } },
-            ]}
-          />
-          <MonumentDossier
-            entry="№027"
-            image="/generated-images/great_wall_aurora.jpg"
-            name="Great Wall of China"
-            location="Beijing · China"
-            rarity="legendary"
-            fact="At 13,170 miles long it could circle the Earth more than half a time."
-            rotation={-0.3}
-            quests={[
-              { label: 'Reach a watchtower and sign your name in the visitor book', skin: { name: 'Silver', color: '#9ca3af' } },
-              { label: 'Capture the wall disappearing into misty mountains', skin: { name: 'Diamond', color: '#67e8f9' }, verify: 'photo' },
-              { label: 'Hike an unrestored section at Jiankou', skin: { name: 'Aurora', color: '#34d399' } },
-            ]}
-          />
-        </div>
-      </section>
 
-      {/* ── Trophy reel · monument skins by rarity tier ───────────────────── */}
-      {/* Six iconic monuments, one per rarity tier. Polaroid-style cards
-          show the actual unlock art so visitors can see the payoff before
-          committing. Mirrors the editorial-zine aesthetic: paper, ink stamps,
-          slight hand-pasted rotation. */}
+      {/* ── Trophy reel · skin + the quest that earns it ──────────────────── */}
+      {/* Six iconic monuments, one per rarity tier. Each card pairs the skin
+          render with the single quest that earns that tier — so visitors see
+          both the payoff and the cost before committing. */}
       <section style={{
         maxWidth: 1280, margin: '0 auto', padding: '20px 32px 80px',
         position: 'relative', zIndex: 4,
@@ -328,36 +251,62 @@ export default function Home() {
           color: '#3a3a30', textTransform: 'uppercase', fontWeight: 700,
           marginBottom: 14,
         }}>
-          {String.fromCodePoint(0x00A7)} Trophy reel &middot; six tiers, six monuments
+          {String.fromCodePoint(0x00A7)} Trophy reel &middot; six skins, six quests
         </div>
         <h2 style={{
           fontFamily: DISPLAY, fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 400,
           letterSpacing: '-0.025em', lineHeight: 1.05, margin: '0 0 12px',
           maxWidth: 820,
         }}>
-          What you actually take home.{' '}
-          <em style={{ color: ACCENT }}>Bronze to Celestial.</em>
+          What you take home.{' '}
+          <em style={{ color: ACCENT }}>And what it costs to earn it.</em>
         </h2>
         <p style={{
           fontSize: 14, color: '#3a3a30', lineHeight: 1.55, margin: '0 0 36px',
           maxWidth: 640,
         }}>
-          Every check-in drops a monument card. Bronze comes easy; Celestial is
-          earned by being there at exactly the right time. Real photos, real
-          places &mdash; here are six of the most-collected.
+          Bronze comes easy. Celestial is earned by being there at exactly the
+          right time. Each card shows the skin and the single quest that drops it.
         </p>
         <div style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
           gap: 22,
         }}>
           {[
-            { src: '/generated-images/colosseum_bronze.jpg',          name: 'Colosseum',        loc: 'Rome',     tier: 'Bronze',    color: '#b08d57', rot: -1.4 },
-            { src: '/generated-images/great_wall_silver.jpg',         name: 'Great Wall',       loc: 'Beijing',  tier: 'Silver',    color: '#9ca3af', rot:  0.8 },
-            { src: '/generated-images/taj_mahal_gold.jpg',            name: 'Taj Mahal',        loc: 'Agra',     tier: 'Gold',      color: '#f59e0b', rot: -0.5 },
-            { src: '/generated-images/big_ben_diamond.jpg',           name: 'Big Ben',          loc: 'London',   tier: 'Diamond',   color: '#67e8f9', rot:  1.2 },
-            { src: '/generated-images/statue_of_liberty_aurora.jpg',  name: 'Statue of Liberty', loc: 'New York', tier: 'Aurora',    color: '#34d399', rot: -0.9 },
-            { src: '/generated-images/christ_redeemer_celestial.jpg', name: 'Christ the Redeemer', loc: 'Rio',    tier: 'Celestial', color: '#818cf8', rot:  0.6 },
+            {
+              src: '/generated-images/colosseum_bronze.jpg',
+              name: 'Colosseum', loc: 'Rome', tier: 'Bronze', color: '#b08d57', rot: -1.4,
+              quest: 'Walk the gladiator entrance under the arena',
+              verify: 'photo' as const,
+            },
+            {
+              src: '/generated-images/great_wall_silver.jpg',
+              name: 'Great Wall', loc: 'Beijing', tier: 'Silver', color: '#9ca3af', rot: 0.8,
+              quest: 'Reach a watchtower and sign the visitor book',
+            },
+            {
+              src: '/generated-images/taj_mahal_gold.jpg',
+              name: 'Taj Mahal', loc: 'Agra', tier: 'Gold', color: '#f59e0b', rot: -0.5,
+              quest: 'Photograph the Taj at sunrise from the reflecting pool',
+              verify: 'photo' as const,
+            },
+            {
+              src: '/generated-images/big_ben_diamond.jpg',
+              name: 'Big Ben', loc: 'London', tier: 'Diamond', color: '#67e8f9', rot: 1.2,
+              quest: 'Hear the chimes from the foot of the tower at midnight',
+            },
+            {
+              src: '/generated-images/statue_of_liberty_aurora.jpg',
+              name: 'Statue of Liberty', loc: 'New York', tier: 'Aurora', color: '#34d399', rot: -0.9,
+              quest: 'Catch the torch lit at golden hour on the first ferry',
+              verify: 'photo' as const,
+            },
+            {
+              src: '/generated-images/christ_redeemer_celestial.jpg',
+              name: 'Christ the Redeemer', loc: 'Rio', tier: 'Celestial', color: '#818cf8', rot: 0.6,
+              quest: 'Reach the summit at dawn through the cloud line',
+            },
           ].map((s) => (
             <figure key={s.src} style={{
               margin: 0,
@@ -367,6 +316,7 @@ export default function Home() {
               transform: `rotate(${s.rot}deg)`,
               padding: 8,
               position: 'relative',
+              display: 'flex', flexDirection: 'column',
               transition: 'transform 200ms ease',
             }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -378,7 +328,7 @@ export default function Home() {
                   objectFit: 'cover', background: '#1a1a2e',
                 }}
               />
-              {/* Tier color strip + name */}
+              {/* Tier color strip + monument name + tier */}
               <figcaption style={{
                 marginTop: 8,
                 padding: '8px 10px',
@@ -404,19 +354,41 @@ export default function Home() {
               }}>
                 {s.loc}
               </div>
-              {/* "EARNED" ink stamp in tier color */}
-              <div aria-hidden style={{
-                position: 'absolute', top: 14, right: 12,
-                padding: '4px 8px',
-                border: `2px solid ${s.color}`,
-                color: s.color,
-                fontFamily: MONO, fontSize: 9, fontWeight: 800,
-                letterSpacing: '0.2em', textTransform: 'uppercase',
-                transform: 'rotate(-12deg)',
-                background: 'rgba(245,241,232,0.85)',
-                pointerEvents: 'none',
+              {/* Quest panel — what you do to earn this tier */}
+              <div style={{
+                padding: '10px 10px 12px',
+                borderTop: `1px dashed rgba(10,10,31,0.25)`,
+                background: PAPER,
+                display: 'flex', alignItems: 'flex-start', gap: 10,
+                marginTop: 'auto',
               }}>
-                Earned
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: 14, height: 14, flexShrink: 0,
+                    borderRadius: '50%', background: s.color,
+                    border: `1.5px solid ${INK}`, marginTop: 3,
+                    boxShadow: `1px 1px 0 ${INK}`,
+                  }}
+                />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontFamily: MONO, fontSize: 8, letterSpacing: '0.2em',
+                    color: ACCENT, textTransform: 'uppercase', fontWeight: 800,
+                    marginBottom: 4,
+                  }}>
+                    Quest
+                    {s.verify === 'photo' && (
+                      <span style={{ color: ACCENT3, marginLeft: 6 }}>· photo</span>
+                    )}
+                  </div>
+                  <div style={{
+                    fontSize: 12, lineHeight: 1.4, color: INK,
+                    fontStyle: 'italic',
+                  }}>
+                    {s.quest}
+                  </div>
+                </div>
               </div>
             </figure>
           ))}
@@ -618,133 +590,6 @@ function SpecimenCard() {
       }}>
         Wooden stage. Sakura window. Photo locked. Stone tier auto-drops the moment
         the geofence pings. Bronze and up &mdash; you complete a quest.
-      </div>
-    </div>
-  );
-}
-
-// Field-log dossier card — preview of what a tapped monument looks like
-// inside the app. Photo, fact, and the 3 quests that unlock skin tiers.
-type DossierQuest = {
-  label: string;
-  skin: { name: string; color: string };
-  verify?: 'photo';
-};
-function MonumentDossier({
-  entry, image, name, location, rarity, fact, quests, rotation,
-}: {
-  entry: string;
-  image: string;
-  name: string;
-  location: string;
-  rarity: 'rare' | 'legendary' | 'mythic';
-  fact: string;
-  quests: DossierQuest[];
-  rotation: number;
-}) {
-  const RARITY_COLOR: Record<typeof rarity, string> = {
-    rare:      '#7dd3fc',
-    legendary: '#fbbf24',
-    mythic:    '#a78bfa',
-  };
-  return (
-    <div style={{
-      background: PAPER, border: `2px solid ${INK}`,
-      boxShadow: `4px 4px 0 ${ACCENT}`,
-      transform: `rotate(${rotation}deg)`,
-      overflow: 'hidden', position: 'relative',
-    }}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={image}
-        alt={`${name} in ${location}`}
-        style={{
-          display: 'block', width: '100%', aspectRatio: '1 / 1',
-          objectFit: 'cover',
-          borderBottom: `2px solid ${INK}`,
-        }}
-      />
-      <div style={{ padding: '14px 16px 18px' }}>
-        <div style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
-        }}>
-          <div style={{
-            fontFamily: MONO, fontSize: 9, letterSpacing: '0.22em',
-            color: '#3a3a30', textTransform: 'uppercase', fontWeight: 700,
-          }}>
-            ENTRY {entry}
-          </div>
-          <div style={{
-            background: RARITY_COLOR[rarity], color: INK,
-            padding: '3px 9px', borderRadius: 999,
-            fontFamily: MONO, fontSize: 8, letterSpacing: '0.18em',
-            textTransform: 'uppercase', fontWeight: 800,
-            border: `1px solid ${INK}`,
-          }}>
-            {rarity}
-          </div>
-        </div>
-        <div style={{
-          fontFamily: DISPLAY, fontSize: 24, fontWeight: 400,
-          letterSpacing: '-0.02em', lineHeight: 1.1, marginTop: 8,
-          color: INK,
-        }}>
-          {name}
-        </div>
-        <div style={{
-          fontFamily: MONO, fontSize: 10, letterSpacing: '0.2em',
-          color: '#3a3a30', textTransform: 'uppercase', marginTop: 4,
-          fontWeight: 700,
-        }}>
-          {location}
-        </div>
-        <p style={{
-          fontSize: 12, color: '#3a3a30', lineHeight: 1.5, marginTop: 12,
-          fontStyle: 'italic',
-        }}>
-          {fact}
-        </p>
-        <div style={{
-          fontFamily: MONO, fontSize: 9, letterSpacing: '0.22em',
-          color: ACCENT, textTransform: 'uppercase', fontWeight: 700,
-          marginTop: 16, marginBottom: 10,
-          paddingTop: 12, borderTop: `1px dashed rgba(10,10,31,0.25)`,
-        }}>
-          Field quests · 3 skins
-        </div>
-        <ul style={{
-          listStyle: 'none', padding: 0, margin: 0,
-          display: 'flex', flexDirection: 'column', gap: 10,
-        }}>
-          {quests.map((q, i) => (
-            <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-              <span
-                aria-hidden="true"
-                style={{
-                  width: 16, height: 16, flexShrink: 0,
-                  borderRadius: '50%', background: q.skin.color,
-                  border: `1.5px solid ${INK}`, marginTop: 2,
-                  boxShadow: `1px 1px 0 ${INK}`,
-                }}
-              />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, lineHeight: 1.4, color: INK }}>
-                  {q.label}
-                </div>
-                <div style={{
-                  fontFamily: MONO, fontSize: 9, letterSpacing: '0.18em',
-                  color: '#3a3a30', textTransform: 'uppercase',
-                  marginTop: 3, fontWeight: 700,
-                }}>
-                  {q.skin.name}
-                  {q.verify === 'photo' && (
-                    <span style={{ color: ACCENT3, marginLeft: 8 }}>· photo</span>
-                  )}
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
       </div>
     </div>
   );
