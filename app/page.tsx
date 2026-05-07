@@ -350,7 +350,11 @@ export default function Home() {
                     objectPosition: s.pos,
                     transform: `scale(${s.zoom})`,
                     transformOrigin: 'center 35%',
-                    filter: 'brightness(1.18) contrast(1.05)',
+                    // No brightness boost — metallic skins (bronze/silver/gold/diamond)
+                    // have hot specular highlights that get blown out when lifted.
+                    // Slight darken + contrast keeps silhouettes legible without
+                    // washing the reflections.
+                    filter: 'brightness(0.92) contrast(1.08)',
                   }}
                 />
               </div>
